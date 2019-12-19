@@ -1,0 +1,38 @@
+#
+# Azure Pipelines job to build the kbupd-enclave-builder docker image used to build the enclave
+#
+
+jobs:
+- job: docker_build_kbupd_enclave_builder
+  displayName: docker build kbupd-enclave-builder
+  pool:
+    vmImage: ubuntu-18.04
+  steps:
+  - task: Docker@2
+    displayName: docker login
+    inputs:
+      command:           login
+      containerRegistry: signalbackupci-container-registry
+
+  - script: docker pull signalbackupci.azurecr.io/signalbackupci:kbupd-enclave-builder || true
+    displayName: docker pull
+
+  - task: Docker@2
+    displayName: docker build
+    inputs:
+      command:    build
+      dockerfile: enclave/docker/Dockerfile
+      arguments:  --build-arg UID=1001 --build-arg GID=1001 --cache-from signalbackupci.azurecr.io/signalbackupci:kbupd-enclave-builder
+      repository: signalbackupci
+      tags: |
+        kbupd-enclave-builder
+        kbupd-enclave-builder-$(Build.SourceVersion)
+
+  - task: Docker@2
+    displayName: docker push
+    inputs:
+      command:    push
+      repository: signalbackupci
+      tags: |
+        kbupd-enclave-builder
+        kbupd-enclave-builder-$(Build.SourceVersion)

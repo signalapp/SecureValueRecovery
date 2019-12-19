@@ -1,0 +1,6 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 5000
+  - randtcpkill:
+      num_replicas: 1

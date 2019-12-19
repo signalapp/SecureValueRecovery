@@ -1,0 +1,22 @@
+[package]
+authors     = ["Open Whisper Systems"]
+name        = "kbupd_config"
+version     = "0.1.0"
+license     = "AGPL-3.0-or-later"
+description = "Key Backup Service Daemon Config"
+edition     = "2018"
+
+[features]
+default = ["clap"]
+
+[dependencies]
+clap         = { version = "2.33", optional = true }
+kbupd_util   = { path = "../kbupd_util" }
+serde        = "1.0"
+serde_derive = "1.0"
+serde_yaml   = "0.8"
+
+[[bin]]
+name = "kbupd-config"
+path = "src/main.rs"
+required-features = ["clap"]

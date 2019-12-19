@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2019 Open Whisper Systems
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto2";
+
+package protobufs.raft;
+
+message RaftMessage {
+  required RaftGroupId group = 1;
+  required TermId      term  = 2;
+  oneof inner {
+    VoteRequest    vote_request    = 3;
+    VoteResponse   vote_response   = 4;
+    AppendRequest  append_request  = 5;
+    AppendResponse append_response = 6;
+  };
+}
+
+message VoteRequest {
+  required LogIdx last_log_idx  = 2;
+  required TermId last_log_term = 3;
+}
+
+message VoteResponse {
+  required bool vote_granted = 2;
+}
+
+message AppendRequest {
+  required LogIdx   prev_log_idx  = 1;
+  required TermId   prev_log_term = 2;
+  required LogIdx   leader_commit = 3;
+  repeated LogEntry entries       = 4;
+}
+
+message AppendResponse {
+  required bool   success      = 1;
+  required LogIdx match_idx    = 2;
+  required LogIdx last_log_idx = 3;
+}
+
+message LogEntry {
+  required TermId term = 1;
+  required bytes  data = 2;
+}
+
+message RaftGroupId {
+  required bytes id = 1;
+}
+
+message TermId {
+  required uint64 id = 1;
+}
+
+message LogIdx {
+  required uint64 id = 1;
+}

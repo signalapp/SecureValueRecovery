@@ -1,0 +1,10 @@
+/*.key
+/*.pub
+/build
+/target
+/debian/.debhelper
+/debian/debhelper-build-stamp
+/debian/kbupd-enclave/
+/debian/kbupd-enclave.substvars
+/debian/*.deb
+/debian/files

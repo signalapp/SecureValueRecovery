@@ -1,0 +1,16 @@
+[package]
+authors     = ["Open Whisper Systems"]
+name        = "kbupd_util"
+version     = "0.1.0"
+license     = "AGPL-3.0-or-later"
+description = "Key Backup Service Daemon Utility Library"
+edition     = "2018"
+
+[dependencies]
+base64       = "0.10"
+bytes        = "0.4"
+hex          = "0.4"
+rand         = "0.6"
+serde        = "1.0"
+serde_derive = "1.0"
+regex        = "1.1"

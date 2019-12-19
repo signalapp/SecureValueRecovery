@@ -1,0 +1,11 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 15000
+  - droptohost:
+      host: 'test-as.sgx.trustedservices.intel.com'
+  - randtcpkill:
+      num_replicas: 0
+  - sleep_ms: 60000
+  - flushdrop:
+  - sleep_ms: 30000

@@ -1,0 +1,44 @@
+api:
+  listenHostPort:                                 # host:port to listen on for the HTTP API
+  userAuthenticationTokenSharedSecret:            # hex-encoded secret shared with Signal-Server used to generate auth tokens for Signal users
+  backupIdSecret:                                 # hex-encoded secret used to calculate Backup IDs assigned to Signal users
+  limits:
+    token:                                        # Rate limits for token requests
+      bucketSize:                                 # Leaky bucket size
+      leakRatePerMinute:                          # Leaky bucket rate per minute
+    attestation:                                  # Rate limits for attestation requests
+      bucketSize:                                 # Leaky bucket size
+      leakRatePerMinute:                          # Leaky bucket rate per minute
+    backup:                                       # Rate limits for key backup requests
+      bucketSize:                                 # Leaky bucket size
+      leakRatePerMinute:                          # Leaky bucket rate per minute
+
+attestation:                                      # IAS (Intel Attestation Services) configuration
+  host:                                           # Intel Attestation Services (IAS) host
+  tlsConfigPath:                                  # kbuptlsd configuration file path to use connecting to IAS, relative to the directory containing this file
+  spid:                                           # hex-encoded 16-byte IAS assigned Service Provider ID
+  acceptGroupOutOfDate:                           # Whether to serve IAS responses with GROUP_OUT_OF_DATE instead of OK [true|false]
+
+control:
+  listenHostPort:                                 # host:port to listen on for the kbupctl API
+
+metrics:
+  reporters:
+    - type: json                                  # JsonMetricsReporter config
+      hostname:                                   # hostname of metrics server to upload to
+      token:                                      # auth token to send to metrics server via the "t" query param
+      intervalSeconds:                            # interval to upload metrics, in seconds (default 60)
+
+enclaves:                                         # list of enclave instances
+  - name:                                         # enclave instance name used in the HTTP API
+    mrenclave:                                    # hex-encoded mrenclave value
+    debug:                                        # Whether this is a debug or production enclave [true|false]
+    electionTimeoutMs:                            # replica raft group election timeout in milliseconds
+    pendingRequestCount:                          # maximum number of pending client requests, per partition
+    pendingRequestTtlMs:                          # minimum ttl of a pending client request before it may be purged to make room for others, in milliseconds
+    partitions:                                   # list of Key Backup partitions and their replicas
+      - range:                                    # optional partition Key Backup ID range that this partition serves
+          firstBackupId:                          # hex-encoded 32-byte Key Backup ID inclusive lower bound
+          lastBackupId:                           # hex-encoded 32-byte Key Backup ID inclusive upper bound
+        replicas:                                 # list of replicas serving this Key Backup partition
+          - hostPort:                             # host:port to connect to this replica

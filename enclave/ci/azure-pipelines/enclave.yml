@@ -1,0 +1,29 @@
+#
+# Azure Pipeline to reproducibly build the backup enclave. Triggers on tags matching enclave-*.
+#
+
+pr: none
+
+trigger:
+  branches:
+    include:
+    - refs/tags/enclave-*
+
+resources:
+  containers:
+  - container: kbupd-enclave-builder
+    image:     signalbackupci:kbupd-enclave-builder
+    endpoint:  signalbackupci-container-registry
+    options:   --user 0:0
+
+stages:
+- stage: docker_build_kbupd_enclave_builder
+  displayName: docker build kbupd-enclave-builder
+  jobs:
+  - template: jobs/docker_build_kbupd_enclave_builder.yml
+
+- stage: make_all
+  displayName: make all
+  dependsOn: docker_build_kbupd_enclave_builder
+  jobs:
+  - template: jobs/make_all.yml

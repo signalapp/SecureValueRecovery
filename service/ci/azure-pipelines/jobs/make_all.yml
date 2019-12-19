@@ -1,0 +1,24 @@
+#
+# Azure Pipelines job to build all service binaries from within in the kbupd-builder docker image.
+#
+
+jobs:
+- job: make_all
+  displayName: make all
+  pool:
+    vmImage: ubuntu-18.04
+  container: kbupd-builder
+  steps:
+  - script: make -C service/ all
+    displayName: make all
+
+  - publish:  service/build/target/release/kbupd
+    artifact: kbupd
+  - publish:  service/build/target/release/kbupctl
+    artifact: kbupctl
+  - publish:  service/build/target/release/kbuptlsd
+    artifact: kbuptlsd
+  - publish:  service/test/
+    artifact: client_test
+  - publish:  service/config/
+    artifact: client_test_config

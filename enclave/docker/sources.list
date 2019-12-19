@@ -1,0 +1,2 @@
+deb http://snapshot.debian.org/archive/debian/20191014T000000Z/ buster main
+deb http://snapshot.debian.org/archive/debian-security/20191014T000000Z/ buster/updates main

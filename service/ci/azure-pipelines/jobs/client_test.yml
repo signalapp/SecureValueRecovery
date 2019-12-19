@@ -1,0 +1,51 @@
+#
+# Azure Pipelines steps to run service/test/client_test.py
+#
+
+jobs:
+- job: client_test
+  displayName: client_test
+  pool: client_test
+  steps:
+  - checkout: none
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: kbupd
+      targetPath: .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: kbupctl
+      targetPath: .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: kbuptlsd
+      targetPath: .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: client_test
+      targetPath: .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: client_test_config
+      targetPath: .
+  - task: DownloadSecureFile@1
+    name: ias_tls_config
+    inputs:
+      secureFile: kbuptlsd.intel-client.client_test.yml
+  - task: DownloadSecureFile@1
+    name: kbupd_enclave
+    inputs:
+      secureFile: enclave-f51f435802ada769e67aaf5744372bb7e7d519eecf996d335eb5b46b872b5789-test.so
+
+  - script: |
+      chmod +x kbupd kbupctl kbuptlsd
+    displayName: set up client_test
+
+  - script: python3 client_test.py
+    displayName:      client_test.py
+    timeoutInMinutes: 30
+    env:
+      IAS_TLS_CONFIG: $(ias_tls_config.secureFilePath)
+      IAS_SPID:       $(IAS_SPID)
+      ENCLAVE_PATH:   $(kbupd_enclave.secureFilePath)
+      ENCLAVE_DEBUG:  no

@@ -1,0 +1,31 @@
+[package]
+authors = ["Open Whisper Systems"]
+name    = "kbupd_api_client"
+version = "0.1.0"
+license = "AGPL-3.0-or-later"
+edition = "2018"
+
+[dependencies]
+base64         = "0.10"
+bytes          = "0.4"
+env_logger     = "0.6"
+clap           = "2.33"
+cookie         = "0.12"
+failure        = "0.1"
+failure_derive = "0.1"
+futures        = "0.1"
+http           = "0.1"
+hyper          = "0.12"
+hyper-tls      = "0.3"
+kbupd_api      = { path = "../kbupd_api" }
+kbupd_client   = { path = "../kbupd_client" }
+log            = { version = "0.4", features = ["std"] }
+native-tls     = "0.2"
+prost          = "0.5"
+rand           = "0.6"
+ring           = "0.14"
+serde          = "1.0"
+serde_derive   = "1.0"
+serde_json     = "1.0"
+tokio          = "0.1"
+try_future     = "0.1"

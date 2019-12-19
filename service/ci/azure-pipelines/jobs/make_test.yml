@@ -1,0 +1,20 @@
+#
+# Azure Pipelines job to run all service tests from within in the kbupd-builder docker image.
+#
+
+jobs:
+- job: make_test
+  displayName: make test
+  pool:
+    vmImage: ubuntu-18.04
+  container: kbupd-builder
+  steps:
+  - script: make -C service/ all-debug test
+    displayName: make all-debug test
+
+  - publish:  service/build/target/debug/kbupd
+    artifact: kbupd-debug
+  - publish:  service/build/target/debug/kbupctl
+    artifact: kbupctl-debug
+  - publish:  service/build/target/debug/kbuptlsd
+    artifact: kbuptlsd-debug

@@ -1,0 +1,42 @@
+FROM debian:buster-20191014
+
+COPY apt.conf sources.list /etc/apt/
+
+RUN    apt-get update \
+    && apt-get install -V -y --no-install-recommends --allow-downgrades \
+               build-essential ca-certificates curl git cmake ninja-build \
+               devscripts debhelper fakeroot libwww-perl gnupg \
+               ocaml-native-compilers ocamlbuild automake autoconf libtool wget python pkg-config \
+               libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev \
+               llvm-dev libclang-dev clang \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG UID
+ARG GID
+
+#Create a user to map the host user to.
+RUN    groupadd -o -g ${GID} signal \
+    && useradd -m -o -u ${UID} -g ${GID} -s /bin/bash signal \
+    && mkdir -p /tmp/docker \
+    && chown -R signal.signal /tmp/docker
+
+USER signal
+ENV HOME /home/signal
+ENV USER signal
+ENV SHELL /bin/bash
+
+WORKDIR /home/signal
+
+ARG TOOLCHAIN=1.37.0
+
+COPY rustup-init.sha256 /tmp/docker/
+
+RUN    curl -f https://static.rust-lang.org/rustup/archive/1.20.2/x86_64-unknown-linux-gnu/rustup-init -o /tmp/rustup-init \
+    && [ `sha256sum /tmp/rustup-init|cut -d' ' -f1` = `cut -d' ' -f1</tmp/docker/rustup-init.sha256` ] \
+    && chmod a+x /tmp/rustup-init \
+    && /tmp/rustup-init -y --profile minimal --component rustfmt --default-toolchain "${TOOLCHAIN}" \
+    && rm -rf /tmp/rustup-init /tmp/docker
+
+ENV PATH="/home/signal/.cargo/bin:${PATH}"
+
+CMD [ "/bin/bash" ]

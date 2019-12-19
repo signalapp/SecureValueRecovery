@@ -1,0 +1,473 @@
+syntax = "proto2";
+
+package protobufs.kbupd;
+
+import "kbupd_client.proto";
+
+//
+// shared types
+//
+
+message ServiceId {
+  required bytes id = 1;
+}
+
+message BackupId {
+  required bytes id = 1;
+}
+
+message PartitionKeyRangePB {
+  required BackupId first = 1;
+  required BackupId last  = 2;
+}
+
+message IasReport {
+  required bytes body         = 2;
+  required bytes signature    = 3;
+  repeated bytes certificates = 4;
+}
+
+message AttestationParameters {
+  required uint64 unix_timestamp_seconds = 1;
+}
+
+enum XferControlCommand {
+  START  = 1;
+  FINISH = 2;
+  CANCEL = 3;
+  PAUSE  = 4;
+  RESUME = 5;
+}
+
+//
+// transaction requests
+//
+
+message CreateBackupRequest {
+  required BackupId backup_id = 1;
+}
+
+message CreateBackupReply {
+  required bytes  nonce = 2;
+  optional uint32 tries = 3;
+}
+
+message DeleteBackupRequest {
+  required BackupId backup_id = 1;
+}
+
+message DeleteBackupReply {
+}
+
+//
+// untrusted messages
+//
+
+message UntrustedMessageBatch {
+  repeated UntrustedMessage messages = 1;
+}
+
+message UntrustedMessage {
+  oneof inner {
+    StartFrontendRequest        start_frontend_request        = 1;
+    StartReplicaRequest         start_replica_request         = 2;
+    StartReplicaGroupRequest    start_replica_group_request   = 3;
+    UntrustedTransactionRequest untrusted_transaction_request = 4;
+    UntrustedXferRequest        untrusted_xfer_request        = 5;
+    GetEnclaveStatusRequest     get_enclave_status_request    = 6;
+
+    GetQeInfoReply              get_qe_info_reply             = 8;
+    GetQuoteReply               get_quote_reply               = 9;
+    GetAttestationReply         get_attestation_reply         = 10;
+
+    NewMessageSignal            new_message_signal            = 11;
+    TimerTickSignal             timer_tick_signal             = 12;
+    SetFrontendConfigSignal     set_frontend_config_signal    = 13;
+    SetReplicaConfigSignal      set_replica_config_signal     = 14;
+    ResetPeerSignal             reset_peer_signal             = 15;
+    SetVerboseLoggingSignal     set_verbose_logging_signal    = 16;
+  }
+  reserved 7;
+}
+
+message PartitionConfig {
+  required bytes               group_id = 1;
+  optional PartitionKeyRangePB range    = 2;
+  repeated bytes               node_ids = 3;
+}
+
+message StartFrontendRequest {
+  repeated PartitionConfig       partitions = 1;
+  required EnclaveFrontendConfig config     = 2;
+}
+
+message EnclaveFrontendConfig {
+  required uint32 replica_timeout_ticks     = 1;
+  required uint32 request_quote_ticks       = 2;
+  required uint32 min_connect_timeout_ticks = 3;
+  required uint32 max_connect_timeout_ticks = 4;
+  required uint32 pending_request_count     = 5;
+  required uint32 pending_request_ttl       = 6;
+}
+
+message SourcePartitionConfig {
+  required PartitionKeyRangePB range    = 1;
+  repeated bytes               node_ids = 2;
+}
+
+message StartReplicaRequest {
+  required EnclaveReplicaConfig config = 1;
+}
+
+message EnclaveReplicaConfig {
+  required uint32 election_timeout_ticks         = 1;
+  required uint32 heartbeat_timeout_ticks        = 2;
+  required uint32 request_quote_ticks            = 3;
+  required uint32 min_connect_timeout_ticks      = 4;
+  required uint32 max_connect_timeout_ticks      = 5;
+  required uint32 attestation_expiry_ticks       = 6;
+  required uint32 replication_chunk_size         = 7;
+  required uint32 transfer_chunk_size            = 8;
+  required uint32 storage_page_cache_size        = 10;
+  required uint32 raft_log_index_page_cache_size = 13;
+  required uint32 max_frontend_count             = 14;
+}
+
+message StartReplicaGroupRequest {
+  repeated bytes                     peer_node_ids    = 1;
+  required EnclaveReplicaGroupConfig config           = 2;
+  optional SourcePartitionConfig     source_partition = 3;
+}
+
+message EnclaveReplicaGroupConfig {
+  required uint32 storage_size        = 1;
+  required uint64 raft_log_data_size  = 2;
+  required uint32 raft_log_index_size = 3;
+}
+
+message NewMessageSignal {
+  required bytes node_id = 1;
+  required bytes data    = 2;
+  required bool  syn     = 3;
+}
+
+message TimerTickSignal {
+  required fixed64 now_secs = 1;
+}
+
+message SetFrontendConfigSignal {
+  required EnclaveFrontendConfig config = 1;
+}
+
+message SetReplicaConfigSignal {
+  required EnclaveReplicaConfig config = 1;
+}
+
+message ResetPeerSignal {
+  required bytes peer_node_id = 1;
+}
+
+message SetVerboseLoggingSignal {
+  required bool verbose_logging = 1;
+}
+
+message GetQeInfoReply {
+  required bytes  mrenclave   = 1;
+  required uint64 flags       = 2;
+  required uint64 xfrm        = 3;
+  required uint32 misc_select = 4;
+  required uint32 config_svn  = 5;
+  required bytes  config_id   = 6;
+}
+
+message GetQuoteReply {
+  required bytes request_id = 1;
+  required bytes sgx_quote  = 2;
+}
+
+message GetAttestationReply {
+  required bytes     request_id = 1;
+  required IasReport ias_report = 2;
+}
+
+message UntrustedTransactionRequest {
+  required uint64 request_id = 1;
+  oneof data {
+    CreateBackupRequest create_backup_request = 2;
+    DeleteBackupRequest delete_backup_request = 3;
+  };
+}
+
+message UntrustedXferRequest {
+  required uint64 request_id = 1;
+  oneof data {
+    XferControlCommand xfer_control_command = 2;
+  };
+}
+
+message GetEnclaveStatusRequest {
+  required bool memory_status = 1;
+}
+
+//
+// enclave messages
+//
+
+message EnclaveMessageBatch {
+  repeated EnclaveMessage messages = 1;
+}
+
+message EnclaveMessage {
+  oneof inner {
+    StartFrontendReply        start_frontend_reply        = 1;
+    StartReplicaReply         start_replica_reply         = 2;
+    StartReplicaGroupReply    start_replica_group_reply   = 3;
+    UntrustedTransactionReply untrusted_transaction_reply = 4;
+    UntrustedXferReply        untrusted_xfer_reply        = 5;
+    GetEnclaveStatusReply     get_enclave_status_reply    = 6;
+
+    SendMessageRequest        send_message_request        = 7;
+    GetQeInfoRequest          get_qe_info_request         = 8;
+    GetQuoteRequest           get_quote_request           = 9;
+    GetAttestationRequest     get_attestation_request     = 10;
+
+    EnclaveLogSignal          enclave_log_signal          = 11;
+    EnclaveTransactionSignal  enclave_transaction_signal  = 12;
+  }
+}
+
+message StartFrontendReply {
+  required bytes node_id = 1;
+}
+
+message StartReplicaReply {
+  required bytes node_id = 1;
+}
+
+message StartReplicaGroupReply {
+  optional ServiceId service_id = 1;
+  optional bytes     group_id   = 2;
+}
+
+message GetEnclaveStatusReply {
+  oneof inner {
+    EnclaveReplicaStatus  replica_status  = 1;
+    EnclaveFrontendStatus frontend_status = 2;
+  }
+}
+
+message SendMessageRequest {
+  required bytes node_id   = 1;
+  required bytes data      = 2;
+  required bool  syn       = 3;
+  optional bytes debug_msg = 4;
+}
+
+message GetQeInfoRequest {
+}
+
+message GetQuoteRequest {
+  required bytes request_id = 1;
+  required bytes sgx_report = 2;
+}
+
+message GetAttestationRequest {
+  required bytes request_id = 1;
+  required bytes sgx_quote  = 2;
+}
+
+message UntrustedTransactionReply {
+  required uint64 request_id = 1;
+  oneof data {
+    CreateBackupReply create_backup_reply = 2;
+    DeleteBackupReply delete_backup_reply = 3;
+  };
+}
+
+enum UntrustedXferReplyStatus {
+  UNKNOWN       = 0;
+  OK            = 1;
+  NOT_LEADER    = 2;
+  INVALID_STATE = 3;
+}
+
+message UntrustedXferReply {
+  required uint64                   request_id = 1;
+  required UntrustedXferReplyStatus status     = 2;
+}
+
+enum EnclaveLogLevel {
+  ERROR = 0;
+  WARN  = 1;
+  INFO  = 2;
+  DEBUG = 3;
+}
+
+message EnclaveLogSignal {
+  required bytes           message  = 1;
+  required bytes           module   = 2;
+  required bytes           file     = 3;
+  required uint32          line     = 4;
+  required EnclaveLogLevel level    = 5;
+}
+
+message EnclaveTransactionSignal {
+  required uint64 log_index = 1;
+  oneof transaction {
+    EnclaveFrontendRequestTransaction frontend_request = 2;
+    EnclaveStartXferTransaction       start_xfer       = 3;
+    EnclaveSetSidTransaction          set_sid          = 4;
+    EnclaveRemoveChunkTransaction     remove_chunk     = 5;
+    EnclaveApplyChunkTransaction      apply_chunk      = 6;
+    EnclavePauseXferTransaction       pause_xfer       = 7;
+    EnclaveResumeXferTransaction      resume_xfer      = 8;
+    EnclaveFinishXferTransaction      finish_xfer      = 9;
+    EnclaveSetTimeTransaction         set_time         = 10;
+  };
+}
+
+//
+// enclave transactions
+//
+
+message EnclaveFrontendRequestTransaction {
+  oneof transaction {
+    EnclaveCreateBackupTransaction create  = 1;
+    EnclaveBackupTransaction       backup  = 2;
+    EnclaveRestoreTransaction      restore = 3;
+    EnclaveDeleteBackupTransaction delete  = 4;
+
+    EnclaveTransactionErrorXferInProgress xfer_in_progress = 5;
+    EnclaveTransactionErrorWrongPartition wrong_partition  = 6;
+    EnclaveTransactionErrorInvalidRequest invalid_request  = 7;
+    EnclaveTransactionErrorInternalError  internal_error   = 8;
+  }
+}
+message EnclaveCreateBackupTransaction {
+  required BackupId backup_id = 1;
+}
+message EnclaveBackupTransaction {
+  required BackupId backup_id = 1;
+  required kbupd_client.BackupResponse.Status status = 2;
+}
+message EnclaveRestoreTransaction {
+  required BackupId backup_id = 1;
+  required kbupd_client.RestoreResponse.Status status = 2;
+}
+message EnclaveDeleteBackupTransaction {
+  required BackupId backup_id = 1;
+}
+message EnclaveTransactionErrorXferInProgress {
+}
+message EnclaveTransactionErrorWrongPartition {
+  required bool new_partition_unknown = 1;
+}
+message EnclaveTransactionErrorInvalidRequest {
+}
+message EnclaveTransactionErrorInternalError {
+}
+message EnclaveStartXferTransaction {
+}
+message EnclaveSetSidTransaction {
+  optional ServiceId service_id = 1;
+}
+message EnclaveRemoveChunkTransaction {
+  optional PartitionKeyRangePB chunk_range = 1;
+}
+message EnclaveApplyChunkTransaction {
+  optional PartitionKeyRangePB chunk_range = 1;
+  repeated BackupId            chunk_ids   = 2;
+}
+message EnclavePauseXferTransaction {
+}
+message EnclaveResumeXferTransaction {
+  optional PartitionKeyRangePB chunk_range = 1;
+}
+message EnclaveFinishXferTransaction {
+}
+message EnclaveSetTimeTransaction {
+  optional uint64 now_secs = 1;
+}
+
+//
+// enclave status
+//
+
+message EnclaveMemoryStatus {
+  required uint32 footprint_bytes = 1;
+  required uint32 used_bytes      = 2;
+  required uint32 free_chunks     = 3;
+}
+
+message EnclaveReplicaStatus {
+  optional EnclaveMemoryStatus           memory_status = 1;
+  optional EnclaveReplicaPartitionStatus partition     = 2;
+}
+
+message EnclaveReplicaPartitionStatus {
+  required bytes                 group_id           = 1;
+  optional bytes                 service_id         = 2;
+  optional PartitionKeyRangePB   range              = 3;
+  repeated EnclavePeerStatus     peers              = 4;
+  required AttestationParameters min_attestation    = 5;
+  required bool                  is_leader          = 6;
+  required uint64                current_term       = 7;
+  required uint64                prev_log_index     = 8;
+  required uint64                last_applied_index = 9;
+  required uint64                commit_index       = 10;
+  required uint64                last_log_index     = 11;
+  required uint64                last_log_term      = 12;
+  required uint64                log_data_length    = 13;
+  required uint64                backup_count       = 14;
+
+  oneof xfer_status {
+    EnclaveIncomingXferStatus incoming_xfer_status = 15;
+    EnclaveOutgoingXferStatus outgoing_xfer_status = 16;
+  }
+}
+
+message EnclavePeerStatus {
+  required bytes                        node_id            = 1;
+  optional AttestationParameters        attestation        = 2;
+  optional EnclavePeerReplicationStatus replication_status = 3;
+  required bool                         is_leader          = 4;
+  required uint64                       inflight_requests  = 5;
+  required uint64                       unsent_requests    = 6;
+}
+
+message EnclavePeerReplicationStatus {
+  required uint64 next_index     = 1;
+  required uint64 match_index    = 2;
+  optional uint64 inflight_index = 3;
+  required bool   probing        = 4;
+}
+
+message EnclaveIncomingXferStatus {
+  required PartitionKeyRangePB desired_range = 1;
+  repeated EnclavePeerStatus   nodes         = 2;
+}
+
+message EnclaveOutgoingXferStatus {
+  required bytes                 group_id            = 1;
+  required PartitionKeyRangePB   full_xfer_range     = 2;
+  optional PartitionKeyRangePB   current_chunk_range = 3;
+  required bool                  paused              = 4;
+  optional AttestationParameters min_attestation     = 5;
+  repeated EnclavePeerStatus     nodes               = 6;
+}
+
+message EnclaveFrontendStatus {
+  optional EnclaveMemoryStatus            memory_status = 1;
+  repeated EnclaveFrontendPartitionStatus partitions    = 2;
+  repeated EnclaveFrontendRangeStatus     ranges        = 3;
+}
+
+message EnclaveFrontendPartitionStatus {
+  required bytes             group_id = 1;
+  repeated EnclavePeerStatus nodes    = 2;
+}
+
+message EnclaveFrontendRangeStatus {
+  required PartitionKeyRangePB range    = 1;
+  required bytes               group_id = 2;
+}

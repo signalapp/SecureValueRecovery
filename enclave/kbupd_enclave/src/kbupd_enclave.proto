@@ -1,0 +1,291 @@
+/*
+ * Copyright (C) 2019 Open Whisper Systems
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto2";
+
+package protobufs.kbupd_enclave;
+
+import "kbupd.proto";
+import "kbupd_client.proto";
+import "raft.proto";
+
+message SecretBytes {
+  required bytes data = 1;
+}
+
+//
+// transactions
+//
+
+message TransactionData {
+  oneof inner {
+    FrontendRequestTransaction frontend_request = 1;
+    StartXferTransaction       start_xfer       = 2;
+    SetSidTransaction          set_sid          = 3;
+    RemoveChunkTransaction     remove_chunk     = 4;
+    ApplyChunkTransaction      apply_chunk      = 5;
+    PauseXferTransaction       pause_xfer       = 6;
+    ResumeXferTransaction      resume_xfer      = 7;
+    FinishXferTransaction      finish_xfer      = 8;
+    SetTimeTransaction         set_time         = 9;
+  };
+}
+message FrontendRequestTransaction {
+  required bytes  from_node_id = 1;
+  required uint64 request_id   = 2;
+  oneof transaction {
+    CreateBackupTransaction create  = 3;
+    BackupTransaction       backup  = 4;
+    RestoreTransaction      restore = 5;
+    DeleteBackupTransaction delete  = 6;
+  };
+}
+
+message CreateBackupTransaction {
+  required kbupd.BackupId backup_id          = 1;
+  required bytes          new_creation_nonce = 2;
+  required bytes          new_nonce          = 3;
+}
+message BackupTransaction {
+  required kbupd.BackupId backup_id          = 1;
+  required bytes          old_nonce          = 2;
+  required bytes          new_creation_nonce = 3;
+  required bytes          new_nonce          = 4;
+  required SecretBytes    data               = 5;
+  required SecretBytes    pin                = 6;
+  required uint32         tries              = 7;
+}
+message RestoreTransaction {
+  required kbupd.BackupId backup_id      = 1;
+  required bytes          creation_nonce = 2;
+  required bytes          old_nonce      = 3;
+  required bytes          new_nonce      = 4;
+  required SecretBytes    pin            = 5;
+}
+message DeleteBackupTransaction {
+  required kbupd.BackupId backup_id = 1;
+}
+message StartXferTransaction {
+  required bytes          from_node_id = 1;
+  required XferRequest    xfer_request = 2;
+}
+message SetSidTransaction {
+  required bytes           from_node_id = 1;
+  required kbupd.ServiceId service_id   = 2;
+}
+message RemoveChunkTransaction {
+  required bytes          from_node_id     = 1;
+  required XferChunkReply xfer_chunk_reply = 2;
+  required kbupd.BackupId chunk_last       = 3;
+}
+message ApplyChunkTransaction {
+  required bytes            from_node_id       = 1;
+  required XferChunkRequest xfer_chunk_request = 2;
+  required XferChunkReply   xfer_chunk_reply   = 3;
+}
+message PauseXferTransaction {
+  required uint64 request_id = 1;
+}
+message ResumeXferTransaction {
+  required uint64         request_id = 1;
+  required kbupd.BackupId chunk_last = 2;
+}
+message FinishXferTransaction {
+  required uint64 request_id = 1;
+  required bool   force      = 2;
+}
+message SetTimeTransaction {
+  required uint64 now_secs = 1;
+}
+
+//
+// remote enclave handshake
+//
+
+enum NodeType {
+  NODE_TYPE_NONE     = 0;
+  NODE_TYPE_FRONTEND = 1;
+  NODE_TYPE_REPLICA  = 2;
+}
+
+message PeerConnectRequest {
+  required NodeType        node_type  = 1;
+  optional kbupd.IasReport ias_report = 2;
+  required bytes           noise_data = 3;
+}
+
+message PeerConnectReply {
+  required bytes sgx_quote  = 1;
+  required bytes noise_data = 2;
+}
+
+//
+// enclave-to-enclave requests
+//
+
+message EnclaveGetQuoteRequest {
+}
+
+message EnclaveGetQuoteReply {
+  required bytes sgx_quote = 1;
+}
+
+//
+// frontend to replica
+//
+
+message FrontendToReplicaMessage {
+  oneof inner {
+    TransactionRequest     transaction_request       = 1;
+    EnclaveGetQuoteRequest enclave_get_quote_request = 2;
+  };
+}
+
+message TransactionRequest {
+  required uint64 request_id = 1;
+  oneof data {
+    kbupd.CreateBackupRequest create  = 2;
+    BackupTransactionRequest  backup  = 3;
+    RestoreTransactionRequest restore = 4;
+    DeleteTransactionRequest  delete  = 5;
+  };
+}
+
+message BackupTransactionRequest {
+  optional bytes          service_id = 1;
+  required kbupd.BackupId backup_id  = 2;
+  required bytes          nonce      = 3;
+  required uint64         valid_from = 4;
+  required SecretBytes    data       = 5;
+  required SecretBytes    pin        = 6;
+  required uint32         tries      = 7;
+}
+
+message RestoreTransactionRequest {
+  optional bytes          service_id = 1;
+  required kbupd.BackupId backup_id  = 2;
+  required bytes          nonce      = 3;
+  required uint64         valid_from = 4;
+  required SecretBytes    pin        = 5;
+}
+
+message DeleteTransactionRequest {
+  optional bytes          service_id = 1;
+  required kbupd.BackupId backup_id  = 2;
+}
+
+//
+// replica to frontend
+//
+
+message ReplicaToFrontendMessage {
+  oneof inner {
+    TransactionReply     transaction_reply       = 1;
+    EnclaveGetQuoteReply enclave_get_quote_reply = 2;
+  };
+}
+
+message TransactionReply {
+  required uint64 request_id = 1;
+  oneof  data {
+    kbupd_client.Response             client_response     = 2;
+    kbupd.CreateBackupReply           create_backup_reply = 3;
+    kbupd.DeleteBackupReply           delete_backup_reply = 4;
+    TransactionErrorNotLeader         not_leader          = 5;
+    TransactionErrorWrongPartition    wrong_partition     = 6;
+    TransactionErrorServiceIdMismatch service_id_mismatch = 7;
+    TransactionErrorXferInProgress    xfer_in_progress    = 8;
+    TransactionErrorInvalidRequest    invalid_request     = 9;
+    TransactionErrorInternalError     internal_error      = 10;
+  };
+}
+
+message TransactionErrorNotLeader {
+  optional bytes       leader_node_id = 1;
+  required raft.TermId term           = 2;
+}
+
+message TransactionErrorWrongPartition {
+  optional kbupd.PartitionKeyRangePB range         = 1;
+  optional kbupd.PartitionConfig     new_partition = 2;
+}
+
+message TransactionErrorServiceIdMismatch {
+}
+
+message TransactionErrorXferInProgress {
+}
+
+message TransactionErrorInvalidRequest {
+}
+
+message TransactionErrorInternalError {
+}
+
+//
+// replica to replica
+//
+
+message ReplicaToReplicaMessage {
+  oneof inner {
+    raft.RaftMessage       raft_message              = 1;
+    CreateRaftGroupRequest create_raft_group_request = 2;
+    EnclaveGetQuoteRequest enclave_get_quote_request = 8;
+    EnclaveGetQuoteReply   enclave_get_quote_reply   = 9;
+
+    XferRequest            xfer_request              = 3;
+    XferReply              xfer_reply                = 4;
+    XferChunkRequest       xfer_chunk_request        = 5;
+    XferChunkReply         xfer_chunk_reply          = 6;
+    XferErrorNotLeader     xfer_error_not_leader     = 7;
+  };
+}
+
+message CreateRaftGroupRequest {
+  optional kbupd.ServiceId                 service_id       = 1;
+  required raft.RaftGroupId                group_id         = 2;
+  repeated bytes                           node_ids         = 3;
+  required kbupd.EnclaveReplicaGroupConfig config           = 4;
+  optional kbupd.SourcePartitionConfig     source_partition = 5;
+}
+
+message XferRequest {
+  required uint32                    chunk_size = 1;
+  required kbupd.PartitionKeyRangePB full_range = 2;
+  repeated bytes                     node_ids   = 3;
+  required raft.RaftGroupId          group_id   = 4;
+}
+
+message XferReply {
+  required kbupd.ServiceId service = 1;
+}
+
+message XferChunkRequest {
+  required SecretBytes                 data            = 1;
+  required kbupd.PartitionKeyRangePB   chunk_range     = 2;
+  required kbupd.AttestationParameters min_attestation = 3;
+}
+
+message XferChunkReply {
+  required kbupd.BackupId new_last   = 1;
+  required uint32         chunk_size = 2;
+}
+
+message XferErrorNotLeader {
+  optional bytes       leader_node_id = 1;
+  required raft.TermId term           = 2;
+}

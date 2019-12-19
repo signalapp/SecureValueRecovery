@@ -1,0 +1,7 @@
+config:
+  loop: true
+steps:
+  - netem: &base
+      latency:
+        ms: 120
+  - sleep_ms: 3000000

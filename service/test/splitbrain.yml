@@ -1,0 +1,11 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 60000
+  - flushdrop:
+  - adddrop:
+      src: 'leader'
+      dst: 'replica1'
+  - adddrop:
+      src: 'replica1'
+      dst: 'leader'

@@ -1,0 +1,15 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 15000
+  - adddrop:
+      src: 'FE'
+      dst: 'leader'
+  - randtcpkill:
+      num_replicas: 0
+  - sleep_ms: 2000
+  - randtcpkill:
+      num_replicas: 0
+  - sleep_ms: 100000
+  - flushdrop:
+  - sleep_ms: 300000

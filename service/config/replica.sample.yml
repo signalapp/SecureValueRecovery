@@ -1,0 +1,36 @@
+attestation:                                      # IAS (Intel Attestation Services) configuration
+  host:                                           # Intel Attestation Services (IAS) host
+  tlsConfigPath:                                  # kbuptlsd configuration file path to use connecting to IAS, relative to the directory containing this file
+  spid:                                           # hex-encoded 16-byte IAS assigned Service Provider ID
+  acceptGroupOutOfDate:                           # Whether to serve IAS responses with GROUP_OUT_OF_DATE instead of OK [true|false]
+
+control:
+  listenHostPort:                                 # host:port to listen on for the kbupctl API
+
+metrics:
+  reporters:
+    - type: json                                  # JsonMetricsReporter config
+      hostname:                                   # hostname of metrics server to upload to
+      token:                                      # auth token to send to metrics server via the "t" query param
+      intervalSeconds:                            # interval to upload metrics, in seconds (default 60)
+
+enclave:
+  listenHostPort:                                 # host:port to listen on for other replicas
+  maxConnections:                                 # maximum number of concurrent connections to replicas and frontends
+  mrenclave:                                      # hex-encoded mrenclave value
+  debug:                                          # Whether this is a debug or production enclave [true|false]
+  storageSize:                                    # storage capacity for key backup entry data, in number of backups
+  raftLogSize:                                    # size allocated in RAM for key backup raft log data, in bytes
+  electionTimeoutMs:                              # raft group election timeout in milliseconds
+  electionHeartbeats:                             # number of heartbeats per raft group election timeout period (10 recommended)
+  replicationChunkSize:                           # target replication chunk size in bytes
+  transferChunkSize:                              # target transfer chunk size in bytes
+  attestationExpiryCommitIntervalMs:              # interval at which to commit the latest minimum valid attestation expiration time to this partition
+  maxFrontendCount:                               # maximum number of frontend sessions to keep before evicting the least recently used
+  replicas:                                       # list of host:ports of peer replicas serving this Key Backup partition
+    - hostPort:                                   # host:port to connect to this replica
+  sourcePartition:                                # optional source partition information to transfer data from
+    firstBackupId:                                # hex-encoded 32-byte Key Backup ID inclusive lower bound of Backup ID range that this partition serves
+    lastBackupId:                                 # hex-encoded 32-byte Key Backup ID inclusive upper bound of Backup ID range that this partition serves
+    replicas:                                     # list of source replicas serving this Key Backup partition
+      - hostPort:                                 # host:port to connect to this replica

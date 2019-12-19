@@ -1,0 +1,14 @@
+config:
+  loop: true
+steps:
+  - netem: &base
+      latency:
+        ms: 120
+  - sleep_ms: 30000
+  - netem:
+      loss:
+        pct: 50
+        correlation_pct: 50
+  - sleep_ms: 5000
+  - netem: *base
+  - sleep_ms: 30000

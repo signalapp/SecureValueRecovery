@@ -1,0 +1,8 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 90000
+  - adddrop:
+      src: 'FE'
+      dst: 'leader'
+      single_conn: 'true'

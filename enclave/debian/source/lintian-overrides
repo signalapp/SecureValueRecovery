@@ -1,0 +1,2 @@
+shared-lib-without-dependency-information usr/lib/kbupd/enclave/*.so
+shlib-with-executable-stack usr/lib/kbupd/enclave/*.so

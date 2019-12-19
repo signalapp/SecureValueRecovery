@@ -1,0 +1,17 @@
+#!/bin/bash
+
+for dir in build/linux-sgx-* $(dir $0)/build/linux-sgx-*; do
+    if [ -d "$dir/build/linux" ]; then
+        SGX_SDK_SOURCE_DIR="$dir"
+    fi
+done
+if [ -z "$SGX_SDK_SOURCE_DIR" ]; then
+    echo "please set \$SGX_SDK_SOURCE_DIR"
+    exit 1
+fi
+
+GDB_SGX_PLUGIN_PATH=${SGX_SDK_SOURCE_DIR}/build/linux/gdb-sgx-plugin
+
+export PYTHONPATH=$GDB_SGX_PLUGIN_PATH
+export SGX_DBG_OPTIN=1
+LD_PRELOAD="${SGX_SDK_SOURCE_DIR}/build/linux/libsgx_ptrace.so" gdb -iex "directory ${GDB_SGX_PLUGIN_PATH}" -iex "source ${GDB_SGX_PLUGIN_PATH}/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" "$@"

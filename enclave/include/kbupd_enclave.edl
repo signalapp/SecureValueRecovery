@@ -1,0 +1,16 @@
+enclave {
+    include "kbupd_sgxsd_callbacks.h"
+    from "sgxsd.edl" import *;
+    from "sgx_tstdc.edl" import *;
+
+    trusted {
+        public void kbupd_enclave_recv_untrusted_msg
+            ([in, size=data_size] const uint8_t *data, size_t data_size);
+    };
+    untrusted {
+        void kbupd_enclave_ocall_recv_enclave_msg
+            ([in, size=data_size] const uint8_t *data, size_t data_size);
+        void *kbupd_enclave_ocall_alloc([in, out] size_t *size);
+        void kbupd_enclave_ocall_panic([in, size=msg_size] const uint8_t *msg, size_t msg_size);
+    };
+};

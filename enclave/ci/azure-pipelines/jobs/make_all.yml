@@ -1,0 +1,52 @@
+#
+# Azure Pipelines job to build the enclave from within in the kbupd-enclave-builder docker image.
+#
+
+jobs:
+- job: make_all
+  displayName: make all
+  pool:
+    vmImage: ubuntu-18.04
+  container: kbupd-enclave-builder
+  timeoutInMinutes: 120
+  steps:
+  - script: |
+      cp -a enclave /home/signal/src && \
+      mkdir enclave/build/ && \
+      ln -s `pwd`/enclave/build /home/signal/src/build
+    displayName: set up build directory
+
+  - task: CacheBeta@1
+    displayName: cached enclave/build/bin/
+    inputs:
+      path: enclave/build/bin/
+      key:  enclave/docker/Dockerfile | enclave/docker/apt.conf | enclave/docker/sources.list | enclave/sgx_enclave.mk | "$(Build.SourceBranch)"
+      restoreKeys:
+        enclave/docker/Dockerfile | enclave/docker/apt.conf | enclave/docker/sources.list | enclave/sgx_enclave.mk | "refs/heads/$(System.PullRequest.TargetBranch)"
+
+        enclave/docker/Dockerfile | enclave/docker/apt.conf | enclave/docker/sources.list | enclave/sgx_enclave.mk
+
+  - script: make -C /home/signal/src/ bindgen
+    displayName: make bindgen
+
+  - script: make -C /home/signal/src/ debuild
+    displayName: make debuild
+
+  - publish:  enclave/build/libkbupd_enclave.unstripped.so
+    artifact: libkbupd_enclave.unstripped.so
+  - publish:  enclave/build/libkbupd_enclave.hardened.unstripped.so
+    artifact: libkbupd_enclave.hardened.unstripped.so
+  - publish:  enclave/build/libkbupd_enclave.hardened.unsigned.so
+    artifact: libkbupd_enclave.hardened.unsigned.so
+  - publish:  enclave/build/libkbupd_enclave.hardened.signdata
+    artifact: libkbupd_enclave.hardened.signdata
+  - publish:  enclave/build/libkbupd_enclave.hardened.mrenclave
+    artifact: libkbupd_enclave.hardened.mrenclave
+  - publish:  enclave/build/bin/llvm-bolt
+    artifact: llvm-bolt
+
+  - script: make -C /home/signal/src/ tar
+    displayName: make tar
+
+  - publish:  enclave/build/libkbupd_enclave.hardened.build.tar.bz2
+    artifact: libkbupd_enclave.hardened.build.tar.bz2

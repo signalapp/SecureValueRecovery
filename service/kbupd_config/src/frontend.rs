@@ -1,0 +1,160 @@
+/*
+ * Copyright (C) 2019 Open Whisper Systems
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#![allow(non_snake_case)]
+
+use std::path::{PathBuf};
+
+use kbupd_util::hex;
+use serde_derive::{Deserialize};
+
+use crate::metrics::*;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendConfig {
+    pub api: FrontendApiConfig,
+
+    pub attestation: FrontendAttestationConfig,
+
+    pub control: FrontendControlConfig,
+
+    pub metrics: Option<MetricsConfig>,
+
+    pub enclaves: Vec<FrontendEnclaveConfig>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendApiConfig {
+    pub listenHostPort: String,
+
+    #[serde(with = "hex")]
+    pub userAuthenticationTokenSharedSecret: Vec<u8>,
+
+    #[serde(with = "hex")]
+    pub backupIdSecret: Vec<u8>,
+
+    #[serde(default)]
+    pub limits: FrontendApiRateLimitsConfig,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendApiRateLimitsConfig {
+    pub token: FrontendRateLimitConfig,
+
+    pub attestation: FrontendRateLimitConfig,
+
+    pub backup: FrontendRateLimitConfig,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendRateLimitConfig {
+    pub bucketSize:        u64,
+
+    pub leakRatePerMinute: f64,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendAttestationConfig {
+    pub host: String,
+
+    #[serde(with = "hex::SerdeFixedLengthHex")]
+    pub spid: [u8; 16],
+
+    pub tlsConfigPath: PathBuf,
+
+    #[serde(default)]
+    pub acceptGroupOutOfDate: bool,
+
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendControlConfig {
+    pub listenHostPort: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendEnclaveConfig {
+    pub name: String,
+
+    pub mrenclave: String,
+
+    pub debug: bool,
+
+    pub electionTimeoutMs: u64,
+
+    pub pendingRequestCount: u32,
+
+    pub pendingRequestTtlMs: u64,
+
+    pub partitions: Vec<FrontendPartitionConfig>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendPartitionConfig {
+    pub range: Option<FrontendPartitionRangeConfig>,
+
+    pub replicas: Vec<FrontendPartitionReplicaConfig>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendPartitionRangeConfig {
+    #[serde(with = "hex::SerdeFixedLengthHex")]
+    pub firstBackupId: [u8; 32],
+
+    #[serde(with = "hex::SerdeFixedLengthHex")]
+    pub lastBackupId: [u8; 32],
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrontendPartitionReplicaConfig {
+    pub hostPort: String,
+}
+
+//
+// FrontendApiRateLimitsConfig impls
+//
+
+impl Default for FrontendApiRateLimitsConfig {
+    fn default() -> Self {
+        Self {
+            token: FrontendRateLimitConfig {
+                bucketSize:        10,
+                leakRatePerMinute: 10.0,
+            },
+            attestation: FrontendRateLimitConfig {
+                bucketSize:        10,
+                leakRatePerMinute: 10.0,
+            },
+            backup: FrontendRateLimitConfig {
+                bucketSize:        10,
+                leakRatePerMinute: 10.0,
+            },
+        }
+    }
+}

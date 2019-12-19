@@ -1,0 +1,25 @@
+api:
+  listenHostPort: 127.0.0.1:8000
+  userAuthenticationTokenSharedSecret: 0000000000000000000000000000000000000000000000000000000000000000
+  backupIdSecret: 0000000000000000000000000000000000000000000000000000000000000000
+
+attestation:
+  host: https://test-as.sgx.trustedservices.intel.com/
+  spid: 00000000000000000000000000000000
+  tlsConfigPath: ""
+  acceptGroupOutOfDate: true
+  disabled: true
+
+control:
+  listenHostPort: 127.0.0.1:1337
+
+enclaves:
+  - name:              test
+    mrenclave:         libkbupd_enclave.hardened.debug
+    debug:             true
+    electionTimeoutMs: 5000
+
+    pendingRequestCount: 32768
+    pendingRequestTtlMs: 0
+
+    partitions: []

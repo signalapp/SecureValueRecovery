@@ -1,0 +1,23 @@
+attestation:
+  host: https://test-as.sgx.trustedservices.intel.com/
+  spid: 00000000000000000000000000000000
+  tlsConfigPath: ""
+  acceptGroupOutOfDate: true
+  disabled: true
+
+control:
+  listenHostPort: 127.0.0.1:31338
+
+enclave:
+  listenHostPort:       127.0.0.1:31337
+  maxConnections:       128
+  mrenclave:            libkbupd_enclave.hardened.debug
+  debug:                true
+  storageSize:          2000000
+  raftLogSize:          104857600
+  electionTimeoutMs:    5000
+  electionHeartbeats:   10
+  replicationChunkSize: 266240
+  transferChunkSize:    266240
+  attestationExpiryCommitIntervalMs: 6000000
+  maxFrontendCount:     128

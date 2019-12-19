@@ -1,0 +1,7 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 30000
+  - randstop:
+  - sleep_ms: 70000
+  - contall:

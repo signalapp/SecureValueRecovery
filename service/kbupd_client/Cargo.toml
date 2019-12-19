@@ -1,0 +1,17 @@
+[package]
+authors = ["Open Whisper Systems"]
+name    = "kbupd_client"
+version = "0.1.0"
+license = "AGPL-3.0-or-later"
+edition = "2018"
+
+[dependencies]
+bytes        = "0.4"
+failure      = "0.1"
+prost        = "0.5"
+rand         = "0.6"
+ring         = "0.14"
+x25519-dalek = { version = "0.5", default-features = false, features = ["u64_backend"] }
+
+[build-dependencies]
+prost-build = "0.5"

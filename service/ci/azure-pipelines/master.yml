@@ -1,0 +1,47 @@
+#
+# Azure Pipeline to build & test backup service binaries. Triggers on commits and PRs to master.
+#
+
+pr:
+  branches:
+    include:
+    - master
+
+trigger:
+  branches:
+    include:
+    - master
+
+variables:
+  - group: client_test
+
+resources:
+  containers:
+  - container: kbupd-builder
+    image:     signalbackupci:kbupd-builder
+    endpoint:  signalbackupci-container-registry
+    options:   --user 0:0
+
+stages:
+- stage: docker_build_kbupd_builder
+  displayName: docker build kbupd-builder
+  jobs:
+  - template: jobs/docker_build_kbupd_builder.yml
+
+- stage: make_test
+  displayName: make test
+  dependsOn: docker_build_kbupd_builder
+  jobs:
+  - template: jobs/make_test.yml
+
+- stage: make_all
+  displayName: make all
+  dependsOn: docker_build_kbupd_builder
+  jobs:
+  - template: jobs/make_all.yml
+
+- stage: client_test
+  displayName: client_test
+  dependsOn: make_all
+  jobs:
+  - template: jobs/client_test.yml

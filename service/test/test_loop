@@ -1,0 +1,81 @@
+#!/bin/bash
+
+TIMEOUT=${TIMEOUT:=5400}
+
+function dead_procs {
+    for pid in `pidof $1`; do
+        if cut -d' ' -f3 < /proc/$pid/stat | grep -vq Z; then
+            echo "Stale $1 processes are running!" >&2
+            exit 99
+        fi
+    done
+}
+dead_procs kbupd
+dead_procs kbuptlsd
+
+if sudo iptables -L -n | grep -q ^DROP; then
+    echo "Stale iptables OUTPUT rule" >&2
+    exit 98
+fi
+
+if [ -z "$IAS_SPID" ]; then
+    echo "run: . ./env" >&2
+    exit 97
+fi
+
+our_pid=$$
+function timeout {
+    echo Test run took longer than $TIMEOUT seconds! >&2
+    kill -s TERM %2
+}
+trap timeout ALRM
+
+function finish {
+    kill %2 >/dev/null 2>&1
+    kill %1 >/dev/null 2>&1
+}
+trap finish EXIT
+
+SKIP_ERRO="bad client reply:"
+#XXX Some (all?) of the lines below here should be fixed by reducing the log level in the enclave.
+SKIP_ERRO="${SKIP_ERRO}|request canceled by enclave"
+SKIP_ERRO="${SKIP_ERRO}|with requested range outside our range"
+SKIP_ERRO="${SKIP_ERRO}|resume partitioning as a non-source replica"
+SKIP_ERRO="${SKIP_ERRO}|error fetching revocation list from IAS"
+SKIP_ERRO="${SKIP_ERRO}|error validating attestation report"
+SKIP_ERRO="${SKIP_ERRO}|is now invalid at" #XXX Unclear if this is actually harmless.
+SKIP_ERRO="${SKIP_ERRO}|slog-async: logger dropped messages due to channel overflow" #XXX Until fixed.
+
+client_out=-1
+i=0
+while true; do
+    rm -rf previous2
+    mv previous previous2 2>/dev/null
+    mkdir -p previous
+    rm -f previous/*
+    mv *.log previous 2>/dev/null
+    date
+    ( sleep $TIMEOUT; kill -s ALRM $our_pid ) &
+    ./client_test.py $* >out.log 2>&1 </dev/null &
+    if ! wait %2; then break; fi
+    kill -s ALRM %1 >/dev/null 2>&1
+    wait %1 >/dev/null 2>&1
+
+    i=$((i+1))
+    echo $i `wc -l *.log | awk '{print $1,$2}' | tr '\n' ' ' | sed 's/[.]log//g' | sed 's/up//g' | tr -d '-'`
+
+    if egrep -q '(ERROR|FAILED|Traceback)' out.log; then
+        echo "Error in out.log!" >&2
+        break
+    fi
+    if ! tail -n1 out.log | grep -q '^OK$'; then
+        echo "Tests failed" >&2
+        break
+    fi
+    if [ `grep ERRO *.log | egrep -v "$SKIP_ERRO" | wc -l` -gt 0 ]; then
+        echo "Unexpected ERRO in logs" >&2
+        break
+    fi
+done
+
+date

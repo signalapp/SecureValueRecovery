@@ -1,0 +1,56 @@
+[package]
+authors     = ["Open Whisper Systems"]
+name        = "kbupd"
+version     = "1.0.14"
+license     = "AGPL-3.0-or-later"
+description = "Key Backup Service Daemon"
+edition     = "2018"
+
+[dependencies]
+base64           = "0.10"
+byteorder        = "1.3"
+bytes            = "0.4"
+chrono           = "0.4"
+clap             = "2.33"
+exponential-decay-histogram = "0.1"
+failure          = "0.1"
+failure_derive   = "0.1"
+futures          = "0.1"
+http             = "0.1"
+hyper            = "0.12"
+kbupd_api        = { path = "../kbupd_api" }
+kbupd_client     = { path = "../kbupd_client" }
+kbupd_config     = { path = "../kbupd_config", default-features = false, features = [] }
+kbupd_util       = { path = "../kbupd_util" }
+kbuptlsd         = { path = "../kbuptlsd", features = ["hyper"] }
+lazy_static      = "1.3"
+libc             = "0.2"
+log              = { version = "0.4", features = ["std"] }
+nix              = "0.13"
+num-traits       = "0.2"
+num-derive       = "0.2"
+prost            = "0.5"
+rand             = "0.6"
+ring             = "0.14"
+route-recognizer = "0.1"
+serde            = "1.0"
+serde_derive     = "1.0"
+serde_json       = "1.0"
+serde_yaml       = "0.8"
+slog             = "2.4"
+slog-async       = "2.3"
+tk-listen        = "0.2"
+time             = "0.1"
+tokio            = "0.1"
+tokio-codec      = "0.1"
+tokio-signal     = "0.2"
+try_future       = "0.1"
+
+[dev-dependencies]
+mockers        = "0.20"
+mockers_derive = "0.20"
+rand_chacha    = "0.1"
+
+[build-dependencies]
+cc          = "1.0"
+prost-build = "0.5"

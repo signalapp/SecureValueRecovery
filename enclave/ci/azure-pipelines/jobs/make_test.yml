@@ -1,0 +1,13 @@
+#
+# Azure Pipelines job to run all enclave tests from within in the kbupd-enclave-builder docker image.
+#
+
+jobs:
+- job: make_test
+  displayName: make test
+  pool:
+    vmImage: ubuntu-18.04
+  container: kbupd-enclave-builder
+  steps:
+  - script: make -C enclave/ test
+    displayName: make test

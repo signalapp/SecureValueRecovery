@@ -1,0 +1,12 @@
+config:
+  loop: true
+steps:
+  - sleep_ms: 15000
+  - rewritedst:
+      old_dst: 'test-as.sgx.trustedservices.intel.com'
+      new_dst: 'www.google.com'
+  - randtcpkill:
+      num_replicas: 0
+  - sleep_ms: 60000
+  - flushrewrite:
+  - sleep_ms: 30000

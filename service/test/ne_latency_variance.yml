@@ -1,0 +1,10 @@
+config:
+  loop: true
+steps:
+  - netem: &base
+      latency:
+        ms: 120
+        variation_ms: 20
+        variation_correlation_pct: 25
+        variation_distribution: paretonormal
+  - sleep_ms: 60000
