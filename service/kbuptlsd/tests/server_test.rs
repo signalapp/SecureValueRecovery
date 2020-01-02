@@ -18,16 +18,16 @@
 #[macro_use]
 mod util;
 
-use std::net::{TcpStream};
+use std::net::TcpStream;
 use std::sync::*;
-use std::time::{Duration};
 use std::thread;
+use std::time::Duration;
 
 use futures::future;
 use futures::prelude::*;
 use futures::sync::oneshot;
 use kbuptlsd::server::*;
-use log::{info};
+use log::info;
 
 use self::util::*;
 
@@ -44,23 +44,22 @@ fn test_connection_limit() {
 
     let max_connections = 2;
 
-    let server      = TlsProxyListener::new("127.0.0.1:0", r"tests/mock_child.sh".into(), max_connections, test_paths()).expect(error_line!());
+    let server = TlsProxyListener::new("127.0.0.1:0", r"tests/mock_child.sh".into(), max_connections, test_paths()).expect(error_line!());
     let listen_addr = server.listen_addr().expect(error_line!());
-    let (tx, rx)    = oneshot::channel();
+    let (tx, rx) = oneshot::channel();
     thread::spawn(move || {
         let mut runtime = tokio::runtime::current_thread::Builder::new().build().expect(error_line!());
-        let proxied     = server.into_stream().for_each(|_| Ok(()));
+        let proxied = server.into_stream().for_each(|_| Ok(()));
         match runtime.block_on(rx.select2(proxied)) {
-            Ok(future::Either::B(((), _)))      => panic!("server terminated"),
-            Err(future::Either::B((error, _)))  => panic!("server init error: {}", error),
-            Ok(future::Either::A(((), _))) |
-            Err(future::Either::A((_, _)))      => (),
+            Ok(future::Either::B(((), _))) => panic!("server terminated"),
+            Err(future::Either::B((error, _))) => panic!("server init error: {}", error),
+            Ok(future::Either::A(((), _))) | Err(future::Either::A((_, _))) => (),
         }
     });
 
     let thread_count = max_connections + 10;
-    let barrier      = Arc::new(Barrier::new(thread_count));
-    let mut threads  = Vec::with_capacity(thread_count);
+    let barrier = Arc::new(Barrier::new(thread_count));
+    let mut threads = Vec::with_capacity(thread_count);
     for connection_idx in 0..thread_count {
         let barrier = barrier.clone();
         threads.push(thread::spawn(move || {

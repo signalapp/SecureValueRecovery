@@ -24,9 +24,9 @@ pub mod util;
 
 use std::os::unix::prelude::*;
 
-use failure::{ResultExt};
-use log::{error, warn, debug};
-use nix::errno::{Errno};
+use failure::ResultExt;
+use log::{debug, error, warn};
+use nix::errno::Errno;
 use nix::poll::*;
 
 use self::proxy::*;
@@ -53,15 +53,20 @@ pub type Identity = tls::Identity;
 //
 
 impl ServerChild {
-    pub fn new(tls_ca_cert:        CaCertificate,
-               tls_identity:       Identity,
-               source_tcp_stream:  ProxyTcpStream,
-               target_pipe_stream: ProxyPipeStream)
-               -> Result<Self, failure::Error>
+    pub fn new(
+        tls_ca_cert: CaCertificate,
+        tls_identity: Identity,
+        source_tcp_stream: ProxyTcpStream,
+        target_pipe_stream: ProxyPipeStream,
+    ) -> Result<Self, failure::Error>
     {
         let tls_acceptor = TlsAcceptor::new(tls_identity, tls_ca_cert).context("error setting up tls acceptor")?;
 
-        Ok(ServerChild { tls_acceptor, source_tcp_stream, target_pipe_stream })
+        Ok(ServerChild {
+            tls_acceptor,
+            source_tcp_stream,
+            target_pipe_stream,
+        })
     }
 
     pub fn run(mut self) -> Result<(), failure::Error> {
@@ -69,7 +74,12 @@ impl ServerChild {
 
         match handshake(self.tls_acceptor.accept(self.source_tcp_stream)) {
             Ok(mut source_tls_stream) => {
-                let _ignore = proxy("local target", &mut self.target_pipe_stream, "remote source", &mut source_tls_stream);
+                let _ignore = proxy(
+                    "local target",
+                    &mut self.target_pipe_stream,
+                    "remote source",
+                    &mut source_tls_stream,
+                );
                 Ok(())
             }
             Err(()) => Ok(()),
@@ -82,15 +92,20 @@ impl ServerChild {
 //
 
 impl ClientChild {
-    pub fn new(tls_hostname:       TlsHostname,
-               tls_ca_certs:       Vec<CaCertificate>,
-               tls_identity:       Option<Identity>,
-               source_pipe_stream: ProxyPipeStream,
-               target_tcp_stream:  ProxyTcpStream)
-               -> Result<Self, failure::Error>
+    pub fn new(
+        tls_hostname: TlsHostname,
+        tls_ca_certs: Vec<CaCertificate>,
+        tls_identity: Option<Identity>,
+        source_pipe_stream: ProxyPipeStream,
+        target_tcp_stream: ProxyTcpStream,
+    ) -> Result<Self, failure::Error>
     {
         let tls_connector = TlsConnector::new(tls_identity, tls_hostname, tls_ca_certs).context("error setting up tls connector")?;
-        Ok(Self { tls_connector, source_pipe_stream, target_tcp_stream })
+        Ok(Self {
+            tls_connector,
+            source_pipe_stream,
+            target_tcp_stream,
+        })
     }
 
     pub fn run(mut self) -> Result<(), failure::Error> {
@@ -100,7 +115,12 @@ impl ClientChild {
         match handshake(self.tls_connector.connect(self.target_tcp_stream)) {
             Ok(mut target_tls_stream) => {
                 debug!("finished TLS handshake");
-                let _ignore = proxy("local source", &mut self.source_pipe_stream, "remote target", &mut target_tls_stream);
+                let _ignore = proxy(
+                    "local source",
+                    &mut self.source_pipe_stream,
+                    "remote target",
+                    &mut target_tls_stream,
+                );
                 Ok(())
             }
             Err(()) => Ok(()),
@@ -123,15 +143,13 @@ fn handshake<T: AsRawFd>(mut accept_result: Result<TlsStream<T>, HandshakeError<
                 return Err(());
             }
         };
-        let mut poll_fds = [
-            PollFd::new(stream.as_raw_fd(), poll_flags),
-        ];
+        let mut poll_fds = [PollFd::new(stream.as_raw_fd(), poll_flags)];
 
         // XXX handshake timeout
         match poll(&mut poll_fds, -1) {
             Ok(_event_count)                   => (),
             Err(nix::Error::Sys(Errno::EINTR)) => (),
-            Err(error) => {
+            Err(error)                         => {
                 error!("error polling sockets: {}", error);
                 return Err(());
             }
@@ -140,11 +158,12 @@ fn handshake<T: AsRawFd>(mut accept_result: Result<TlsStream<T>, HandshakeError<
     }
 }
 
-fn proxy(stream_0_name: &'static str,
-         stream_0:      &mut ProxyPipeStream,
-         stream_1_name: &'static str,
-         stream_1:      &mut (impl ProxyRead + ProxyWrite + AsRawFd))
-         -> Result<(), ()>
+fn proxy(
+    stream_0_name: &'static str,
+    stream_0: &mut ProxyPipeStream,
+    stream_1_name: &'static str,
+    stream_1: &mut (impl ProxyRead + ProxyWrite + AsRawFd),
+) -> Result<(), ()>
 {
     let mut buffer_0 = ProxyBuffer::new();
     let mut buffer_1 = ProxyBuffer::new();
@@ -174,8 +193,8 @@ fn proxy(stream_0_name: &'static str,
             PollFd::new(fd, flags)
         }
         let mut poll_fds = [
-            new_poll_fd(stream_0.read_fd(),   stream_0_flags & EventFlags::POLLIN),
-            new_poll_fd(stream_0_write_fd,    stream_0_flags & EventFlags::POLLOUT),
+            new_poll_fd(stream_0.read_fd(), stream_0_flags & EventFlags::POLLIN),
+            new_poll_fd(stream_0_write_fd, stream_0_flags & EventFlags::POLLOUT),
             new_poll_fd(stream_1.as_raw_fd(), stream_1_flags),
         ];
 
@@ -183,7 +202,7 @@ fn proxy(stream_0_name: &'static str,
         match poll(&mut poll_fds, -1) {
             Ok(_event_count)                   => (),
             Err(nix::Error::Sys(Errno::EINTR)) => continue,
-            Err(error) => {
+            Err(error)                         => {
                 error!("error polling sockets: {}", error);
                 return Err(());
             }
@@ -201,8 +220,7 @@ macro_rules! cstr {
 fn setup_seccomp() -> Result<(), failure::Error> {
     configure_openssl_for_seccomp()?;
 
-    let mut seccomp = SeccompContext::new()
-        .map_err(|()| failure::format_err!("error creating seccomp context"))?;
+    let mut seccomp = SeccompContext::new().map_err(|()| failure::format_err!("error creating seccomp context"))?;
 
     let () = seccomp.allow(cstr!("poll"))?;
     let () = seccomp.allow(cstr!("read"))?;

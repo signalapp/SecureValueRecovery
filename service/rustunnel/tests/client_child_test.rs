@@ -19,14 +19,14 @@
 mod util;
 
 use std::net::*;
-use std::thread;
 use std::sync::*;
+use std::thread;
 
-use failure::{ResultExt};
+use failure::ResultExt;
 use native_tls::{Protocol, TlsAcceptor};
-use rustunnel::*;
 use rustunnel::stream::*;
 use rustunnel::tls::{CaCertificate, TlsHostname};
+use rustunnel::*;
 
 use self::util::*;
 
@@ -45,13 +45,14 @@ fn main() {
 
 fn test_valid() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let ca_pem         = test_child.ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::new("correct_hostname".to_string());
+    let ca_pem = test_child.ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::new("correct_hostname".to_string());
 
-    let mut client_pipe_stream = test_child.start_child("correct_hostname", tls_hostname, tls_ca_certs)
-                                           .expect(error_line!())
-                                           .expect(error_line!());
+    let mut client_pipe_stream = test_child
+        .start_child("correct_hostname", tls_hostname, tls_ca_certs)
+        .expect(error_line!())
+        .expect(error_line!());
 
     assert_stream_open(&client_pipe_stream).expect(error_line!());
     client_pipe_stream.shutdown().expect(error_line!());
@@ -60,13 +61,14 @@ fn test_valid() {
 
 fn test_accept_invalid() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let ca_pem         = test_child.ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::AcceptInvalid;
+    let ca_pem = test_child.ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::AcceptInvalid;
 
-    let mut client_pipe_stream = test_child.start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs)
-                                           .expect(error_line!())
-                                           .expect(error_line!());
+    let mut client_pipe_stream = test_child
+        .start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs)
+        .expect(error_line!())
+        .expect(error_line!());
 
     assert_stream_open(&client_pipe_stream).expect(error_line!());
     client_pipe_stream.shutdown().expect(error_line!());
@@ -75,13 +77,14 @@ fn test_accept_invalid() {
 
 fn test_valid_no_hostname() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let ca_pem         = test_child.ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::AcceptInvalid;
+    let ca_pem = test_child.ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::AcceptInvalid;
 
-    let mut client_pipe_stream = test_child.start_child("", tls_hostname, tls_ca_certs)
-                                           .expect(error_line!())
-                                           .expect(error_line!());
+    let mut client_pipe_stream = test_child
+        .start_child("", tls_hostname, tls_ca_certs)
+        .expect(error_line!())
+        .expect(error_line!());
 
     assert_stream_open(&client_pipe_stream).expect(error_line!());
     client_pipe_stream.shutdown().expect(error_line!());
@@ -90,56 +93,86 @@ fn test_valid_no_hostname() {
 
 fn test_wrong_hostname() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let ca_pem         = test_child.ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::new("correct_hostname".to_string());
+    let ca_pem = test_child.ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::new("correct_hostname".to_string());
 
-    assert!(test_child.start_child("wrong_hostname", tls_hostname, tls_ca_certs).expect(error_line!()).is_err());
+    assert!(
+        test_child
+            .start_child("wrong_hostname", tls_hostname, tls_ca_certs)
+            .expect(error_line!())
+            .is_err()
+    );
 }
 
 fn test_wrong_no_hostname() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let ca_pem         = test_child.ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::new("correct_hostname".to_string());
+    let ca_pem = test_child.ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::new("correct_hostname".to_string());
 
-    assert!(test_child.start_child("", tls_hostname, tls_ca_certs).expect(error_line!()).is_err());
+    assert!(
+        test_child
+            .start_child("", tls_hostname, tls_ca_certs)
+            .expect(error_line!())
+            .is_err()
+    );
 }
 
 fn test_no_ca() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let tls_ca_certs   = vec![];
-    let tls_hostname   = TlsHostname::AcceptInvalid;
+    let tls_ca_certs = vec![];
+    let tls_hostname = TlsHostname::AcceptInvalid;
 
-    assert!(test_child.start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs).expect(error_line!()).is_err());
+    assert!(
+        test_child
+            .start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs)
+            .expect(error_line!())
+            .is_err()
+    );
 }
 
 fn test_wrong_ca_server_certificate() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let wrong_ca       = TestCa::generate("kbuptlsd_test_wrong_ca").expect(error_line!());
-    let wrong_ca_pem   = wrong_ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(wrong_ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::AcceptInvalid;
+    let wrong_ca = TestCa::generate("kbuptlsd_test_wrong_ca").expect(error_line!());
+    let wrong_ca_pem = wrong_ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(wrong_ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::AcceptInvalid;
 
-    assert!(test_child.start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs).expect(error_line!()).is_err());
+    assert!(
+        test_child
+            .start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs)
+            .expect(error_line!())
+            .is_err()
+    );
 }
 
 fn test_wrong_ca_server_certificate_same_issuer() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let wrong_ca       = TestCa::generate("kbuptlsd_test_ca").expect(error_line!());
-    let wrong_ca_pem   = wrong_ca.to_pem().expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::from_pem(wrong_ca_pem.as_bytes()).expect(error_line!())];
-    let tls_hostname   = TlsHostname::AcceptInvalid;
+    let wrong_ca = TestCa::generate("kbuptlsd_test_ca").expect(error_line!());
+    let wrong_ca_pem = wrong_ca.to_pem().expect(error_line!());
+    let tls_ca_certs = vec![CaCertificate::from_pem(wrong_ca_pem.as_bytes()).expect(error_line!())];
+    let tls_hostname = TlsHostname::AcceptInvalid;
 
-    assert!(test_child.start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs).expect(error_line!()).is_err());
+    assert!(
+        test_child
+            .start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs)
+            .expect(error_line!())
+            .is_err()
+    );
 }
 
 fn test_wrong_system_ca_server_certificate() {
     let mut test_child = TestChild::new("kbuptlsd_test_ca").expect(error_line!());
-    let tls_ca_certs   = vec![CaCertificate::System];
-    let tls_hostname   = TlsHostname::AcceptInvalid;
+    let tls_ca_certs = vec![CaCertificate::System];
+    let tls_hostname = TlsHostname::AcceptInvalid;
 
-    assert!(test_child.start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs).expect(error_line!()).is_err());
+    assert!(
+        test_child
+            .start_child("kbuptlsd_test_server", tls_hostname, tls_ca_certs)
+            .expect(error_line!())
+            .is_err()
+    );
 }
 
 //
@@ -158,18 +191,21 @@ impl TestChild {
             ca:              TestCa::generate(ca_subject_name).expect(error_line!()),
         })
     }
+
     fn target_addr(&self) -> SocketAddr {
         self.target_listener.local_addr().expect(error_line!())
     }
+
     fn start_target(&mut self, subject_name: &str) -> Result<Result<(), native_tls::HandshakeError<TcpStream>>, failure::Error> {
         let (tcp_stream, _) = self.target_listener.accept().context(error_line!())?;
-        let tls_cert        = self.ca.generate_signed_certificate(subject_name, true).context(error_line!())?;
-        let tls_identity    = tls_cert.to_native_identity(Some(&self.ca)).context(error_line!())?;
-        let tls_acceptor    = TlsAcceptor::builder(tls_identity).min_protocol_version(Some(Protocol::Tlsv12))
-                                                                .max_protocol_version(Some(Protocol::Tlsv12))
-                                                                .build()
-                                                                .context(error_line!())?;
-        let mut tls_stream  = match tls_acceptor.accept(tcp_stream) {
+        let tls_cert = self.ca.generate_signed_certificate(subject_name, true).context(error_line!())?;
+        let tls_identity = tls_cert.to_native_identity(Some(&self.ca)).context(error_line!())?;
+        let tls_acceptor = TlsAcceptor::builder(tls_identity)
+            .min_protocol_version(Some(Protocol::Tlsv12))
+            .max_protocol_version(Some(Protocol::Tlsv12))
+            .build()
+            .context(error_line!())?;
+        let mut tls_stream = match tls_acceptor.accept(tcp_stream) {
             Ok(tls_stream) => tls_stream,
             Err(error)     => return Ok(Err(error)),
         };
@@ -178,11 +214,13 @@ impl TestChild {
         });
         Ok(Ok(()))
     }
-    fn start_child(&mut self,
-                   target_subject_name: &str,
-                   tls_hostname:        TlsHostname,
-                   tls_ca_certs:        Vec<CaCertificate>)
-                   -> Result<Result<TestPipeStream, native_tls::HandshakeError<TcpStream>>, failure::Error>
+
+    fn start_child(
+        &mut self,
+        target_subject_name: &str,
+        tls_hostname: TlsHostname,
+        tls_ca_certs: Vec<CaCertificate>,
+    ) -> Result<Result<TestPipeStream, native_tls::HandshakeError<TcpStream>>, failure::Error>
     {
         let (source_stream_0, source_stream_1) = proxy_pipe_pair()?;
 

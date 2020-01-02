@@ -16,6 +16,5 @@
  */
 
 fn main() {
-    prost_build::compile_protos(&["src/kbupd_client.proto"], &["src/"])
-        .expect("error compiling protobufs");
+    prost_build::compile_protos(&["src/kbupd_client.proto"], &["src/"]).expect("error compiling protobufs");
 }

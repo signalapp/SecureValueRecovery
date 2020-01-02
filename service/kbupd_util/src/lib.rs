@@ -24,7 +24,7 @@ pub mod thread;
 
 use std::fmt;
 use std::io;
-use std::net::{ToSocketAddrs, SocketAddr};
+use std::net::{SocketAddr, ToSocketAddrs};
 
 pub struct ToHex<'a>(pub &'a [u8]);
 pub struct OptionDisplay<T>(pub Option<T>);
@@ -34,9 +34,10 @@ pub struct DisplayAsDebug<T>(pub T);
 pub enum Never {}
 
 pub fn to_socket_addr(address: impl ToSocketAddrs) -> io::Result<SocketAddr> {
-    address.to_socket_addrs()?
-           .next()
-           .ok_or(io::Error::new(io::ErrorKind::Other, "empty listen address"))
+    address
+        .to_socket_addrs()?
+        .next()
+        .ok_or(io::Error::new(io::ErrorKind::Other, "empty listen address"))
 }
 
 //
@@ -65,7 +66,7 @@ impl<'a> fmt::Debug for ToHex<'a> {
 }
 
 impl<T> fmt::Display for OptionDisplay<T>
-where T: fmt::Display,
+where T: fmt::Display
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let OptionDisplay(inner) = self;
@@ -81,7 +82,7 @@ where T: fmt::Display,
 //
 
 impl<T> fmt::Debug for OptionDisplay<T>
-where T: fmt::Display,
+where T: fmt::Display
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, fmt)
@@ -93,20 +94,20 @@ where T: fmt::Display,
 //
 
 impl<T> fmt::Display for ListDisplay<T>
-where T: IntoIterator + Clone,
-      T::Item: fmt::Display,
+where
+    T: IntoIterator + Clone,
+    T::Item: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ListDisplay(inner) = self;
-        fmt.debug_list()
-           .entries(inner.clone().into_iter().map(DisplayAsDebug))
-           .finish()
+        fmt.debug_list().entries(inner.clone().into_iter().map(DisplayAsDebug)).finish()
     }
 }
 
 impl<T> fmt::Debug for ListDisplay<T>
-where T: IntoIterator + Clone,
-      T::Item: fmt::Display,
+where
+    T: IntoIterator + Clone,
+    T::Item: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, fmt)
@@ -118,7 +119,7 @@ where T: IntoIterator + Clone,
 //
 
 impl<T> fmt::Debug for DisplayAsDebug<T>
-where T: fmt::Display,
+where T: fmt::Display
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let DisplayAsDebug(inner) = self;
@@ -131,13 +132,13 @@ where T: fmt::Display,
 //
 
 macro_rules! from_never {
-    ($type:ty) => (
+    ($type:ty) => {
         impl From<Never> for $type {
             fn from(never: Never) -> Self {
                 match never {}
             }
         }
-    )
+    };
 }
 
 from_never!(());

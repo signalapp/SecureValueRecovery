@@ -15,21 +15,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::fs;
 use std::env;
-use std::net::{TcpStream};
-use std::num::{NonZeroI32};
-use std::path::{Path};
-use std::process;
+use std::fs;
+use std::net::TcpStream;
+use std::num::NonZeroI32;
 use std::os::unix::prelude::*;
+use std::path::Path;
+use std::process;
 
 use failure::{format_err, ResultExt};
 use kbuptlsd::config::*;
+use log::{debug, error, warn};
 use rustunnel as child;
-use rustunnel::{ClientChild, Identity, ServerChild};
 use rustunnel::stream::{ProxyPipeStream, ProxyTcpStream};
-use rustunnel::tls::{TlsHostname};
-use log::{error, warn, debug};
+use rustunnel::tls::TlsHostname;
+use rustunnel::{ClientChild, Identity, ServerChild};
 
 fn main() {
     match child::seccomp::configure_malloc() {
@@ -77,10 +77,7 @@ fn run(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> Result<i
     }
 }
 
-fn run_client(arguments: &clap::ArgMatches<'static>,
-              log_level: log::Level)
-              -> Result<(), failure::Error>
-{
+fn run_client(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> Result<(), failure::Error> {
     let logger = child::logger::Logger { level: log_level };
     log::set_boxed_logger(Box::new(logger)).expect("logger already set");
 
@@ -89,20 +86,24 @@ fn run_client(arguments: &clap::ArgMatches<'static>,
         None                => None,
     };
 
-    child::seccomp::close_all_fds(&[
+    let close_fds = &[
         Some(libc::STDIN_FILENO),
         Some(libc::STDOUT_FILENO),
         Some(libc::STDERR_FILENO),
         target_fd,
-    ].iter().copied().flatten().collect()).context("error closing all fds")?;
+    ];
+    let close_fds = close_fds.iter().copied().flatten().collect();
+    child::seccomp::close_all_fds(&close_fds).context("error closing all fds")?;
 
     let (tls_hostname, client_cert_p12);
     let mut tls_ca_certs = Vec::new();
     if let Some(config_path) = arguments.value_of("config_file") {
-        let config        = read_config(&Path::new(config_path))?;
-        let client_config = config.client.ok_or_else(|| failure::format_err!("no client config in config file"))?;
-        client_cert_p12   = client_config.clientCertificatePkcs12;
-        tls_hostname      = match client_config.hostnameValidation {
+        let config = read_config(&Path::new(config_path))?;
+        let client_config = config
+            .client
+            .ok_or_else(|| failure::format_err!("no client config in config file"))?;
+        client_cert_p12 = client_config.clientCertificatePkcs12;
+        tls_hostname = match client_config.hostnameValidation {
             ClientHostnameValidationConfig::AcceptInvalid      => TlsHostname::AcceptInvalid,
             ClientHostnameValidationConfig::Hostname(hostname) => TlsHostname::new(hostname),
         };
@@ -120,7 +121,7 @@ fn run_client(arguments: &clap::ArgMatches<'static>,
         }
     } else {
         client_cert_p12 = None;
-        tls_hostname    = if !arguments.is_present("allow_invalid_target_hostname") {
+        tls_hostname = if !arguments.is_present("allow_invalid_target_hostname") {
             TlsHostname::new(arguments.value_of("target_hostname").expect("required argument").to_string())
         } else {
             TlsHostname::AcceptInvalid
@@ -132,8 +133,9 @@ fn run_client(arguments: &clap::ArgMatches<'static>,
 
         for ca_file in arguments.values_of("ca_file").into_iter().flatten() {
             let ca_cert_path = Path::new(ca_file);
-            let ca_cert_pem  = fs::read_to_string(ca_cert_path).with_context(|_| format_err!("error reading ca certificate file {}", ca_cert_path.display()))?;
-            let ca_cert      = child::tls::CaCertificate::from_pem(ca_cert_pem.as_bytes()).context("invalid custom ca certificate")?;
+            let ca_cert_pem = fs::read_to_string(ca_cert_path)
+                .with_context(|_| format_err!("error reading ca certificate file {}", ca_cert_path.display()))?;
+            let ca_cert = child::tls::CaCertificate::from_pem(ca_cert_pem.as_bytes()).context("invalid custom ca certificate")?;
             tls_ca_certs.push(ca_cert);
         }
     }
@@ -150,12 +152,12 @@ fn run_client(arguments: &clap::ArgMatches<'static>,
 
     let source_pipe_stream = match ProxyPipeStream::stdio() {
         Ok(source_pipe_stream) => source_pipe_stream,
-        Err(error) => {
+        Err(error)             => {
             warn!("error setting up source pipe stream: {}", error);
             return Ok(());
         }
     };
-    let target_tcp_stream  = if let Some(target_host_port) = arguments.value_of("target_address") {
+    let target_tcp_stream = if let Some(target_host_port) = arguments.value_of("target_address") {
         debug!("connecting to {}", target_host_port);
         match TcpStream::connect(target_host_port) {
             Ok(target_tcp_stream) => {
@@ -173,7 +175,7 @@ fn run_client(arguments: &clap::ArgMatches<'static>,
 
     let target_tcp_stream = match ProxyTcpStream::from_std(target_tcp_stream) {
         Ok(target_tcp_stream) => target_tcp_stream,
-        Err(error) => {
+        Err(error)            => {
             warn!("error setting up target tcp stream: {}", error);
             return Ok(());
         }
@@ -183,38 +185,37 @@ fn run_client(arguments: &clap::ArgMatches<'static>,
     child.run()
 }
 
-fn run_child(arguments: &clap::ArgMatches<'static>,
-             log_level: log::Level)
-             -> Result<(), failure::Error>
-{
+fn run_child(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> Result<(), failure::Error> {
     let logger = child::logger::Logger { level: log_level };
     log::set_boxed_logger(Box::new(logger)).expect("logger already set");
 
-    let source_fd = arguments.value_of("source_fd").expect("required argument").parse::<RawFd>().context("invalid --source-fd")?;
+    let source_fd = arguments
+        .value_of("source_fd")
+        .expect("required argument")
+        .parse::<RawFd>()
+        .context("invalid --source-fd")?;
 
-    child::seccomp::close_all_fds(&[
-        libc::STDIN_FILENO,
-        libc::STDOUT_FILENO,
-        libc::STDERR_FILENO,
-        source_fd,
-    ].iter().copied().collect()).context("error closing all fds")?;
+    let close_fds = &[libc::STDIN_FILENO, libc::STDOUT_FILENO, libc::STDERR_FILENO, source_fd];
+    let close_fds = close_fds.iter().copied().collect();
+    child::seccomp::close_all_fds(&close_fds).context("error closing all fds")?;
 
     let ca_cert_path = Path::new(arguments.value_of("ca_file").expect("required argument"));
-    let ca_cert_pem  = fs::read_to_string(ca_cert_path).with_context(|_| format_err!("error reading ca certificate file {}", ca_cert_path.display()))?;
+    let ca_cert_pem =
+        fs::read_to_string(ca_cert_path).with_context(|_| format_err!("error reading ca certificate file {}", ca_cert_path.display()))?;
 
-    let ca_cert   = child::tls::CaCertificate::from_pem(ca_cert_pem.as_bytes()).context("invalid ca certificate")?;
-    let key_path  = Path::new(arguments.value_of("key_file").expect("required argument"));
-    let identity  = Identity::from_pkcs12_file(&key_path, "").context("invalid server certificate")?;
-    let source_tcp_stream  = match ProxyTcpStream::from_std(unsafe { TcpStream::from_raw_fd(source_fd) }) {
+    let ca_cert = child::tls::CaCertificate::from_pem(ca_cert_pem.as_bytes()).context("invalid ca certificate")?;
+    let key_path = Path::new(arguments.value_of("key_file").expect("required argument"));
+    let identity = Identity::from_pkcs12_file(&key_path, "").context("invalid server certificate")?;
+    let source_tcp_stream = match ProxyTcpStream::from_std(unsafe { TcpStream::from_raw_fd(source_fd) }) {
         Ok(source_tcp_stream) => source_tcp_stream,
-        Err(error) => {
+        Err(error)            => {
             warn!("error setting up source tcp stream: {}", error);
             return Ok(());
         }
     };
     let target_pipe_stream = match ProxyPipeStream::stdio() {
         Ok(target_pipe_stream) => target_pipe_stream,
-        Err(error) => {
+        Err(error)             => {
             warn!("error setting up target pipe stream: {}", error);
             return Ok(());
         }
@@ -229,10 +230,10 @@ fn immediate_exit(exit_code: i32) -> ! {
 }
 
 fn read_config(config_file_path: &Path) -> Result<Config, failure::Error> {
-    let config_file = fs::File::open(config_file_path)
-        .with_context(|_| format_err!("error opening config file {}", config_file_path.display()))?;
-    let config = Config::from_reader(config_file)
-        .with_context(|_| format_err!("error reading config file {}", config_file_path.display()))?;
+    let config_file =
+        fs::File::open(config_file_path).with_context(|_| format_err!("error opening config file {}", config_file_path.display()))?;
+    let config =
+        Config::from_reader(config_file).with_context(|_| format_err!("error reading config file {}", config_file_path.display()))?;
     Ok(config)
 }
 
@@ -241,13 +242,9 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
     // common
     //
 
-    let debug_argument =
-        clap::Arg::with_name("debug")
-        .long("debug")
-        .help("emit debug logging");
+    let debug_argument = clap::Arg::with_name("debug").long("debug").help("emit debug logging");
 
-    let config_file_argument =
-        clap::Arg::with_name("config_file")
+    let config_file_argument = clap::Arg::with_name("config_file")
         .takes_value(true)
         .long("config-file")
         .value_name("config_file_path")
@@ -256,79 +253,61 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
     // client subcommand
     //
 
-    let client_config_file_argument =
-        config_file_argument
+    let client_config_file_argument = config_file_argument
         .clone()
-        .required_unless_all(&[
-            "ca_group",
-            "target_hostname_group",
-        ]);
+        .required_unless_all(&["ca_group", "target_hostname_group"]);
 
-    let target_fd_argument =
-        clap::Arg::with_name("target_fd")
+    let target_fd_argument = clap::Arg::with_name("target_fd")
         .takes_value(true)
         .long("target-fd")
         .value_name("target_fd")
         .help("File descriptor number corresponding to the target connection to proxy to");
 
-    let child_target_address_argument =
-        clap::Arg::with_name("target_address")
+    let child_target_address_argument = clap::Arg::with_name("target_address")
         .takes_value(true)
         .long("target-address")
         .value_name("target_address")
         .help("ip:port address of target to connect to");
 
-    let target_group =
-        clap::ArgGroup::with_name("target_group")
+    let target_group = clap::ArgGroup::with_name("target_group")
         .arg("target_fd")
         .arg("target_address")
         .required(true);
 
-    let allow_invalid_target_hostname_argument =
-        clap::Arg::with_name("allow_invalid_target_hostname")
+    let allow_invalid_target_hostname_argument = clap::Arg::with_name("allow_invalid_target_hostname")
         .long("allow-invalid-target-hostname")
         .help("Allow any hostname during server certificate validation");
 
-    let target_hostname_argument =
-        clap::Arg::with_name("target_hostname")
+    let target_hostname_argument = clap::Arg::with_name("target_hostname")
         .takes_value(true)
         .long("target-hostname")
         .value_name("target_hostname")
         .help("Hostname of target to use during server certificate validation");
 
-    let target_hostname_group =
-        clap::ArgGroup::with_name("target_hostname_group")
+    let target_hostname_group = clap::ArgGroup::with_name("target_hostname_group")
         .arg("allow_invalid_target_hostname")
         .arg("target_hostname");
 
-    let ca_file_argument =
-        clap::Arg::with_name("ca_file")
+    let ca_file_argument = clap::Arg::with_name("ca_file")
         .takes_value(true)
         .multiple(true)
         .long("ca-file")
         .value_name("ca_file_path")
         .help("Path to PEM-encoded ca certificate to use during certificate validation");
 
-    let ca_system =
-        clap::Arg::with_name("ca_system")
+    let ca_system = clap::Arg::with_name("ca_system")
         .long("ca-system")
         .help("Use system certificates in /etc/ssl/certs/ during certificate validation");
 
-    let ca_group =
-        clap::ArgGroup::with_name("ca_group")
-        .multiple(true)
-        .arg("ca_file")
-        .arg("ca_system");
+    let ca_group = clap::ArgGroup::with_name("ca_group").multiple(true).arg("ca_file").arg("ca_system");
 
-    let client_key_file_argument =
-        clap::Arg::with_name("key_file")
+    let client_key_file_argument = clap::Arg::with_name("key_file")
         .takes_value(true)
         .long("key-file")
         .value_name("key_file_path")
         .help("Path to DER-encoded PKCS12 client key and certificate");
 
-    let client_subcommand =
-        clap::SubCommand::with_name("client")
+    let client_subcommand = clap::SubCommand::with_name("client")
         .arg(client_config_file_argument)
         .arg(target_fd_argument)
         .arg(child_target_address_argument)
@@ -346,24 +325,21 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
     // child subcommand
     //
 
-    let source_fd_argument =
-        clap::Arg::with_name("source_fd")
+    let source_fd_argument = clap::Arg::with_name("source_fd")
         .takes_value(true)
         .required(true)
         .long("source-fd")
         .value_name("source_fd")
         .help("File descriptor number corresponding to the source connection to proxy");
 
-    let server_key_file_argument =
-        clap::Arg::with_name("key_file")
+    let server_key_file_argument = clap::Arg::with_name("key_file")
         .takes_value(true)
         .required(true)
         .long("key-file")
         .value_name("key_file_path")
         .help("Path to DER-encoded PKCS12 server key and certificate");
 
-    let child_subcommand =
-        clap::SubCommand::with_name("child")
+    let child_subcommand = clap::SubCommand::with_name("child")
         .setting(clap::AppSettings::Hidden)
         .arg(ca_file_argument)
         .arg(server_key_file_argument)

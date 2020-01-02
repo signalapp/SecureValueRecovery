@@ -23,12 +23,11 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=sgx_enclave_common");
 
     let mut cc = cc::Build::new();
-    cc.file("c_src/kbupd_enclave_u.c")
-      .include("c_src")
-      .compile("kbupd_enclave_u");
+    cc.file("c_src/kbupd_enclave_u.c").include("c_src").compile("kbupd_enclave_u");
 
     let mut protoc = prost_build::Config::new();
-    protoc.extern_path(".protobufs.kbupd_client", "kbupd_client")
-          .compile_protos(&["src/kbupd.proto"], &["src/", "../kbupd_client/src/"])
-          .expect("error compiling protobufs");
+    protoc
+        .extern_path(".protobufs.kbupd_client", "kbupd_client")
+        .compile_protos(&["src/kbupd.proto"], &["src/", "../kbupd_client/src/"])
+        .expect("error compiling protobufs");
 }

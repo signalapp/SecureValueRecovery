@@ -19,5 +19,5 @@ pub mod frontend;
 pub mod metrics;
 pub mod replica;
 
-pub use frontend::{FrontendConfig};
-pub use replica::{ReplicaConfig};
+pub use frontend::FrontendConfig;
+pub use replica::ReplicaConfig;

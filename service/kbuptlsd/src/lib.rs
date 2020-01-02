@@ -28,9 +28,9 @@ pub mod server;
 pub mod util;
 
 pub mod prelude {
-    pub use crate::client::{TlsClientProxySpawner, TlsClientProxyArguments, TlsClientProxyCaArgument, TlsClientProxyHostnameArgument};
     #[cfg(feature = "hyper")]
-    pub use crate::client::hyper::{TlsProxyConnector};
+    pub use crate::client::hyper::TlsProxyConnector;
+    pub use crate::client::{TlsClientProxyArguments, TlsClientProxyCaArgument, TlsClientProxyHostnameArgument, TlsClientProxySpawner};
+    pub use crate::proxy_child::{TlsProxyChild, TlsProxyStderrStream, TlsProxyStream};
     pub use crate::server::{TlsProxyListener, TlsProxyListenerArguments};
-    pub use crate::proxy_child::{TlsProxyChild, TlsProxyStream, TlsProxyStderrStream};
 }
