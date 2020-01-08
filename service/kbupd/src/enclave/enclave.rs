@@ -27,6 +27,7 @@ use std::ops::{Deref};
 use futures::sync::oneshot;
 use kbupd_api::entities::*;
 use kbupd_api::entities::{BackupId};
+use sgx_sdk_ffi::*;
 
 use crate::*;
 use crate::intel_client::*;
@@ -35,7 +36,6 @@ use crate::protobufs::kbupd::*;
 use crate::metrics::*;
 
 use super::ffi::ecalls;
-use super::ffi::sgx::*;
 use super::ffi::sgxsd::*;
 
 pub struct Enclave {
@@ -107,7 +107,7 @@ impl Enclave {
                peer_manager_tx: actor::Sender<PeerManager>,
                attestation_tx:  actor::Sender<AttestationManager>)
                -> Result<Self, EnclaveError> {
-        let enclave_id = create_enclave(enclave_path, enclave_debug)?;
+        let enclave_id = create_enclave(enclave_path, enclave_debug).sgxsd_context("sgx_create_enclave")?;
 
         Ok(Self {
             enclave_name,
@@ -428,7 +428,14 @@ impl Enclave {
     }
 
     fn handle_get_quote_request(&mut self, request: GetQuoteRequest) {
-        match get_quote(&request.sgx_report, &self.sgx_spid, &self.sgx_sig_rl) {
+        let sgx_report = match SgxReport::new(&request.sgx_report) {
+            Ok(sgx_report) => sgx_report,
+            Err(())        => {
+                error!("sgx get_quote incorrect report length: {}", request.sgx_report.len());
+                return;
+            }
+        };
+        match get_quote(sgx_report, &self.sgx_spid, &self.sgx_sig_rl) {
             Ok(sgx_quote) => {
                 self.send_queue.push(UntrustedMessage {
                     inner: Some(untrusted_message::Inner::GetQuoteReply(GetQuoteReply {

@@ -1,0 +1,11 @@
+[package]
+authors     = ["Open Whisper Systems"]
+name        = "sgx_sdk_ffi"
+version     = "0.1.0"
+license     = "AGPL-3.0-or-later"
+description = "Intel SGX SDK bindings"
+edition     = "2018"
+
+[dependencies]
+num-derive = "0.3"
+num-traits = "0.2"

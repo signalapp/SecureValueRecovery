@@ -317,7 +317,7 @@ impl EnclaveManager {
     }
 
     pub fn get_sgx_gid(&mut self, reply_tx: oneshot::Sender<Result<u32, failure::Error>>) -> Result<(), EnclaveError> {
-        let gid_result = super::ffi::sgx::get_gid().context("error fetching sgx gid");
+        let gid_result = sgx_sdk_ffi::get_gid().context("error fetching sgx gid");
 
         let _ignore = reply_tx.send(gid_result.map_err(failure::Error::from));
         Ok(())

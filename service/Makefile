@@ -72,9 +72,15 @@ clippy:
 	$(CARGO) clippy --package=kbupd
 
 bindgen:
+	$(BINDGEN) -o sgx_sdk_ffi/src/bindgen_wrapper.rs \
+		--rust-target 1.33 --with-derive-default --with-derive-eq --no-prepend-enum-name \
+		sgx_sdk_ffi/src/bindgen_wrapper.h  --rustfmt-configuration-file /dev/null
 	$(BINDGEN) -o kbupd/src/enclave/ffi/bindgen_wrapper.rs \
 		--rust-target 1.33 --with-derive-default --with-derive-eq --no-prepend-enum-name \
-		kbupd/src/enclave/ffi/bindgen_wrapper.h -- -I../enclave/include
+		kbupd/src/enclave/ffi/bindgen_wrapper.h --rustfmt-configuration-file /dev/null \
+		--blacklist-type sgx_report_t --blacklist-type sgx_target_info_t \
+		--raw-line "use sgx_sdk_ffi::{SgxReport as sgx_report_t, SgxTargetInfo as sgx_target_info_t};" \
+		-- -I../enclave/include
 
 distclean: clean
 	rm -r $(builddir)/

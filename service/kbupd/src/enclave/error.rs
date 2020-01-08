@@ -18,8 +18,8 @@
 use std::fmt;
 
 use futures;
+use sgx_sdk_ffi::*;
 
-use super::ffi::sgx::*;
 use super::ffi::sgxsd::*;
 
 #[derive(Clone, failure::Fail)]

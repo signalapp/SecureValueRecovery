@@ -16,11 +16,11 @@
  */
 
 use prost::{Message};
+use sgx_sdk_ffi::*;
 
 use crate::protobufs::kbupd::*;
 
 use super::ocalls;
-use super::sgx::*;
 use super::sgxsd::*;
 
 use super::bindgen_wrapper::{kbupd_enclave_recv_untrusted_msg};

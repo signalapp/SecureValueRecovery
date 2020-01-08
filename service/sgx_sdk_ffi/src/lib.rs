@@ -15,30 +15,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::convert::{TryInto};
+#[allow(dead_code, non_snake_case, non_camel_case_types, non_upper_case_globals, improper_ctypes)]
+mod bindgen_wrapper;
+
 use std::fmt;
+use std::mem;
+use std::os::raw;
+use std::ptr;
 
-use num_traits::{FromPrimitive};
+use num_traits::FromPrimitive;
 
-use super::sgxsd::*;
-
-use super::bindgen_wrapper::{
-    sgx_calc_quote_size,
-    sgx_create_enclave,
-    sgx_get_quote,
-    sgx_init_quote,
-    sgx_target_info_t,
-    sgx_report_t,
-    sgx_spid_t,
-    sgx_status_t,
-    sgx_quote_t,
-    SGX_SUCCESS,
-    SGX_UNLINKABLE_SIGNATURE,
+use bindgen_wrapper::{
+    sgx_calc_quote_size, sgx_create_enclave, sgx_create_enclave_from_buffer_ex, sgx_destroy_enclave, sgx_get_quote, sgx_init_quote,
+    sgx_quote_t, sgx_spid_t, sgx_status_t, SGX_SUCCESS, SGX_UNLINKABLE_SIGNATURE,
 };
 
-pub use super::bindgen_wrapper::{
-    sgx_enclave_id_t as SgxEnclaveId,
+pub use bindgen_wrapper::{
+    sgx_enclave_id_t as SgxEnclaveId, sgx_quote_t as SgxQuote, sgx_report_t as SgxReport, sgx_target_info_t as SgxTargetInfo,
 };
+
+pub type SgxResult<T> = Result<T, SgxStatus>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SgxStatus {
@@ -119,74 +115,154 @@ pub enum SgxError {
     SgxsdPendingRequestNotFound = 65537,
 }
 
+pub struct SgxEnclave {
+    id:     SgxEnclaveId,
+    buffer: Option<(*mut u8, usize, usize)>,
+}
+
+//
+// SgxEnclave impls
+//
+
+impl SgxEnclave {
+    pub fn new(mut buffer: Vec<u8>, debug: bool) -> SgxResult<SgxEnclave> {
+        let buffer_ptr = buffer.as_mut_ptr();
+        let buffer_len = buffer.len();
+        let buffer_cap = buffer.capacity();
+        mem::forget(buffer);
+
+        let mut enclave_id: SgxEnclaveId = Default::default();
+        SgxStatus::from(unsafe {
+            sgx_create_enclave_from_buffer_ex(
+                buffer_ptr,
+                buffer_len,
+                debug as raw::c_int,
+                &mut enclave_id,
+                ptr::null_mut(),
+                0u32,
+                ptr::null_mut(),
+            )
+        })
+        .ok()?;
+        Ok(SgxEnclave {
+            id:     enclave_id,
+            buffer: Some((buffer_ptr, buffer_len, buffer_cap)),
+        })
+    }
+
+    pub fn id(&self) -> SgxEnclaveId {
+        self.id
+    }
+}
+
+impl Drop for SgxEnclave {
+    fn drop(&mut self) {
+        unsafe {
+            if let Ok(()) = SgxStatus::from(sgx_destroy_enclave(self.id)).ok() {
+                if let Some((buffer_ptr, buffer_len, buffer_cap)) = self.buffer {
+                    drop(Vec::from_raw_parts(buffer_ptr, buffer_len, buffer_cap));
+                }
+            }
+        }
+    }
+}
+
 //
 // free functions
 //
 
-pub fn create_enclave(enclave_filename: &str, debug: bool) -> SgxsdResult<SgxEnclaveId> {
-    let enclave_filename_cstr                  = std::ffi::CString::new(enclave_filename).unwrap();
-    let mut launch_token:         [u8; 1024]   = [0; 1024];
-    let mut launch_token_updated: i32          = Default::default();
-    let mut enclave_id:           SgxEnclaveId = Default::default();
-    sgxsd_res(|_| unsafe { sgx_create_enclave(
-        enclave_filename_cstr.as_ptr(),
-        debug as std::os::raw::c_int,
-        &mut launch_token,
-        &mut launch_token_updated,
-        &mut enclave_id,
-        std::ptr::null_mut()
-    )}, "sgx_create_enclave")
-        .map(|()| enclave_id)
+pub fn create_enclave(enclave_filename: &str, debug: bool) -> SgxResult<SgxEnclaveId> {
+    let enclave_filename_cstr = std::ffi::CString::new(enclave_filename).unwrap();
+    let mut launch_token: [u8; 1024] = [0; 1024];
+    let mut launch_token_updated: i32 = Default::default();
+    let mut enclave_id: SgxEnclaveId = Default::default();
+    SgxStatus::from(unsafe {
+        sgx_create_enclave(
+            enclave_filename_cstr.as_ptr(),
+            debug as std::os::raw::c_int,
+            &mut launch_token,
+            &mut launch_token_updated,
+            &mut enclave_id,
+            std::ptr::null_mut(),
+        )
+    })
+    .ok()?;
+    Ok(enclave_id)
 }
 
-pub fn get_gid() -> SgxsdResult<u32> {
-    let mut qe_target_info: sgx_target_info_t = Default::default();
-    let mut gid:            [u8; 4]           = Default::default();
-    sgxsd_res(|_| unsafe { sgx_init_quote(&mut qe_target_info, &mut gid) }, "sgx_init_quote")?;
-    Ok(u32::from_ne_bytes(gid))
+pub fn init_quote() -> SgxResult<(u32, SgxTargetInfo)> {
+    // NB: sgx_init_quote expects qe_target_info to be zeroed (undocumented!)
+    let mut qe_target_info: SgxTargetInfo = Default::default();
+    let mut gid: [u8; 4] = Default::default();
+    SgxStatus::from(unsafe { sgx_init_quote(&mut qe_target_info, &mut gid) }).ok()?;
+    Ok((u32::from_ne_bytes(gid), qe_target_info))
 }
 
-pub fn get_qe_target_info() -> SgxsdResult<sgx_target_info_t> {
-    let mut qe_target_info: sgx_target_info_t = Default::default();
-    let mut gid:            [u8; 4]           = Default::default();
-    sgxsd_res(|_| unsafe { sgx_init_quote(&mut qe_target_info, &mut gid) }, "sgx_init_quote")?;
-    Ok(qe_target_info)
+pub fn get_gid() -> SgxResult<u32> {
+    Ok(init_quote()?.0)
 }
 
-pub fn get_quote(report: &[u8], spid: &[u8], sig_rl: &[u8]) -> SgxsdResult<Vec<u8>> {
-    let spid_struct = sgx_spid_t {
-        id: spid.try_into().map_err(|_| SgxsdError { kind: SgxsdErrorKind::Sgx, status: SgxError::InvalidParameter.into(), name: "get_quote_spid" })?,
-    };
-    if report.len() == std::mem::size_of::<sgx_report_t>() {
-        let report = unsafe { std::ptr::read_unaligned(report.as_ptr() as *const sgx_report_t) };
+pub fn get_qe_target_info() -> SgxResult<SgxTargetInfo> {
+    Ok(init_quote()?.1)
+}
 
-        let (p_sig_rl, sig_rl_len) = get_sig_rl_ptr(sig_rl);
-        let mut quote_size: u32    = Default::default();
-        sgxsd_res(|_| unsafe { sgx_calc_quote_size(p_sig_rl, sig_rl_len, &mut quote_size) }, "sgx_calc_quote_size")?;
+pub fn get_quote(report: SgxReport, spid: &[u8; 16], sig_rl: &[u8]) -> SgxResult<Vec<u8>> {
+    let (p_sig_rl, sig_rl_len) = get_sig_rl_ptr(sig_rl);
+    let mut quote_size: u32 = Default::default();
+    SgxStatus::from(unsafe { sgx_calc_quote_size(p_sig_rl, sig_rl_len, &mut quote_size) }).ok()?;
 
-        if (quote_size as usize) >= std::mem::size_of::<sgx_quote_t>() {
-            let mut quote = vec![0; quote_size as usize];
-            sgxsd_res(|_| unsafe {
-                sgx_get_quote(&report, SGX_UNLINKABLE_SIGNATURE, &spid_struct,
-                              std::ptr::null(),
-                              p_sig_rl, sig_rl_len,
-                              std::ptr::null_mut(),
-                              quote.as_mut_ptr() as *mut sgx_quote_t, quote_size)
-            }, "sgx_get_quote")?;
-            Ok(quote)
-        } else {
-            Err(SgxsdError { kind: SgxsdErrorKind::Sgx, status: SgxError::Unexpected.into(), name: "bad_quote_size" })
-        }
-    } else {
-        Err(SgxsdError { kind: SgxsdErrorKind::Sgx, status: SgxError::InvalidParameter.into(), name: "get_quote" })
+    if (quote_size as usize) < mem::size_of::<sgx_quote_t>() {
+        return Err(SgxError::Unexpected.into());
     }
+
+    let mut quote: Vec<u8> = vec![0; quote_size as usize];
+    let quote_size = quote.len() as u32;
+    let spid_struct = sgx_spid_t { id: *spid };
+    SgxStatus::from(unsafe {
+        sgx_get_quote(
+            &report,
+            SGX_UNLINKABLE_SIGNATURE,
+            &spid_struct,
+            std::ptr::null(),
+            p_sig_rl,
+            sig_rl_len,
+            std::ptr::null_mut(),
+            quote.as_mut_ptr() as *mut sgx_quote_t,
+            quote_size,
+        )
+    })
+    .ok()?;
+
+    Ok(quote)
 }
 
-pub fn get_sig_rl_ptr(sig_rl: &[u8]) -> (*const u8, u32) {
+fn get_sig_rl_ptr(sig_rl: &[u8]) -> (*const u8, u32) {
     match sig_rl.len() {
         0 => (std::ptr::null(), 0),
         len if len < (u32::max_value() as usize) => (sig_rl.as_ptr(), len as u32),
-        _ => (std::ptr::null(), 0)
+        _ => (std::ptr::null(), 0),
+    }
+}
+
+//
+// SgxReport impls
+//
+
+impl SgxReport {
+    pub const SIZE: usize = mem::size_of::<Self>();
+
+    pub fn new(data: &[u8]) -> Result<Self, ()> {
+        if data.len() == Self::SIZE {
+            Ok(unsafe { std::ptr::read_unaligned(data.as_ptr() as *const Self) })
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<&[u8; Self::SIZE]> for SgxReport {
+    fn from(from: &[u8; Self::SIZE]) -> Self {
+        unsafe { std::ptr::read_unaligned(from.as_ptr() as *const Self) }
     }
 }
 
@@ -195,6 +271,13 @@ pub fn get_sig_rl_ptr(sig_rl: &[u8]) -> (*const u8, u32) {
 //
 
 impl SgxStatus {
+    pub fn ok(self) -> SgxResult<()> {
+        match self {
+            SgxStatus::Success => Ok(()),
+            status             => Err(status),
+        }
+    }
+
     pub fn err(&self) -> Option<&SgxError> {
         match self {
             SgxStatus::Error(error) => Some(error),
@@ -202,6 +285,8 @@ impl SgxStatus {
         }
     }
 }
+
+impl std::error::Error for SgxStatus {}
 
 impl fmt::Display for SgxStatus {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -227,7 +312,6 @@ impl From<SgxError> for SgxStatus {
     }
 }
 
-
 impl From<SgxStatus> for sgx_status_t {
     fn from(sgx_status: SgxStatus) -> Self {
         match sgx_status {
@@ -241,6 +325,8 @@ impl From<SgxStatus> for sgx_status_t {
 //
 // SgxError impls
 //
+
+impl std::error::Error for SgxError {}
 
 impl fmt::Display for SgxError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -256,10 +342,12 @@ impl From<SgxError> for sgx_status_t {
 
 #[cfg(test)]
 mod test {
+    use std::mem;
+
     use super::*;
 
     #[test]
     fn test_sgx_quote_align() {
-        assert_eq!(std::mem::align_of::<sgx_quote_t>(), 1);
+        assert_eq!(mem::align_of::<sgx_quote_t>(), 1);
     }
 }

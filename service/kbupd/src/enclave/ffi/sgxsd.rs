@@ -19,20 +19,13 @@ use std::fmt;
 use std::mem;
 use std::os::raw::*;
 
-use byteorder::{ByteOrder};
+use sgx_sdk_ffi::*;
 
 use crate::protobufs::kbupd::*;
 
 use super::ocalls;
-use super::sgx::*;
 
 use super::bindgen_wrapper::{
-    sgx_calc_quote_size,
-    sgx_get_quote,
-    sgx_init_quote,
-    sgx_target_info_t,
-    sgx_report_t,
-    sgx_spid_t,
     sgx_status_t,
     sgx_quote_t,
     sgxsd_enclave_get_next_report,
@@ -46,7 +39,6 @@ use super::bindgen_wrapper::{
     sgxsd_node_init_args_t,
     sgxsd_request_negotiation_response_t,
     sgxsd_server_init_args_t,
-    SGX_UNLINKABLE_SIGNATURE,
 };
 
 pub use super::bindgen_wrapper::{
@@ -93,6 +85,10 @@ pub struct SgxsdError {
     pub kind:   SgxsdErrorKind,
     pub status: SgxStatus,
     pub name:   &'static str,
+}
+
+pub trait SgxResultExt<T> {
+    fn sgxsd_context(self, name: &'static str) -> SgxsdResult<T>;
 }
 
 //
@@ -150,6 +146,19 @@ impl fmt::Display for SgxsdError {
 }
 
 //
+// SgxResultExt impls
+//
+
+impl<T> SgxResultExt<T> for SgxResult<T> {
+    fn sgxsd_context(self, name: &'static str) -> SgxsdResult<T> {
+        match self {
+            Ok(value)   => Ok(value),
+            Err(status) => Err(SgxsdError { kind: SgxsdErrorKind::Sgx, status, name }),
+        }
+    }
+}
+
+//
 // SgxQuote impls
 //
 
@@ -189,44 +198,13 @@ pub fn sgxsd_negotiate_request(enclave_id: SgxEnclaveId, request: &SgxsdRequestN
 }
 
 pub fn sgxsd_get_next_quote(enclave_id: SgxEnclaveId, spid: &[u8; 16], sig_rl: &[u8]) -> SgxsdResult<SgxQuote> {
-    let mut quote_size: u32 = 0;
-    let (p_sig_rl, sig_rl_size) = get_sig_rl_ptr(sig_rl);
-    sgxsd_res(|_| unsafe { sgx_calc_quote_size(p_sig_rl, sig_rl_size, &mut quote_size) }, "sgx_calc_quote_size")
-        .and_then(|_| {
-            let mut quote: Vec<u8> = vec![0; quote_size as usize];
-            sgxsd_get_next_quote_sized(enclave_id, spid, sig_rl, &mut quote[..])
-                .map(|gid| SgxQuote {
-                    gid,
-                    data: quote,
-                })
-        })
-}
-
-fn sgxsd_get_next_quote_sized(enclave_id: SgxEnclaveId, spid: &[u8; 16], sig_rl: &[u8],
-                              p_quote: &mut [u8]) -> SgxsdResult<u32> {
-    // NB: sgx_init_quote expects qe_target_info to be zeroed (undocumented!)
-    let mut qe_target_info: sgx_target_info_t = Default::default();
-    let mut gid:            [u8; 4]           = Default::default();
-    sgxsd_res(|_| unsafe { sgx_init_quote(&mut qe_target_info, &mut gid) }, "sgx_init_quote")
-        .and_then(|_| {
-            let mut report: sgx_report_t = Default::default();
-            sgxsd_res(|res| unsafe { sgxsd_enclave_get_next_report(
-                enclave_id, res, qe_target_info, &mut report
-            )}, "sgxsd_enclave_get_next_quote")?;
-            Ok(report)
-        })
-        .and_then(|report| {
-            let quote_size = p_quote.len() as u32;
-            let spid_struct = sgx_spid_t { id: *spid };
-            let p_nonce = std::ptr::null_mut();
-            let (p_sig_rl, sig_rl_size) = get_sig_rl_ptr(sig_rl);
-            let p_qe_report = std::ptr::null_mut();
-            sgxsd_res(|_| unsafe { sgx_get_quote(
-                &report, SGX_UNLINKABLE_SIGNATURE,
-                &spid_struct, p_nonce, p_sig_rl, sig_rl_size, p_qe_report, p_quote.as_mut_ptr() as *mut sgx_quote_t, quote_size
-            )}, "sgx_get_quote")
-        })
-        .map(|()| byteorder::LittleEndian::read_u32(&gid))
+    let (gid, qe_target_info) = sgx_sdk_ffi::init_quote().sgxsd_context("sgx_init_quote")?;
+    let mut report: SgxReport = Default::default();
+    sgxsd_res(|res| unsafe { sgxsd_enclave_get_next_report(
+        enclave_id, res, qe_target_info, &mut report
+    )}, "sgxsd_enclave_get_next_quote")?;
+    let data = sgx_sdk_ffi::get_quote(report, spid, sig_rl).sgxsd_context("sgx_get_quote")?;
+    Ok(SgxQuote { gid, data })
 }
 
 pub fn sgxsd_set_current_quote(enclave_id: SgxEnclaveId) -> SgxsdResult<()> {

@@ -18,11 +18,11 @@
 use std::mem;
 
 use prost::{Message};
+use sgx_sdk_ffi::*;
 
 use crate::*;
 use crate::protobufs::kbupd::*;
 
-use super::sgx::*;
 use super::sgxsd::*;
 
 use super::bindgen_wrapper::{
