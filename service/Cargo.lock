@@ -784,7 +784,7 @@ dependencies = [
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "openssl 0.10.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "openssl 0.10.25 (git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0)",
  "openssl-probe 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "openssl-sys 0.9.50 (git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0)",
  "schannel 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -859,19 +859,6 @@ dependencies = [
 name = "numtoa"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "openssl"
-version = "0.10.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "foreign-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "openssl-sys 0.9.50 (git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0)",
-]
 
 [[package]]
 name = "openssl"
@@ -1986,7 +1973,6 @@ dependencies = [
 "checksum num-traits 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6ba9a427cfca2be13aa6f6403b0b7e7368fe982bfa16fccc450ce74c46cd9b32"
 "checksum num_cpus 1.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bcef43580c035376c0705c42792c294b66974abbfd2789b511784023f71f3273"
 "checksum numtoa 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b8f8bdf33df195859076e54ab11ee78a1b208382d3a26ec40d142ffc1ecc49ef"
-"checksum openssl 0.10.24 (registry+https://github.com/rust-lang/crates.io-index)" = "8152bb5a9b5b721538462336e3bef9a539f892715e5037fda0f984577311af15"
 "checksum openssl 0.10.25 (git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0)" = "<none>"
 "checksum openssl-probe 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 "checksum openssl-sys 0.9.50 (git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0)" = "<none>"
