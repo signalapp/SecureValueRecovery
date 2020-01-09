@@ -27,10 +27,10 @@ use std::ops::{Deref};
 use futures::sync::oneshot;
 use kbupd_api::entities::*;
 use kbupd_api::entities::{BackupId};
+use ias_client::*;
 use sgx_sdk_ffi::*;
 
 use crate::*;
-use crate::intel_client::*;
 use crate::peer::manager::*;
 use crate::protobufs::kbupd::*;
 use crate::metrics::*;
@@ -215,9 +215,9 @@ impl Enclave {
             ciphertext: sgxsd_resp.encrypted_pending_request_id.data.to_vec(),
 
             quote:         self.signed_quote.as_ref().map(|signed_quote| signed_quote.quote.clone()).unwrap_or_default(),
-            certificates:  self.signed_quote.as_ref().map(|signed_quote| util::pem::encode("CERTIFICATE", signed_quote.report.certificates.iter().map(|certificate| &certificate[..]))).unwrap_or_default(),
-            signature:     self.signed_quote.as_ref().map(|signed_quote| signed_quote.report.signature.clone()).unwrap_or_default(),
-            signatureBody: self.signed_quote.as_ref().map(|signed_quote| String::from_utf8_lossy(&signed_quote.report.body).to_string()).unwrap_or_default(),
+            certificates:  self.signed_quote.as_ref().map(|signed_quote| util::pem::encode("CERTIFICATE", signed_quote.certificates.iter().map(|certificate| &certificate[..]))).unwrap_or_default(),
+            signature:     self.signed_quote.as_ref().map(|signed_quote| signed_quote.signature.clone()).unwrap_or_default(),
+            signatureBody: self.signed_quote.as_ref().map(|signed_quote| String::from_utf8_lossy(&signed_quote.body).to_string()).unwrap_or_default(),
         })
     }
 

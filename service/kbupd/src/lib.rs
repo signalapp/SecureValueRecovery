@@ -19,8 +19,6 @@
 
 use log::{debug, error, info, warn};
 
-use try_future::*;
-
 #[macro_use]
 mod metrics;
 
@@ -51,5 +49,4 @@ pub use crate::enclave::enclave_manager::{EnclaveManager, EnclaveManagerChannel,
 pub use crate::enclave::error::*;
 pub use crate::enclave::handshake_manager::HandshakeManager;
 pub use crate::frontend::{FrontendCommandLineConfig, FrontendService};
-pub use crate::intel_client::IntelClient;
 pub use crate::replica::{ReplicaCommandLineConfig, ReplicaService};

@@ -18,6 +18,7 @@
 use std::time::{Duration, Instant};
 
 use futures::prelude::*;
+use ias_client::*;
 use try_future::{TryFuture};
 use tokio::timer;
 
@@ -29,7 +30,7 @@ const REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 
 pub struct HandshakeManager {
     enclave_tx:               EnclaveManagerSender,
-    intel_client:             IntelClient,
+    intel_client:             KbupdIasClient,
     accept_group_out_of_date: bool,
 }
 
@@ -46,7 +47,7 @@ lazy_static::lazy_static! {
 
 impl HandshakeManager {
     pub fn new(enclave_tx:               EnclaveManagerSender,
-               intel_client:             IntelClient,
+               intel_client:             KbupdIasClient,
                accept_group_out_of_date: bool)
                -> Self {
         Self {

@@ -18,6 +18,7 @@ failure_derive   = "0.1"
 futures          = "0.1"
 http             = "0.1"
 hyper            = "0.12"
+ias_client       = { path = "../ias_client" }
 kbupd_api        = { path = "../kbupd_api" }
 kbupd_client     = { path = "../kbupd_client" }
 kbupd_config     = { path = "../kbupd_config", default-features = false, features = [] }

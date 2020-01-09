@@ -20,6 +20,7 @@ use std::collections::{HashMap};
 use futures::future;
 use futures::prelude::*;
 use futures::sync::oneshot;
+use ias_client::*;
 
 use crate::*;
 use crate::intel_client::*;
@@ -34,13 +35,13 @@ lazy_static::lazy_static! {
 
 pub struct AttestationManager {
     enclave_tx:   EnclaveManagerSender,
-    intel_client: Option<IntelClient>,
+    intel_client: Option<KbupdIasClient>,
     requests:     HashMap<Vec<u8>, oneshot::Sender<util::Never>>,
 }
 
 impl AttestationManager {
     pub fn new(enclave_tx:   EnclaveManagerSender,
-               intel_client: Option<IntelClient>)
+               intel_client: Option<KbupdIasClient>)
                -> Self
     {
         Self {
@@ -86,8 +87,10 @@ impl AttestationManager {
         } else {
             let _ignore = self.enclave_tx.cast(move |enclave_manager: &mut EnclaveManager| {
                 enclave_manager.get_attestation_reply(enclave_name, request.request_id, Ok(SignedQuote {
-                    quote:  request.sgx_quote,
-                    report: Default::default(),
+                    quote:        request.sgx_quote,
+                    body:         Default::default(),
+                    signature:    Default::default(),
+                    certificates: Default::default(),
                 }))
             });
         }

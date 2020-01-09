@@ -34,6 +34,7 @@ use crate::enclave::attestation_manager::{AttestationManager};
 use crate::enclave::timer_tick::{EnclaveTimerTickTask};
 use crate::enclave::status_refresh::{EnclaveStatusRefreshTask};
 use crate::enclave::revocation_list_refresh::{RevocationListRefreshTask};
+use crate::intel_client::*;
 use crate::metrics::{JsonReporter, METRICS, PeriodicReporter};
 use crate::peer::listener::*;
 use crate::peer::manager::*;
@@ -84,7 +85,7 @@ impl ReplicaService {
                 config_file: util::join_if_relative(cmdline_config.config_directory, &config.attestation.tlsConfigPath),
                 key_file:    None,
             }).context("error creating intel attestation tls client proxy")?;
-            Some(IntelClient::new(&config.attestation.host, intel_client_proxy).context("error creating intel attestation client")?)
+            Some(new_ias_client(&config.attestation.host, intel_client_proxy).context("error creating intel attestation client")?)
         } else {
             None
         };
@@ -158,7 +159,7 @@ impl ReplicaService {
         let control_listener    = ControlListener::new(config.control.listenHostPort, enclave_manager_tx.clone()).context("error starting control listener")?;
         let timer_tick_task     = EnclaveTimerTickTask::new(timer_tick_interval, ENCLAVE_NAME.to_string(), enclave_manager_tx.clone());
         let status_refresh_task = EnclaveStatusRefreshTask::new(ENCLAVE_STATUS_REFRESH_INTERVAL, enclave_manager_tx.clone());
-        let sig_rl_refresh_task = maybe_intel_client.map(|intel_client: IntelClient| RevocationListRefreshTask::new(REVOCATION_LIST_REFRESH_INTERVAL, intel_client, enclave_manager_tx.clone()));
+        let sig_rl_refresh_task = maybe_intel_client.map(|ias_client: KbupdIasClient| RevocationListRefreshTask::new(REVOCATION_LIST_REFRESH_INTERVAL, ias_client, enclave_manager_tx.clone()));
 
         runtime.spawn(peer_listener.into_future());
         runtime.spawn(peer_manager_rx.enter_loop(peer_manager));

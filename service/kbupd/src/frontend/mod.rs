@@ -41,6 +41,7 @@ use crate::backup::request_manager::*;
 use crate::enclave::attestation_manager::{AttestationManager};
 use crate::enclave::timer_tick::{EnclaveTimerTickTask};
 use crate::enclave::status_refresh::{EnclaveStatusRefreshTask};
+use crate::intel_client::*;
 use crate::limits::rate_limiter::*;
 use crate::metrics::{JsonReporter, METRICS, PeriodicReporter};
 use crate::peer::discovery::*;
@@ -94,7 +95,7 @@ impl FrontendService {
                 config_file: util::join_if_relative(cmdline_config.config_directory, &config.attestation.tlsConfigPath),
                 key_file:    None,
             }).context("error creating intel attestation tls proxy client")?;
-            let new_intel_client = IntelClient::new(&config.attestation.host, intel_client_proxy).context("error creating intel attestation client")?;
+            let new_intel_client = new_ias_client(&config.attestation.host, intel_client_proxy).context("error creating intel attestation client")?;
             handshake_manager    = Some(HandshakeManager::new(enclave_manager_tx.clone(), new_intel_client.clone(), config.attestation.acceptGroupOutOfDate));
             intel_client         = Some(new_intel_client);
         } else {

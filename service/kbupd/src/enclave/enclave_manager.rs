@@ -23,10 +23,10 @@ use futures::sync::oneshot;
 use futures::prelude::*;
 use kbupd_api::entities::*;
 use kbupd_api::entities::{BackupId};
+use ias_client::*;
 
 use crate::*;
 use crate::enclave::enclave::{Enclave};
-use crate::intel_client::*;
 use crate::peer::manager::*;
 use crate::protobufs::kbupd::*;
 
@@ -161,7 +161,11 @@ impl EnclaveManager {
             Ok(signed_quote) => {
                 let reply = GetAttestationReply {
                     request_id,
-                    ias_report: signed_quote.report,
+                    ias_report: IasReport {
+                        body:         signed_quote.body,
+                        signature:    signed_quote.signature,
+                        certificates: signed_quote.certificates,
+                    }
                 };
                 if let Some(enclave) = self.enclaves.get_mut(&enclave_name) {
                     enclave.enqueue_message(UntrustedMessage {

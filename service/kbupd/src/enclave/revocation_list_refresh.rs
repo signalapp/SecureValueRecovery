@@ -19,19 +19,20 @@ use std::time::*;
 
 use futures::prelude::*;
 use tokio::timer;
+use ias_client::*;
 
 use crate::*;
 use crate::intel_client::*;
 
 pub struct RevocationListRefreshTask {
     interval:           Duration,
-    intel_client:       IntelClient,
+    intel_client:       KbupdIasClient,
     enclave_manager_tx: EnclaveManagerSender,
 }
 
 impl RevocationListRefreshTask {
     pub fn new(interval:           Duration,
-               intel_client:       IntelClient,
+               intel_client:       KbupdIasClient,
                enclave_manager_tx: EnclaveManagerSender)
                -> Self
     {
