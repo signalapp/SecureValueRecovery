@@ -29,5 +29,5 @@ pub fn new_ias_client(host: &str, tls_proxy: TlsClientProxySpawner) -> Result<Kb
 
     let tls_connector = TlsProxyConnector::new(Arc::new(tls_proxy), http_connector);
 
-    IasClient::new(host, tls_connector)
+    IasClient::new(host, None, tls_connector)
 }
