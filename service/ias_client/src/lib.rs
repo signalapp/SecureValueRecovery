@@ -18,8 +18,10 @@
 use std::fmt;
 use std::mem;
 
+use failure::{format_err, ResultExt};
 use futures::prelude::*;
 use http::header::HeaderValue;
+use http::uri::PathAndQuery;
 use http::{self, HeaderMap, Uri};
 use hyper::client::connect::Connect;
 use hyper::{Body, Chunk, Client, Method, Request, Response};
@@ -27,11 +29,12 @@ use kbupd_util::base64;
 use serde_derive::{Deserialize, Serialize};
 use serde_json;
 use sgx_sdk_ffi::SgxQuote;
-use try_future::try_future;
+use try_future::{try_future, TryFuture};
 
 pub struct IasClient<C> {
-    host:   Uri,
-    client: Client<C, Body>,
+    base_uri: Uri,
+    api_key:  Option<HeaderValue>,
+    client:   Client<C, Body>,
 }
 
 #[derive(Debug, failure::Fail)]
@@ -51,22 +54,39 @@ where
     C::Transport: 'static,
     C::Future: 'static,
 {
-    pub fn new(host: &str, connector: C) -> Result<Self, failure::Error> {
-        let host = host.parse()?;
+    pub fn new(base_uri: &str, api_key: Option<&str>, connector: C) -> Result<Self, failure::Error> {
+        let base_uri = if api_key.is_some() {
+            uri_path_join(base_uri.parse()?, format_args!("/attestation/v3"))?
+        } else {
+            uri_path_join(base_uri.parse()?, format_args!("/attestation/sgx/v3"))?
+        };
         let client = Client::builder().build(connector);
-        Ok(Self { host, client })
+        let api_key = match api_key {
+            Some(api_key) => Some(HeaderValue::from_bytes(api_key.as_bytes()).context("invalid IAS API key value")?),
+            None          => None,
+        };
+        Ok(Self { base_uri, api_key, client })
     }
 
     pub fn get_signature_revocation_list(&self, gid: u32) -> impl Future<Item = SignatureRevocationList, Error = failure::Error> {
-        let mut uri_parts = self.host.clone().into_parts();
-        let uri_path_and_query = try_future!(format!("/attestation/sgx/v3/sigrl/{:08x}", gid).parse::<http::uri::PathAndQuery>());
-        uri_parts.path_and_query = Some(uri_path_and_query);
-        let uri = try_future!(Uri::from_parts(uri_parts));
+        let uri = try_future!(self.request_uri(format_args!("/sigrl/{:08x}", gid)));
 
-        let response = self.client.get(uri);
-        let response_data = response
-            .and_then(|response: Response<Body>| response.into_body().concat2())
-            .from_err();
+        let mut hyper_request = Request::new(Body::empty());
+
+        *hyper_request.method_mut() = Method::GET;
+        *hyper_request.uri_mut() = uri;
+
+        if let Some(api_key) = &self.api_key {
+            hyper_request.headers_mut().insert("Ocp-Apim-Subscription-Key", api_key.clone());
+        }
+
+        let response = self.client.request(hyper_request);
+        let response_data = response.from_err().and_then(|response: Response<Body>| {
+            if !response.status().is_success() {
+                return TryFuture::from_error(format_err!("HTTP error: {}", response.status().as_str()));
+            }
+            response.into_body().concat2().from_err().into()
+        });
 
         let decoded_response =
             response_data.and_then(|data: Chunk| base64::decode(&data).map(SignatureRevocationList).into_future().from_err());
@@ -75,10 +95,7 @@ where
     }
 
     fn fetch_quote_signature(&self, quote: &[u8]) -> impl Future<Item = (http::response::Parts, Chunk), Error = failure::Error> {
-        let mut uri_parts = self.host.clone().into_parts();
-        let uri_path_and_query = try_future!("/attestation/sgx/v3/report".parse::<http::uri::PathAndQuery>());
-        uri_parts.path_and_query = Some(uri_path_and_query);
-        let uri = try_future!(Uri::from_parts(uri_parts));
+        let uri = try_future!(self.request_uri(format_args!("/report")));
 
         let request = QuoteSignatureRequest { isvEnclaveQuote: quote };
         let encoded_request = try_future!(serde_json::to_vec(&request));
@@ -89,6 +106,10 @@ where
         hyper_request
             .headers_mut()
             .insert("Content-Type", HeaderValue::from_static("application/json"));
+
+        if let Some(api_key) = &self.api_key {
+            hyper_request.headers_mut().insert("Ocp-Apim-Subscription-Key", api_key.clone());
+        }
 
         let response = self.client.request(hyper_request);
         let full_response = response.and_then(move |response: Response<Body>| {
@@ -117,15 +138,33 @@ where
 
         signed_quote
     }
+
+    fn request_uri(&self, request_path: fmt::Arguments<'_>) -> Result<Uri, failure::Error> {
+        uri_path_join(self.base_uri.clone(), request_path)
+    }
 }
 
 impl<C> Clone for IasClient<C> {
     fn clone(&self) -> Self {
         Self {
-            host:   self.host.clone(),
-            client: self.client.clone(),
+            base_uri: self.base_uri.clone(),
+            api_key:  self.api_key.clone(),
+            client:   self.client.clone(),
         }
     }
+}
+
+fn uri_path_join(uri: Uri, append_path: fmt::Arguments<'_>) -> Result<Uri, failure::Error> {
+    let mut parts = uri.into_parts();
+    let path_base = parts
+        .path_and_query
+        .as_ref()
+        .map(PathAndQuery::path)
+        .unwrap_or_default()
+        .trim_end_matches('/');
+    parts.path_and_query = Some(format!("{}{}", path_base, append_path).parse::<http::uri::PathAndQuery>()?);
+    let uri = Uri::from_parts(parts)?;
+    Ok(uri)
 }
 
 fn validate_quote_signature(
