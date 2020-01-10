@@ -21,8 +21,8 @@ RUN    apt-get update \
     && dpkg --install --ignore-depends=libsgx-enclave-common /var/cache/apt/archives/libsgx-enclave-common-dev_*.deb \
     && rm -rf /var/lib/apt/lists/*
 
-ARG UID
-ARG GID
+ARG UID=0
+ARG GID=0
 
 #Create a user to map the host user to.
 RUN    groupadd -o -g "${GID}" rust \
