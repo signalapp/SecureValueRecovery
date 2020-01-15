@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+mod backup_entry;
+
 use crate::prelude::*;
 
 use std::convert::{TryInto};
@@ -27,7 +29,6 @@ use std::rc::*;
 
 use bytes::*;
 use num_traits::{ToPrimitive};
-use sgx_ffi::util::{SecretValue};
 
 use crate::protobufs::kbupd::*;
 use crate::protobufs::kbupd_enclave::*;
@@ -36,15 +37,20 @@ use crate::protobufs::raft::*;
 use crate::remote::*;
 use crate::remote_group::*;
 use crate::util::*;
-
+use self::backup_entry::BackupEntrySecrets;
 use super::*;
 
 pub(super) struct PartitionData {
-    storage:    BTreeMap<PartitionKey, Box<BackupEntry>>,
-    capacity:   usize,
+    storage:    BTreeMap<PartitionKey, BackupEntry>,
+    config:     PartitionDataConfig,
     service_id: Option<ServiceId>,
     range:      Option<PartitionKeyRange>,
     xfer_state: XferState,
+}
+
+pub(super) struct PartitionDataConfig {
+    pub capacity:               usize,
+    pub max_backup_data_length: u32,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -99,16 +105,13 @@ pub(super) struct RequestNonce {
 }
 
 pub(super) struct BackupEntry {
-    tries:          Option<NonZeroU16>,
-    pin:            SecretValue<[u8; 32]>,
-    creation_nonce: [u8; 16],
-    current_nonce:  [u8; 16],
-    data:           SecretValue<[u8; 32]>,
+    nonce:   RequestNonce,
+    secrets: Option<BackupEntrySecrets>,
 }
 
 pub(super) struct XferBackupEntry {
     id:    PartitionKey,
-    entry: Box<BackupEntry>,
+    entry: BackupEntry,
 }
 
 pub(super) enum FrontendRequestError {
@@ -117,7 +120,7 @@ pub(super) enum FrontendRequestError {
 }
 
 impl PartitionData {
-    pub fn new(capacity:   usize,
+    pub fn new(config:     PartitionDataConfig,
                service_id: Option<ServiceId>,
                range:      Option<PartitionKeyRange>,
                xfer_state: XferState)
@@ -125,7 +128,7 @@ impl PartitionData {
     {
         Self {
             storage: Default::default(),
-            capacity,
+            config,
             service_id,
             range,
             xfer_state,
@@ -199,7 +202,7 @@ impl PartitionData {
 
     pub fn get_entry_nonce(&mut self, backup_id: &PartitionKey) -> Option<(RequestNonce, Option<NonZeroU16>)> {
         if let Some(backup) = self.storage.get(backup_id) {
-            Some((backup.request_nonce(), backup.tries))
+            Some((backup.request_nonce(), backup.tries()))
         } else {
             None
         }
@@ -382,7 +385,7 @@ impl PartitionData {
         }
     }
 
-    fn get_or_insert_backup_with(&mut self, backup_id: PartitionKey, create_fun: impl FnOnce() -> Box<BackupEntry>)
+    fn get_or_insert_backup_with(&mut self, backup_id: PartitionKey, create_fun: impl FnOnce() -> BackupEntry)
                                  -> Result<&mut BackupEntry, FrontendRequestError> {
         let storage_len = self.storage.len();
         match self.storage.entry(backup_id) {
@@ -390,7 +393,7 @@ impl PartitionData {
                 Ok(backup_entry.into_mut())
             }
             btree_map::Entry::Vacant(backup_entry) => {
-                if storage_len < self.capacity {
+                if storage_len < self.config.capacity {
                     Ok(backup_entry.insert(create_fun()))
                 } else {
                     Err(FrontendRequestError::StorageFull)
@@ -407,17 +410,17 @@ impl PartitionData {
                 let backup_id          = Self::frontend_request_backup_id(&create_request.backup_id)?;
                 let new_creation_nonce = Self::frontend_request_field_to_array(&create_request.new_creation_nonce)?;
                 let new_nonce          = Self::frontend_request_field_to_array(&create_request.new_nonce)?;
-                let backup = self.get_or_insert_backup_with(backup_id, || Box::new(BackupEntry {
-                    pin:            Default::default(),
-                    creation_nonce: new_creation_nonce,
-                    current_nonce:  new_nonce,
-                    data:           Default::default(),
-                    tries:          None,
-                }))?;
+                let backup = self.get_or_insert_backup_with(backup_id, || BackupEntry {
+                    nonce: RequestNonce {
+                        creation_nonce: new_creation_nonce,
+                        current_nonce:  new_nonce,
+                    },
+                    secrets: None,
+                })?;
 
                 Ok(transaction_reply::Data::CreateBackupReply(CreateBackupReply {
-                    nonce: backup.request_nonce().to_combined().to_vec(),
-                    tries: backup.tries.map(u16::from).map(u32::from),
+                    token: backup.request_nonce().to_combined().to_vec(),
+                    tries: backup.tries().map(u16::from).map(u32::from),
                 }))
             }
             frontend_request_transaction::Transaction::Backup(backup_request) => {
@@ -426,36 +429,37 @@ impl PartitionData {
                 let new_nonce          = Self::frontend_request_field_to_array(&backup_request.new_nonce)?;
                 let tries              = backup_request.tries.to_u16().and_then(NonZeroU16::new).ok_or(FrontendRequestError::InvalidRequest)?;
 
-                let backup = self.get_or_insert_backup_with(backup_id, || Box::new(BackupEntry {
-                    pin:            Default::default(),
-                    creation_nonce: new_creation_nonce,
-                    current_nonce:  new_nonce,
-                    data:           Default::default(),
-                    tries:          None,
-                }))?;
+                let max_backup_data_length = self.config.max_backup_data_length;
 
-                let backup_response = if backup_request.old_nonce == backup.creation_nonce {
+                let backup = self.get_or_insert_backup_with(backup_id, || BackupEntry {
+                    nonce: RequestNonce {
+                        creation_nonce: new_creation_nonce,
+                        current_nonce:  new_nonce,
+                    },
+                    secrets: None,
+                })?;
+
+                let backup_response = if backup_request.old_nonce == backup.nonce.creation_nonce {
                     kbupd_client::BackupResponse {
                         status: Some(kbupd_client::backup_response::Status::Ok.into()),
                         nonce:  Some(backup.request_nonce().to_combined().to_vec()),
                     }
-                } else if backup_request.old_nonce != backup.current_nonce {
+                } else if backup_request.old_nonce != backup.nonce.current_nonce {
                     kbupd_client::BackupResponse {
                         status: Some(kbupd_client::backup_response::Status::AlreadyExists.into()),
                         nonce:  Some(backup.request_nonce().to_combined().to_vec()),
                     }
                 } else {
-                    if backup_request.pin.data.len() != backup.pin.get().len() {
+                    let backup_request_pin: &[u8; BackupEntry::PIN_LENGTH] = match backup_request.pin.data[..].try_into() {
+                        Ok(backup_request_pin) => backup_request_pin,
+                        Err(_)                 => return Err(FrontendRequestError::InvalidRequest),
+                    };
+                    if backup_request.data.data.len() > max_backup_data_length.to_usize() {
                         return Err(FrontendRequestError::InvalidRequest);
                     }
-                    if backup_request.data.data.len() != backup.data.get().len() {
-                        return Err(FrontendRequestError::InvalidRequest);
-                    }
-                    backup.pin.get_mut().copy_from_slice(&backup_request.pin.data);
-                    backup.data.get_mut().copy_from_slice(&backup_request.data.data);
-                    backup.creation_nonce = backup.current_nonce;
-                    backup.current_nonce  = new_nonce;
-                    backup.tries          = Some(tries);
+                    backup.nonce.creation_nonce = backup.nonce.current_nonce;
+                    backup.nonce.current_nonce  = new_nonce;
+                    backup.secrets              = Some(BackupEntrySecrets::new(tries, backup_request_pin, &backup_request.data.data));
 
                     kbupd_client::BackupResponse {
                         status: Some(kbupd_client::backup_response::Status::Ok.into()),
@@ -474,45 +478,54 @@ impl PartitionData {
                     let entry     = storage_entry.get_mut();
                     let new_nonce = Self::frontend_request_field_to_array(&restore_request.new_nonce)?;
 
-                    if restore_request.creation_nonce != entry.creation_nonce {
+                    if restore_request.creation_nonce != entry.nonce.creation_nonce {
                         kbupd_client::RestoreResponse {
                             status: Some(kbupd_client::restore_response::Status::Missing.into()),
                             nonce:  None,
                             data:   None,
                             tries:  None,
                         }
-                    } else if restore_request.old_nonce != entry.current_nonce {
+                    } else if restore_request.old_nonce != entry.nonce.current_nonce {
                         kbupd_client::RestoreResponse {
                             status: Some(kbupd_client::restore_response::Status::NonceMismatch.into()),
                             nonce:  Some(entry.request_nonce().to_combined().to_vec()),
                             data:   None,
-                            tries:  entry.tries.map(u16::from).map(u32::from),
+                            tries:  entry.tries().map(u16::from).map(u32::from),
                         }
                     } else {
-                        entry.current_nonce = new_nonce;
+                        entry.nonce.current_nonce = new_nonce;
 
-                        if entry.tries.is_some() && entry.pin.consttime_eq(&restore_request.pin.data) {
-                            kbupd_client::RestoreResponse {
-                                status: Some(kbupd_client::restore_response::Status::Ok.into()),
-                                nonce:  Some(entry.request_nonce().to_combined().to_vec()),
-                                data:   Some(entry.data.get().to_vec()),
-                                tries:  entry.tries.map(u16::from).map(u32::from),
-                            }
-                        } else if let Some(tries_minus_one) = entry.tries.and_then(|tries: NonZeroU16| tries.get().checked_sub(2)) {
-                            // decrement tries
-                            let tries: NonZeroU16 = tries_minus_one.checked_add(1)
-                                                                   .and_then(NonZeroU16::new)
-                                                                   .unwrap_or_else(|| unreachable!());
-                            entry.tries = Some(tries);
-                            kbupd_client::RestoreResponse {
-                                status: Some(kbupd_client::restore_response::Status::PinMismatch.into()),
-                                nonce:  Some(entry.request_nonce().to_combined().to_vec()),
-                                data:   None,
-                                tries:  Some(u32::from(tries.get())),
+                        if let Some(entry_secrets) = &mut entry.secrets {
+                            if entry_secrets.pin_consttime_eq(&restore_request.pin.data) {
+                                kbupd_client::RestoreResponse {
+                                    status: Some(kbupd_client::restore_response::Status::Ok.into()),
+                                    tries:  Some(u32::from(entry_secrets.tries.get())),
+                                    data:   Some(entry_secrets.data().to_vec()),
+                                    nonce:  Some(entry.request_nonce().to_combined().to_vec()),
+                                }
+                            } else if let Some(tries_minus_one) = entry_secrets.tries.get().checked_sub(2) {
+                                // decrement tries
+                                entry_secrets.tries = tries_minus_one.checked_add(1)
+                                                                     .and_then(NonZeroU16::new)
+                                                                     .unwrap_or_else(|| unreachable!());
+                                kbupd_client::RestoreResponse {
+                                    status: Some(kbupd_client::restore_response::Status::PinMismatch.into()),
+                                    tries:  Some(u32::from(entry_secrets.tries.get())),
+                                    data:   None,
+                                    nonce:  Some(entry.request_nonce().to_combined().to_vec()),
+                                }
+                            } else {
+                                // ran out of tries. erase backup.
+                                storage_entry.remove();
+                                kbupd_client::RestoreResponse {
+                                    status: Some(kbupd_client::restore_response::Status::Missing.into()),
+                                    nonce:  None,
+                                    data:   None,
+                                    tries:  None,
+                                }
                             }
                         } else {
-                            // ran out of tries. erase backup.
-                            storage_entry.remove();
+                            // no secret data present
                             kbupd_client::RestoreResponse {
                                 status: Some(kbupd_client::restore_response::Status::Missing.into()),
                                 nonce:  None,
@@ -701,7 +714,8 @@ impl PartitionData {
     }
 
     pub fn next_chunk_last(&self, chunk_size: u32, full_range: &PartitionKeyRange) -> BackupId {
-        let chunk_count = (chunk_size / XferBackupEntry::encoded_len()).max(1);
+        let max_entry_len = XferBackupEntry::encoded_len(self.config.max_backup_data_length);
+        let chunk_count = (chunk_size / max_entry_len).max(1);
         let chunk_range = self.storage.range(full_range).take(chunk_count.to_usize());
         if let Some((chunk_last, _value)) = chunk_range.last() {
             chunk_last.to_pb()
@@ -767,9 +781,9 @@ impl PartitionData {
 
         info!("sending xfer chunk {} length {}", &chunk_range, entries.len());
 
-        let entry_len = XferBackupEntry::encoded_len().to_usize();
-        let mut data  = SecretBytes {
-            data: Vec::with_capacity(entries.len().saturating_mul(entry_len)),
+        let max_entry_len = XferBackupEntry::encoded_len(self.config.max_backup_data_length);
+        let mut data = SecretBytes {
+            data: Vec::with_capacity(entries.len().saturating_mul(max_entry_len.to_usize())),
         };
         for (id, entry) in entries {
             let xfer_entry = XferBackupEntry { id, entry };
@@ -795,8 +809,8 @@ impl PartitionData {
         Some(chunk_range)
     }
 
-    fn storage_split_to(storage: &mut BTreeMap<PartitionKey, Box<BackupEntry>>, maybe_split_key: Option<&PartitionKey>)
-                        -> impl DoubleEndedIterator<Item = (PartitionKey, Box<BackupEntry>)> + ExactSizeIterator {
+    fn storage_split_to(storage: &mut BTreeMap<PartitionKey, BackupEntry>, maybe_split_key: Option<&PartitionKey>)
+                        -> impl DoubleEndedIterator<Item = (PartitionKey, BackupEntry)> + ExactSizeIterator {
         let new_map = if let Some(split_key) = maybe_split_key {
             storage.split_off(split_key)
         } else {
@@ -807,10 +821,8 @@ impl PartitionData {
 
     fn perform_apply_chunk_transaction(&mut self, txn: ApplyChunkTransaction, group: &mut ReplicaGroupState) -> EnclaveApplyChunkTransaction {
         if let XferState::DestinationPartition(xfer_source) = &mut self.xfer_state {
-            let request     = &txn.xfer_chunk_request;
-            let entry_len   = XferBackupEntry::encoded_len().to_usize();
-            let entries_len = request.data.data.len() / entry_len;
-            info!("received xfer chunk {} length {}", &request.chunk_range, entries_len);
+            let request = &txn.xfer_chunk_request;
+            info!("received xfer chunk {} length {}", &request.chunk_range, request.data.data.len());
 
             let new_first = if let Some(range) = &self.range {
                 range.first()
@@ -869,10 +881,13 @@ impl PartitionData {
                 group.set_attestation_time_now(min_attestation_time);
             }
 
-            for mut entry_data in request.data.data[..].chunks(entry_len) {
-                let entry = XferBackupEntry::decode(&mut entry_data);
+            let mut entries_data = &request.data.data[..];
+            let mut entry_count = 0;
+            while entries_data.has_remaining() {
+                let entry = XferBackupEntry::decode(&mut entries_data);
                 if !old_range.map(|old_range| old_range.contains(&entry.id)).unwrap_or(false) {
                     self.storage.insert(entry.id, entry.entry);
+                    entry_count += 1;
                 } else {
                     error!("dropping transferred backup id {} within current range {}",
                            &entry.id, OptionDisplay(self.range));
@@ -885,7 +900,7 @@ impl PartitionData {
 
             drop(txn);
 
-            let mut chunk_ids = Vec::with_capacity(entries_len);
+            let mut chunk_ids = Vec::with_capacity(entry_count);
             for (backup_id, _) in self.storage.range(&chunk_range) {
                 chunk_ids.push(backup_id.to_pb());
             }
@@ -1133,6 +1148,25 @@ impl RequestNonce {
         combined
     }
 
+    const fn encoded_len() -> u32 {
+        32
+    }
+
+    fn encode<B: BufMut>(&self, buf: &mut B) {
+        buf.put_slice(&self.creation_nonce);
+        buf.put_slice(&self.current_nonce);
+    }
+
+    fn decode<B: Buf>(buf: &mut B) -> Self {
+        let mut value = Self {
+            creation_nonce: Default::default(),
+            current_nonce:  Default::default(),
+        };
+        buf.copy_to_slice(&mut value.creation_nonce);
+        buf.copy_to_slice(&mut value.current_nonce);
+        value
+    }
+
     fn split_mut(combined: &mut [u8; 32]) -> (&mut [u8; 16], &mut [u8; 16]) {
         let (creation_nonce, current_nonce) = combined.split_at_mut(16);
         let creation_nonce: &mut [u8; 16]   = creation_nonce.try_into().unwrap_or_else(|_| static_unreachable!());
@@ -1146,36 +1180,29 @@ impl RequestNonce {
 //
 
 impl BackupEntry {
-    fn encoded_len() -> u32 {
-        32 + 32 + 32 + 2
+    const PIN_LENGTH: usize = 32;
+
+    const fn encoded_len(data_len: u32) -> u32 {
+        RequestNonce::encoded_len() + BackupEntrySecrets::encoded_len(data_len)
     }
     fn encode<B: BufMut>(&self, buf: &mut B) {
-        buf.put_u16_le(self.tries.map(u16::from).unwrap_or(0));
-        buf.put_slice(self.pin.get());
-        buf.put_slice(&self.creation_nonce);
-        buf.put_slice(&self.current_nonce);
-        buf.put_slice(self.data.get());
+        self.nonce.encode(buf);
+        BackupEntrySecrets::encode_opt(self.secrets.as_ref(), buf);
     }
-    fn decode<B: Buf>(buf: &mut B) -> Box<Self> {
-        let tries = NonZeroU16::new(buf.get_u16_le());
-        let mut value = Box::new(Self {
-            tries,
-            pin:            Default::default(),
-            creation_nonce: Default::default(),
-            current_nonce:  Default::default(),
-            data:           Default::default(),
-        });
-        buf.copy_to_slice(value.pin.get_mut());
-        buf.copy_to_slice(&mut value.creation_nonce);
-        buf.copy_to_slice(&mut value.current_nonce);
-        buf.copy_to_slice(value.data.get_mut());
-        value
+    fn decode<B: Buf>(buf: &mut B) -> Self {
+        let nonce = RequestNonce::decode(buf);
+        let secrets = BackupEntrySecrets::decode(buf);
+        Self { nonce, secrets }
+    }
+
+    fn tries(&self) -> Option<NonZeroU16> {
+        self.secrets.as_ref().map(|secrets: &BackupEntrySecrets| secrets.tries)
     }
 
     fn request_nonce(&self) -> RequestNonce {
         RequestNonce {
-            current_nonce:  self.current_nonce,
-            creation_nonce: self.creation_nonce,
+            current_nonce:  self.nonce.current_nonce,
+            creation_nonce: self.nonce.creation_nonce,
         }
     }
 }
@@ -1185,8 +1212,8 @@ impl BackupEntry {
 //
 
 impl XferBackupEntry {
-    fn encoded_len() -> u32 {
-        BackupId::valid_len() + BackupEntry::encoded_len()
+    fn encoded_len(data_len: u32) -> u32 {
+        BackupId::valid_len() + BackupEntry::encoded_len(data_len)
     }
     fn encode<B: BufMut>(&self, buf: &mut B) {
         self.entry.encode(buf);

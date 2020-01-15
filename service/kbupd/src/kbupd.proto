@@ -108,6 +108,7 @@ message EnclaveFrontendConfig {
   required uint32 max_connect_timeout_ticks = 4;
   required uint32 pending_request_count     = 5;
   required uint32 pending_request_ttl       = 6;
+  required uint32 max_backup_data_length    = 7;
 }
 
 message SourcePartitionConfig {
@@ -140,9 +141,10 @@ message StartReplicaGroupRequest {
 }
 
 message EnclaveReplicaGroupConfig {
-  required uint32 storage_size        = 1;
-  required uint64 raft_log_data_size  = 2;
-  required uint32 raft_log_index_size = 3;
+  required uint32 storage_size           = 1;
+  required uint64 raft_log_data_size     = 2;
+  required uint32 raft_log_index_size    = 3;
+  required uint32 max_backup_data_length = 4;
 }
 
 message NewMessageSignal {

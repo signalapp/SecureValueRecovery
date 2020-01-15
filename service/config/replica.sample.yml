@@ -21,6 +21,7 @@ enclave:
   debug:                                          # Whether this is a debug or production enclave [true|false]
   storageSize:                                    # storage capacity for key backup entry data, in number of backups
   raftLogSize:                                    # size allocated in RAM for key backup raft log data, in bytes
+  maxBackupDataLength:                            # Maximum length of backed up data, in bytes
   electionTimeoutMs:                              # raft group election timeout in milliseconds
   electionHeartbeats:                             # number of heartbeats per raft group election timeout period (10 recommended)
   replicationChunkSize:                           # target replication chunk size in bytes

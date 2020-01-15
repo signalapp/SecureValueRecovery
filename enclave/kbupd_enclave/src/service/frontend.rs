@@ -583,7 +583,7 @@ impl FrontendState {
         Some((replica, partition))
     }
 
-    pub fn decode_request(request_type: u32, backup_id: Vec<u8>, request_data: &[u8]) -> Result<transaction_request::Data, ()> {
+    pub fn decode_request(&self, request_type: u32, backup_id: Vec<u8>, request_data: &[u8]) -> Result<transaction_request::Data, ()> {
         let request   = kbupd_client::Request::decode(request_data).map_err(|_| ())?;
         let backup_id = BackupId::try_from_slice(&backup_id)?;
         match request {
@@ -595,7 +595,7 @@ impl FrontendState {
                 match request_type {
                     KBUPD_REQUEST_TYPE_ANY |
                     KBUPD_REQUEST_TYPE_BACKUP => {
-                        Self::validate_backup_request(backup_id, backup_request)
+                        self.validate_backup_request(backup_id, backup_request)
                     }
                     _ => Err(()),
                 }
@@ -630,7 +630,7 @@ impl FrontendState {
         }
     }
 
-    fn validate_backup_request(backup_id: BackupId, mut request: kbupd_client::BackupRequest) -> Result<transaction_request::Data, ()> {
+    fn validate_backup_request(&self, backup_id: BackupId, mut request: kbupd_client::BackupRequest) -> Result<transaction_request::Data, ()> {
         if let kbupd_client::BackupRequest {
             service_id,
             backup_id:  Some(request_backup_id),
@@ -643,7 +643,7 @@ impl FrontendState {
             if (Self::validate_request_service_id(service_id) &&
                 request_backup_id == &backup_id.id &&
                 nonce.len()     == 32 &&
-                data.len()      == 32 &&
+                data.len()      <= self.config.max_backup_data_length.to_usize() &&
                 pin.len()       == 32 &&
                 *tries != 0 && *tries <= u16::max_value().into())
             {

@@ -90,6 +90,7 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
             set_argument(  &mut config.control.listenHostPort,              arguments.value_of("control_listen_address"));
             set_argument(  &mut config.enclave.mrenclave,                   subcommand_arguments.value_of("enclave_filename"));
             parse_argument(&mut config.enclave.debug,                       subcommand_arguments.value_of("enclave_debug"), parse_yes_no).context("invalid --enclave-debug")?;
+            parse_argument(&mut config.enclave.maxBackupDataLength,         subcommand_arguments.value_of("max_backup_data_length"), str::parse).context("invalid --max-backup-data-length")?;
             parse_argument(&mut config.enclave.electionTimeoutMs,           subcommand_arguments.value_of("election_timeout_ms"), str::parse).context("invalid --election-timeout-ms")?;
             parse_argument(&mut config.enclave.electionHeartbeats,          subcommand_arguments.value_of("election_heartbeats"), str::parse).context("invalid --election-heartbeats")?;
             parse_argument(&mut config.enclave.storageSize,                 subcommand_arguments.value_of("storage_size"), str::parse).context("invalid --storage-size")?;
@@ -177,15 +178,17 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
                         partitions:        Default::default(),
                         electionTimeoutMs: 1000,
 
+                        maxBackupDataLength: 0,
                         pendingRequestCount: 32768,
                         pendingRequestTtlMs: 0,
                     });
                     config.enclaves.last_mut().unwrap_or_else(|| unreachable!())
                 };
-                set_argument(  &mut enclave_config.mrenclave,         subcommand_arguments.value_of("enclave_filename"));
-                parse_argument(&mut enclave_config.debug,             subcommand_arguments.value_of("enclave_debug"), parse_yes_no).context("invalid --enclave-debug")?;
-                parse_argument(&mut enclave_config.partitions,        subcommand_arguments.values_of("partitions"), parse_partition_specs)?;
-                parse_argument(&mut enclave_config.electionTimeoutMs, subcommand_arguments.value_of("election_timeout_ms"), str::parse::<u64>).context("invalid --election-timeout-ms")?;
+                set_argument(  &mut enclave_config.mrenclave,           subcommand_arguments.value_of("enclave_filename"));
+                parse_argument(&mut enclave_config.debug,               subcommand_arguments.value_of("enclave_debug"), parse_yes_no).context("invalid --enclave-debug")?;
+                parse_argument(&mut enclave_config.partitions,          subcommand_arguments.values_of("partitions"), parse_partition_specs)?;
+                parse_argument(&mut enclave_config.maxBackupDataLength, subcommand_arguments.value_of("max_backup_data_length"), str::parse).context("invalid --max-backup-data-length")?;
+                parse_argument(&mut enclave_config.electionTimeoutMs,   subcommand_arguments.value_of("election_timeout_ms"), str::parse::<u64>).context("invalid --election-timeout-ms")?;
             }
 
             let peer_ca_file = Path::new(subcommand_arguments.value_of("peer_ca_file").expect("no peer_ca_file"));
@@ -334,6 +337,11 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .value_name("backup_id")
         .help("Last BackupId owned by this cluster");
 
+    let max_backup_data_length_argument = clap::Arg::with_name("max_backup_data_length")
+        .long("max-backup-data-length")
+        .value_name("max_backup_data_length")
+        .help("Maximum allowable length of backed up data, in bytes");
+
     let election_timeout_ms_argument = clap::Arg::with_name("election_timeout_ms")
         .long("election-timeout-ms")
         .value_name("election_timeout_ms")
@@ -382,6 +390,7 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .arg(source_replicas_argument)
         .arg(firstid_argument)
         .arg(lastid_argument)
+        .arg(max_backup_data_length_argument.clone())
         .arg(election_timeout_ms_argument.clone())
         .arg(election_heartbeats_argument)
         .arg(storage_size_argument)
@@ -411,6 +420,7 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .help("Set of semicolon-separated partitions, where partition_spec is hex_lower_bound_key-hex_upper_bound_key=replica_host_port,... or =replica_host_port,...");
 
     let enclave_name_argument = clap::Arg::with_name("enclave_name")
+        .requires("max_backup_data_length")
         .takes_value(true)
         .long("enclave-name")
         .value_name("enclave_name")
@@ -422,6 +432,7 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .arg(peer_ca_file_argument)
         .arg(peer_key_file_argument)
         .arg(partitions_argument)
+        .arg(max_backup_data_length_argument.requires("enclave_name"))
         .arg(election_timeout_ms_argument.requires("enclave_name"))
         .arg(enclave_name_argument)
         .arg(enclave_filename_argument.requires("enclave_name"))

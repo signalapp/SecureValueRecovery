@@ -45,7 +45,7 @@ pub struct CreateBackupRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateBackupReply {
     #[prost(bytes, required, tag="2")]
-    pub nonce: std::vec::Vec<u8>,
+    pub token: std::vec::Vec<u8>,
     #[prost(uint32, optional, tag="3")]
     pub tries: ::std::option::Option<u32>,
 }
@@ -136,6 +136,8 @@ pub struct EnclaveFrontendConfig {
     pub pending_request_count: u32,
     #[prost(uint32, required, tag="6")]
     pub pending_request_ttl: u32,
+    #[prost(uint32, required, tag="7")]
+    pub max_backup_data_length: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SourcePartitionConfig {
@@ -191,6 +193,8 @@ pub struct EnclaveReplicaGroupConfig {
     pub raft_log_data_size: u64,
     #[prost(uint32, required, tag="3")]
     pub raft_log_index_size: u32,
+    #[prost(uint32, required, tag="4")]
+    pub max_backup_data_length: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NewMessageSignal {

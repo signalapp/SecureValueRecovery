@@ -19,6 +19,8 @@ enclaves:
     debug:             true
     electionTimeoutMs: 5000
 
+    maxBackupDataLength: 48
+
     pendingRequestCount: 32768
     pendingRequestTtlMs: 0
 

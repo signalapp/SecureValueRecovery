@@ -33,6 +33,7 @@ enclaves:                                         # list of enclave instances
   - name:                                         # enclave instance name used in the HTTP API
     mrenclave:                                    # hex-encoded mrenclave value
     debug:                                        # Whether this is a debug or production enclave [true|false]
+    maxBackupDataLength:                          # Maximum length of backed up data, in bytes
     electionTimeoutMs:                            # replica raft group election timeout in milliseconds
     pendingRequestCount:                          # maximum number of pending client requests, per partition
     pendingRequestTtlMs:                          # minimum ttl of a pending client request before it may be purged to make room for others, in milliseconds

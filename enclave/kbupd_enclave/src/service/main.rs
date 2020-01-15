@@ -120,23 +120,21 @@ impl SgxsdServer for SgxsdState {
             Some(args) => args,
             None => return Err((SGX_ERROR_INVALID_PARAMETER, from)),
         };
-        match FrontendState::decode_request(args.request_type, args.backup_id.to_vec(), request_data) {
-            Ok(request) => {
-                whereis(|service_ref| {
-                    let mut service = service_ref.borrow_mut();
-                    if let ServiceState::Frontend(frontend) = &mut *service {
+        whereis(|service_ref| {
+            let mut service = service_ref.borrow_mut();
+            if let ServiceState::Frontend(frontend) = &mut *service {
+                match frontend.decode_request(args.request_type, args.backup_id.to_vec(), request_data) {
+                    Ok(request) => {
                         frontend.client_request(request, from);
                         Ok(())
-                    } else {
-                        warn!("frontend service not started");
-                        Err((SGX_ERROR_INVALID_STATE, from))
                     }
-                })
+                    Err(()) => Err((SGX_ERROR_INVALID_PARAMETER, from)),
+                }
+            } else {
+                warn!("frontend service not started");
+                Err((SGX_ERROR_INVALID_STATE, from))
             }
-            Err(()) => {
-                Err((SGX_ERROR_INVALID_PARAMETER, from))
-            }
-        }
+        })
     }
 
     fn terminate(self, _args: Option<&Self::TerminateArgs>) -> Result<(), SgxStatus> {

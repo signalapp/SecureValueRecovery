@@ -72,6 +72,8 @@ pub struct ReplicaEnclaveConfig {
 
     pub storageSize: u32,
 
+    pub maxBackupDataLength: u32,
+
     pub raftLogSize: u64,
 
     pub electionTimeoutMs: u64,

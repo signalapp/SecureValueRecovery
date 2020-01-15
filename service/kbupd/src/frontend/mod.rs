@@ -151,6 +151,7 @@ impl FrontendService {
                     max_connect_timeout_ticks: util::duration::as_ticks(MAX_CONNECT_TIMEOUT,    timer_tick_interval),
                     pending_request_ttl:       util::duration::as_ticks(pending_request_ttl,    timer_tick_interval),
                     pending_request_count:     enclave_config.pendingRequestCount,
+                    max_backup_data_length:    enclave_config.maxBackupDataLength,
                 };
 
                 let mut partition_configs = Vec::new();

@@ -9,6 +9,8 @@ from peer_ca import PeerCa
 from kbupdclient import KbupdClient
 from netem import start_playback
 
+BACKUP_DATA_LENGTH = 48
+
 class NetemTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -41,8 +43,10 @@ def send_valid_requests(test):
         # test backup and restore
         client.request(r"status=Ok", "backup",
                            backup_id, test.backup_pin, test.backup_data, 2)
-        token = client.request(r"status=Ok", "restore",
-                                   backup_id, test.backup_pin)
+        result = client.request(r"status=Ok", "restore",
+                                    backup_id, test.backup_pin)
+        test.assertEqual(result.get("data"), test.backup_data)
+        token = result["token"]
         # test pin mismatch
         client.request(r"status=PinMismatch", "restore",
                            backup_id, random_id(32), token=token)
@@ -53,14 +57,16 @@ def send_valid_requests(test):
         client.request(r"status=Missing", "restore",
                            backup_id, test.backup_pin, token=random_id(32))
         # test restore with creation_token reuse
-        token = client.request(r"status=TokenMismatch", "restore",
-                                   backup_id, test.backup_pin, token=token[:32] + random_id(16))
+        result = client.request(r"status=TokenMismatch", "restore",
+                                    backup_id, test.backup_pin, token=token[:32] + random_id(16))
+        token = result["token"]
         # test restore valid_from checking
         client.request(r"status=NotYetValid", "restore",
                            backup_id, test.backup_pin, token=token, valid_from=2**64-1)
         # test restore after above tries decrement
-        client.request(r"status=Ok", "restore",
-                           backup_id, test.backup_pin, token=token)
+        result = client.request(r"status=Ok", "restore",
+                                    backup_id, test.backup_pin, token=token)
+        test.assertEqual(result.get("data"), test.backup_data)
         # test restore token mismatch
         client.request(r"status=TokenMismatch", "restore",
                            backup_id, test.backup_pin, token=token)
@@ -70,6 +76,19 @@ def send_valid_requests(test):
         # test deletion persistence
         client.request(r"status=Missing", "restore",
                            backup_id, test.backup_pin)
+        client.request(r"", "delete", backup_id)
+
+    # test with different backup data lengths
+    for backup_data_length in range(BACKUP_DATA_LENGTH):
+        backup_id = test.backup_ids[0]
+        backup_data = test.backup_data[:backup_data_length * 2]
+        # test backup and restore
+        client.request(r"status=Ok", "backup",
+                           backup_id, test.backup_pin, backup_data, 1)
+        result = client.request(r"status=Ok", "restore",
+                                    backup_id, test.backup_pin)
+        test.assertEqual(result.get("data"), backup_data)
+        client.request(r"", "delete", backup_id)
 
 class KbupdTestCase(NetemTestCase):
     @classmethod
@@ -102,6 +121,7 @@ class KbupdTestCase(NetemTestCase):
 
         cls.frontend = Kbupd(1337, "frontend", cls.ca,
                                  "--enclave-name", cls.enclave_name,
+                                 "--max-backup-data-length", str(BACKUP_DATA_LENGTH),
                                  "--partitions", ';'.join([ p.get_spec() for p in cls.partitions ]))
         gprint("Started frontend %s" % cls.frontend.node_id)
         gprint()
@@ -116,7 +136,7 @@ class KbupdTestCase(NetemTestCase):
                               backup_id_to_str(random.randint(0, 2**256-1)),
                               backup_id_to_str(random.randint(0, 2**256-1)),
                               backup_id_to_str(random.randint(0, 2**256-1)),)
-        cls.backup_data = backup_id_to_str(random.randint(0, 2**256-1))
+        cls.backup_data = random_id(BACKUP_DATA_LENGTH)
         cls.backup_pin = random_id(32)
 
         cls.client = KbupdClient(cls.frontend, cls.enclave_name,
@@ -135,57 +155,75 @@ class KbupdTestCase(NetemTestCase):
         service_id = self.partitions[0].service_id
 
         bad_input = r"ControlErrorSignal"
+        # test backup with empty backup ID
         client.request(bad_input, "backup",
                            "", self.backup_pin, self.backup_data, 1, token=random_id(32))
+        # test backup with too-short backup ID
         client.request(bad_input, "backup",
                            random_id(31), self.backup_pin, self.backup_data, 1,
                            token=random_id(32))
+        # test backup with too-long backup ID
         client.request(bad_input, "backup",
                            random_id(33), self.backup_pin, self.backup_data, 1,
                            token=random_id(32))
         for backup_id in self.backup_ids:
+            # test backup with too-long data
             client.request(bad_input, "backup",
-                               backup_id, self.backup_pin, "", 1, token=random_id(32))
-            client.request(bad_input, "backup",
-                               backup_id, self.backup_pin, random_id(33), 1,
+                               backup_id, self.backup_pin, random_id(BACKUP_DATA_LENGTH + 1), 1,
                                token=random_id(32))
+            # test backup with empty pin
             client.request(bad_input, "backup",
                                backup_id, "", self.backup_data, 1,token=random_id(32))
+            # test backup with too-long pin
             client.request(bad_input, "backup",
                                backup_id, random_id(33), self.backup_data, 1,
                                token=random_id(32))
+            # test backup with empty Service ID
             client.request(bad_input, "backup",
                                backup_id, self.backup_pin, self.backup_data, 1,
                                service_id="", token=random_id(32))
+            # test restore with empty Backup ID
             client.request(bad_input, "restore", "", self.backup_pin, token=random_id(32))
+            # test restore with too-short Backup ID
             client.request(bad_input, "restore", random_id(31), self.backup_pin,
                                token=random_id(32))
+            # test restore with too-long Backup ID
             client.request(bad_input, "restore", random_id(33), self.backup_pin,
                                token=random_id(32))
+            # test restore with empty pin
             client.request(bad_input, "restore", backup_id, "", token=random_id(32))
+            # test restore with too-long pin
             client.request(bad_input, "restore", backup_id, random_id(33),
                                token=random_id(32))
+            # test restore with empty Service ID
             client.request(bad_input, "restore",
                                backup_id, self.backup_pin, service_id="",
                                token=random_id(32))
+            # test restore with too-short Service ID
             client.request(bad_input, "backup",
                                backup_id, self.backup_pin, self.backup_data, 1,
                                service_id=service_id[:62],
                                token=random_id(32))
+            # test restore with too-long Service ID
             client.request(bad_input, "backup",
                                backup_id, self.backup_pin, self.backup_data, 1,
                                service_id=service_id + "00",
                                token=random_id(32))
+            # test backup with empty token
             client.request(bad_input, "backup",
                                backup_id, self.backup_pin, self.backup_data, 1,
                                token="")
+            # test backup with too-long token
             client.request(bad_input, "backup",
                                backup_id, self.backup_pin, self.backup_data, 1,
                                token=random_id(33))
+            # test restore with empty token
             client.request(bad_input, "restore", backup_id, self.backup_pin,
                                token="")
+            # test restore with too-long token
             client.request(bad_input, "restore", backup_id, self.backup_pin,
                                token=random_id(33))
+            # test restore with wrong Service ID
             client.request(r"request canceled by enclave", "backup",
                                backup_id, self.backup_pin, self.backup_data, 1,
                                service_id=random_id(32), token=random_id(32))
@@ -205,8 +243,9 @@ class KbupdTestCase(NetemTestCase):
 
         client.request(r"status=Ok", "backup",
                            backup_id, self.backup_pin, self.backup_data, 1)
-        client.request(r"status=Ok", "restore",
-                           backup_id, self.backup_pin)
+        result = client.request(r"status=Ok", "restore",
+                                    backup_id, self.backup_pin)
+        self.assertEqual(result.get("data"), self.backup_data)
 
         for partition in self.partitions:
             for peer in partition.peers:
@@ -215,8 +254,9 @@ class KbupdTestCase(NetemTestCase):
                         peer.disconnect_peer(other_peer.node_id)
                         peer.reconnect_peer(other_peer.node_id, "127.0.0.1:%s" % other_peer.peer_port)
 
-        client.request(r"status=Ok", "restore",
-                           backup_id, self.backup_pin)
+        result = client.request(r"status=Ok", "restore",
+                                    backup_id, self.backup_pin)
+        self.assertEqual(result.get("data"), self.backup_data)
 
     def test_20_partitioning_split(self):
         self.do_test_partitioning(False, False)
@@ -257,6 +297,7 @@ class KbupdTestCase(NetemTestCase):
         KbupdTestCase.frontend.kill()
         KbupdTestCase.frontend = Kbupd(1337, "frontend", self.ca,
                                     "--enclave-name", self.enclave_name,
+                                    "--max-backup-data-length", str(BACKUP_DATA_LENGTH),
                                     "--partitions", ';'.join(partition_specs),
                                     append_log=True)
         gprint("Started frontend %s" % KbupdTestCase.frontend.node_id)
@@ -267,8 +308,9 @@ class KbupdTestCase(NetemTestCase):
         self.partitions[len(self.partitions)-2].wait_partition_started_source()
 
         for backup_id in backup_ids:
-            token = client.request(r"status=Ok", "restore",
-                                       backup_id, self.backup_pin)
+            result = client.request(r"status=Ok", "restore",
+                                        backup_id, self.backup_pin)
+            self.assertEqual(result.get("data"), self.backup_data)
 
         self.partitions[len(self.partitions)-2].resume_partition()
 
@@ -285,22 +327,25 @@ class KbupdTestCase(NetemTestCase):
             KbupdTestCase.frontend.kill()
             KbupdTestCase.frontend = Kbupd(1337, "frontend", self.ca,
                                         "--enclave-name", self.enclave_name,
+                                        "--max-backup-data-length", str(BACKUP_DATA_LENGTH),
                                         "--partitions", ';'.join([ p.get_spec() for p in self.partitions ]),
                                         append_log = True)
             gprint("Started frontend %s" % KbupdTestCase.frontend.node_id)
             gprint()
 
         for backup_id in backup_ids:
-            token = client.request(r"status=Ok", "restore",
-                                       backup_id, self.backup_pin)
-        for backup_id in backup_ids:
-            token = client.request(r"status=PinMismatch", "restore",
-                                       backup_id, random_id(32))
-            token = client.request(r"status=Missing", "restore",
-                                       backup_id, random_id(32))
-        for backup_id in backup_ids:
+            result = client.request(r"status=Ok", "restore",
+                                        backup_id, self.backup_pin)
+            self.assertEqual(result.get("data"), self.backup_data)
+
+            result = client.request(r"status=PinMismatch", "restore",
+                                        backup_id, random_id(32))
+            token = result["token"]
+
             client.request(r"status=Missing", "restore",
-                               backup_id, self.backup_pin)
+                               backup_id, random_id(32), token=token)
+            client.request(r"status=Missing", "restore",
+                               backup_id, self.backup_pin, token=token)
 
         if not update_specs:
             self.partitions[len(self.partitions)-2].wait_partition_source()
@@ -315,6 +360,7 @@ class KbupdTestCase(NetemTestCase):
             KbupdTestCase.frontend.kill()
             KbupdTestCase.frontend = Kbupd(1337, "frontend", self.ca,
                                                "--enclave-name", self.enclave_name,
+                                               "--max-backup-data-length", str(BACKUP_DATA_LENGTH),
                                                "--partitions", ';'.join([ p.get_spec() for p in self.partitions ]),
                                                append_log = True)
             gprint("Started frontend %s" % KbupdTestCase.frontend.node_id)
@@ -331,8 +377,9 @@ class KbupdTestCase(NetemTestCase):
         for backup_id in backup_ids:
             client.request(r"status=Ok", "backup",
                                backup_id, self.backup_pin, self.backup_data, 1)
-            client.request(r"status=Ok", "restore",
-                               backup_id, self.backup_pin)
+            result = client.request(r"status=Ok", "restore",
+                                        backup_id, self.backup_pin)
+            self.assertEqual(result.get("data"), self.backup_data)
 
         for partition in self.partitions:
             while True:
@@ -343,8 +390,9 @@ class KbupdTestCase(NetemTestCase):
             leader.kill()
 
         for backup_id in backup_ids:
-            client.request(r"status=Ok", "restore",
-                               backup_id, self.backup_pin)
+            result = client.request(r"status=Ok", "restore",
+                                        backup_id, self.backup_pin)
+            self.assertEqual(result.get("data"), self.backup_data)
 
 class KbupdFullStorageTestCase(NetemTestCase):
     @classmethod
@@ -363,6 +411,7 @@ class KbupdFullStorageTestCase(NetemTestCase):
 
         cls.frontend = Kbupd(1337, "frontend", cls.ca,
                                  "--enclave-name", cls.enclave_name,
+                                 "--max-backup-data-length", str(BACKUP_DATA_LENGTH),
                                  "--partitions", cls.partition.get_spec())
 
         gprint("Started frontend %s" % cls.frontend.node_id)
@@ -410,8 +459,9 @@ class KbupdFullStorageTestCase(NetemTestCase):
 
         client.request(r"status=Ok", "backup",
                            backup_id, self.backup_pin, self.backup_data)
-        client.request(r"status=Ok", "restore",
-                           backup_id, self.backup_pin)
+        result = client.request(r"status=Ok", "restore",
+                                    backup_id, self.backup_pin)
+        self.assertEqual(result.get("data"), self.backup_data)
         backup_ids_2.append(backup_id)
 
         backup_id = backup_id_to_str(random.randint(0, 2**256-1))
@@ -433,8 +483,9 @@ class KbupdFullStorageTestCase(NetemTestCase):
                            backup_id, self.backup_pin, self.backup_data)
 
         for backup_id in backup_ids_2:
-            client.request(r"status=Ok", "restore",
-                               backup_id, self.backup_pin)
+            result = client.request(r"status=Ok", "restore",
+                                        backup_id, self.backup_pin)
+            self.assertEqual(result.get("data"), self.backup_data)
 
 class KbupdBenchmarkTestCase(NetemTestCase):
     @classmethod
@@ -467,7 +518,7 @@ class KbupdBenchmarkTestCase(NetemTestCase):
                               backup_id_to_str(random.randint(0, 2**256-1)),
                               backup_id_to_str(random.randint(0, 2**256-1)),
                               backup_id_to_str(random.randint(0, 2**256-1)),)
-        cls.backup_data = backup_id_to_str(random.randint(0, 2**256-1))
+        cls.backup_data = random_id(BACKUP_DATA_LENGTH)
         cls.backup_pin  = random_id(32)
 
         cls.request_count = 10000
@@ -477,6 +528,7 @@ class KbupdBenchmarkTestCase(NetemTestCase):
     def start_frontend(cls, port):
         frontend = Kbupd(port, "frontend", cls.ca,
                          "--enclave-name", cls.enclave_name,
+                         "--max-backup-data-length", str(BACKUP_DATA_LENGTH),
                          "--partitions", cls.partition.get_spec(),
                          config_file = "frontend.benchmark.yml",
                          debug = False)
@@ -586,7 +638,8 @@ class KbupdBenchmarkTestCase(NetemTestCase):
         cls.frontends = new_frontends
 
         for backup_id in self.backup_ids:
-            self.client.request(r"status=Ok", "restore", backup_id, self.backup_pin)
+            result = self.client.request(r"status=Ok", "restore", backup_id, self.backup_pin)
+            self.assertEqual(result.get("data"), self.backup_data)
 
         self.assertEqual(self.partition.get_backup_count(), cls.backup_count)
 

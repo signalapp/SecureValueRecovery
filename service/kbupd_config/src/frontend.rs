@@ -109,6 +109,8 @@ pub struct FrontendEnclaveConfig {
 
     pub pendingRequestTtlMs: u64,
 
+    pub maxBackupDataLength: u32,
+
     pub partitions: Vec<FrontendPartitionConfig>,
 }
 

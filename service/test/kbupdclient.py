@@ -79,8 +79,4 @@ class KbupdClient():
             eprint(output)
             raise Exception("Test failed")
 
-        res_token = ""
-        match = re.search(r"token=([0-9a-fA-F]*)", output)
-        if match != None:
-            res_token = match.groups()[0]
-        return res_token
+        return dict(re.findall(r'(\S+)=(\S*)', output))

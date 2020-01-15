@@ -27,8 +27,23 @@ pub fn clear(buf: &mut [u8]) {
     assert_eq!(res, 0);
 }
 
+pub fn consttime_eq(left: impl AsRef<[u8]>, right: impl AsRef<[u8]>) -> bool {
+    let left = left.as_ref();
+    let right = right.as_ref();
+    if left.len() == right.len() {
+        let res = unsafe {
+            consttime_memequal(left.as_ptr() as *const c_void,
+                               right.as_ptr() as *const c_void,
+                               left.len())
+        };
+        res != 0
+    } else {
+        false
+    }
+}
+
 #[derive(Default)]
-pub struct SecretValue<T: AsMut<[u8]>>(T);
+pub struct SecretValue<T: AsMut<[u8]> + ?Sized>(T);
 
 pub struct MemoryStatus {
     pub footprint_bytes: u32,
@@ -52,7 +67,9 @@ impl<T: AsMut<[u8]>> SecretValue<T> {
     pub fn new(value: T) -> Self {
         Self(value)
     }
+}
 
+impl<T: AsMut<[u8]> + ?Sized> SecretValue<T> {
     pub fn clear(&mut self) {
         clear(self.0.as_mut());
     }
@@ -74,19 +91,9 @@ impl<T: AsMut<[u8]>> SecretValue<T> {
     }
 }
 
-impl<T: AsRef<[u8]> + AsMut<[u8]>> SecretValue<T> {
+impl<T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> SecretValue<T> {
     pub fn consttime_eq(&self, other: &[u8]) -> bool {
-        let ours = self.0.as_ref();
-        if other.len() == ours.len() {
-            let res = unsafe {
-                consttime_memequal(ours.as_ptr() as *const c_void,
-                                   other.as_ptr() as *const c_void,
-                                   ours.len())
-            };
-            res != 0
-        } else {
-            false
-        }
+        self::consttime_eq(self.0.as_ref(), other)
     }
 }
 
@@ -96,7 +103,7 @@ impl<T: AsMut<[u8]> + Default> SecretValue<T> {
     }
 }
 
-impl<T: AsMut<[u8]>> Drop for SecretValue<T> {
+impl<T: AsMut<[u8]> + ?Sized> Drop for SecretValue<T> {
     fn drop(&mut self) {
         self.clear();
     }

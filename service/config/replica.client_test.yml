@@ -15,6 +15,7 @@ enclave:
   debug:                true
   storageSize:          500000
   raftLogSize:          10485760
+  maxBackupDataLength:  48
   electionTimeoutMs:    5000
   electionHeartbeats:   2
   replicationChunkSize: 0

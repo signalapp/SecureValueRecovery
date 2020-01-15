@@ -280,9 +280,10 @@ impl ReplicaService {
         });
 
         let replica_group_config = EnclaveReplicaGroupConfig {
-            storage_size:        config.enclave.storageSize,
-            raft_log_data_size:  config.enclave.raftLogSize,
-            raft_log_index_size: (config.enclave.raftLogSize / 128) as u32, // XXX correct ratio here
+            storage_size:           config.enclave.storageSize,
+            raft_log_data_size:     config.enclave.raftLogSize,
+            raft_log_index_size:    (config.enclave.raftLogSize / 128) as u32, // XXX correct ratio here
+            max_backup_data_length: config.enclave.maxBackupDataLength,
         };
 
         let discovered_peers      = source_partition.join(peer_node_ids);

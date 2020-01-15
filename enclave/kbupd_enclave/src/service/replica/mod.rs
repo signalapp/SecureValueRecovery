@@ -619,9 +619,14 @@ impl ReplicaState {
                     XferState::None
                 };
 
+                let partition_data_config = PartitionDataConfig {
+                    capacity:               config.storage_size.to_usize(),
+                    max_backup_data_length: config.max_backup_data_length,
+                };
+
                 self.partition = Some(Partition {
                     group: replica_group,
-                    data:  PartitionData::new(config.storage_size.to_usize(), service_id, range, xfer_state),
+                    data:  PartitionData::new(partition_data_config, service_id, range, xfer_state),
                     create_group_request,
                 });
 
@@ -928,7 +933,7 @@ impl ReplicaState {
                 if let Ok(backup_id) = PartitionKey::try_from_pb(&create_backup_request.backup_id) {
                     if let Some((nonce, tries)) = partition.data.get_entry_nonce(&backup_id) {
                         Err(transaction_reply::Data::CreateBackupReply(CreateBackupReply {
-                            nonce: nonce.to_combined().to_vec(),
+                            token: nonce.to_combined().to_vec(),
                             tries: tries.map(u16::from).map(u32::from),
                         }))
                     } else {
