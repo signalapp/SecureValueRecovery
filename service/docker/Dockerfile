@@ -16,7 +16,7 @@ RUN    apt-get update \
                software-properties-common \
     && apt-key add /tmp/docker/linux-sgx.gpg \
     && apt-add-repository "deb https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main" \
-    && apt-get install -y --download-only libsgx-enclave-common libsgx-enclave-common-dev \
+    && apt-get install -y --download-only libsgx-enclave-common=2.7.101.3-bionic1 libsgx-enclave-common-dev=2.7.101.3-bionic1 \
     && dpkg --unpack /var/cache/apt/archives/libsgx-enclave-common_*.deb \
     && dpkg --install --ignore-depends=libsgx-enclave-common /var/cache/apt/archives/libsgx-enclave-common-dev_*.deb \
     && rm -rf /var/lib/apt/lists/*
