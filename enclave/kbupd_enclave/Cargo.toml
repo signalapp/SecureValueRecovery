@@ -13,24 +13,24 @@ trace    = ["debug", "insecure"]
 test     = ["sgx_ffi/test", "sgxsd_ffi/test"]
 
 [dependencies]
-base64                = { rev = "07b1d6b713cc2bd7d107185bd0d14bf06cddfb48", git = "https://github.com/marshallpierce/rust-base64.git", default-features = false, features = ["alloc"] }
-bytes                 = { rev = "ebe96021b0eaf52be1fedd0a925f4384275c9cc4", git = "https://github.com/tokio-rs/bytes.git", default-features = false, features = [] }
-chrono                = { rev = "de22e82a1b00b8f015a1d736e497c3177e8e8c9f", git = "https://github.com/geogriff-signal/chrono.git", default-features = false, features = [] }
+base64                = { version = "0.11", default-features = false, features = ["alloc"] }
+bytes                 = { version = "0.5", default-features = false, features = [] }
+chrono                = { version = "0.4", default-features = false, features = [] }
 hashbrown             = { version = "0.6", default-features = false, features = [] }
-intrusive-collections = { rev = "3c14ea97598616a2beaa97cd5fbbb27ba574fe77", git = "https://github.com/geogriff-signal/intrusive-rs.git" }
+intrusive-collections = "0.8.5"
 lazy_static           = { version = "1.4", features = ["spin_no_std"] }
 libc                  = { version = "0.2", default-features = false, features = [] }
 no-std-compat         = { version = "0.2", features = ["alloc"] }
 num-traits            = { version = "0.2", default-features = false, features = [] }
-prost                 = { rev = "907f7d6e714d0b449d75269d532561c71d3ed250", git = "https://github.com/geogriff-signal/prost.git", default-features = false, features = ["prost-derive"] }
+prost                 = { path = "../build/rust_deps/prost-9c5d46e72acc07a9c4305ffba79d253e0f603a27", default-features = false, features = ["prost-derive"] }
 rand_core             = { version = "0.5", default-features = false, features = [] }
 serde                 = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
-serde_json            = { rev = "d79b0c67f62e168d4872bb8694377ffd97b8949f", git = "https://github.com/geogriff-signal/serde_json.git", default-features = false, features = [] }
+serde_json            = { path = "../build/rust_deps/serde_json-d79b0c67f62e168d4872bb8694377ffd97b8949f", default-features = false, features = [] }
 sgx_ffi               = { path = "../sgx_ffi" }
 sgxsd_ffi             = { path = "../sgxsd_ffi" }
 spin                  = "0.5"
-snow                  = { rev = "d8d00a37c8e39b2557d23a26cc4f722595b4f2d9", git = "https://github.com/geogriff-signal/snow.git", default-features = false, features = [] }
-webpki                = { rev = "32ab63c46edfbfe9c1fe68008ba8e247eb387ca3", git = "https://github.com/geogriff-signal/webpki.git", default-features = false, features = [] }
+snow                  = { path = "../build/rust_deps/snow-d8d00a37c8e39b2557d23a26cc4f722595b4f2d9", default-features = false, features = [] }
+webpki                = { path = "../build/rust_deps/webpki-3c92126b95c6ffbe20f3c8f420f4e4fe804954bd", default-features = false, features = [] }
 
 [dev-dependencies]
 lazy_static    = "1.4"

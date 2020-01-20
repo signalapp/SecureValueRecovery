@@ -100,7 +100,7 @@ $(BOLT_SRC_DIR):
 	-rm -r $(BOLT_LLVM_SRC_DIR)
 	wget -O - https://github.com/llvm-mirror/llvm/archive/$(BOLT_LLVM_GIT_REV).tar.gz \
 		| tar -xzf -  -C $(BOLT_DIR)
-	wget -O - https://github.com/geogriff-signal/BOLT/archive/$(BOLT_GIT_REV).tar.gz \
+	wget -O - https://github.com/signalapp/BOLT/archive/$(BOLT_GIT_REV).tar.gz \
 		| tar -xzf - -C $(BOLT_LLVM_SRC_DIR)/tools
 	mv $(BOLT_LLVM_SRC_DIR)/tools/BOLT-$(BOLT_GIT_REV) $(BOLT_LLVM_SRC_DIR)/tools/llvm-bolt
 	patch -d $(BOLT_LLVM_SRC_DIR) -p 1 -T < $(BOLT_LLVM_SRC_DIR)/tools/llvm-bolt/llvm.patch

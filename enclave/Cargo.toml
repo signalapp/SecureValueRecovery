@@ -1,10 +1,9 @@
 [workspace]
 members = ["kbupd_enclave", "sgx_ffi", "sgxsd_ffi", "test_ffi"]
+exclude = ["build"]
 
 [patch.crates-io]
-ring      = { rev = "d0b3a4dcf1f24a2700280f9f7541cb5079398ec6", git = "https://github.com/geogriff-signal/ring.git" }
-bytes     = { rev = "ebe96021b0eaf52be1fedd0a925f4384275c9cc4", git = "https://github.com/tokio-rs/bytes.git" }
-memoffset = { rev = "c14a1633760b55999a687bbdf17cb1fa3d1b2f9a", git = "https://github.com/Gilnaa/memoffset.git" }
+ring = { path = "build/rust_deps/ring-323204d618ea9d339e40b7bf6f0517051a44e28a" }
 
 [profile.release]
 lto = "fat"

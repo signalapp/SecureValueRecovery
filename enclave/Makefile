@@ -16,6 +16,12 @@ RUSTUP_TOOLCHAIN_UNSTABLE ?= nightly
 
 FEATURES ?=
 
+PROST_GIT_REV      = 9c5d46e72acc07a9c4305ffba79d253e0f603a27
+RING_GIT_REV       = 323204d618ea9d339e40b7bf6f0517051a44e28a
+SERDE_JSON_GIT_REV = d79b0c67f62e168d4872bb8694377ffd97b8949f
+SNOW_GIT_REV       = d8d00a37c8e39b2557d23a26cc4f722595b4f2d9
+WEBPKI_GIT_REV     = 3c92126b95c6ffbe20f3c8f420f4e4fe804954bd
+
 INSTALL_PROGRAM = $(INSTALL) -m 755 $(INSTALL_PROGRAM_FLAGS)
 INSTALL_DATA    = $(INSTALL) -m 644
 
@@ -30,7 +36,7 @@ CFLAGS = \
 
 LDFLAGS =
 
-ENCLAVE_RUSTFLAGS = -C opt-level=2 -C debuginfo=1 -C codegen-units=1 -C panic=abort -Z allow_features=alloc_error_handler,thread_local -C llvm-args=-max-jump-table-size=1 -C llvm-args=-disable-tail-duplicate
+ENCLAVE_RUSTFLAGS = -C opt-level=2 -C debuginfo=1 -C codegen-units=1 -C panic=abort -C llvm-args=-max-jump-table-size=1 -C llvm-args=-disable-tail-duplicate
 
 BINDGENFLAGS =
 CARGOBUILDFLAGS =
@@ -39,6 +45,18 @@ export CARGO_HOME = $(CURDIR)/$(builddir)/cargo
 
 TEST_CFLAGS += $(CFLAGS) \
 	-DUNIT_TESTING -fsanitize=address -static-libasan -fsanitize=undefined -static-libubsan
+
+##
+## rust
+##
+
+RUST_DEPS_DIR = $(builddir)/rust_deps
+RUST_DEPS_DIRS = \
+	$(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV) \
+	$(RUST_DEPS_DIR)/ring-$(RING_GIT_REV) \
+	$(RUST_DEPS_DIR)/serde_json-$(SERDE_JSON_GIT_REV) \
+	$(RUST_DEPS_DIR)/snow-$(SNOW_GIT_REV) \
+	$(RUST_DEPS_DIR)/webpki-$(WEBPKI_GIT_REV)
 
 ##
 ## sgxsd
@@ -95,7 +113,7 @@ unsigned: $(builddir)/$(KBUPD_ENCLAVE_NAME).unsigned.so
 llvm-bolt: $(LLVM_BOLT)
 
 doc:
-	env -u CFLAGS RUSTC_BOOTSTRAP=1 RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
+	env -u CFLAGS RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
 		$(CARGO) doc --package=kbupd_enclave --release --document-private-items --lib
 
 check:
@@ -205,6 +223,7 @@ clean:
 		$(targetdir)/debug/ \
 		$(builddir)/bolt/build \
 		$(builddir)/cargo/bin \
+		$(RUST_DEPS_DIR) \
 		$(SGX_SDK_SOURCE_DIR) \
 		debian/.debhelper/ \
 		debian/kbupd-enclave/
@@ -217,9 +236,40 @@ FORCE:
 
 $(targetdir)/debug/prostc: FORCE
 	env -u CFLAGS $(CARGO) build --manifest-path=prostc/Cargo.toml --bin=prostc
-$(targetdir)/release/lib%.a: FORCE
-	env CFLAGS="" RUSTC_BOOTSTRAP=1 RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
+$(targetdir)/release/lib%.a: FORCE $(RUST_DEPS_DIRS)
+	env CFLAGS="" RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
 		$(CARGO) build -vv --release --package=$* --lib $(if $(FEATURES),--features $(FEATURES))
+
+$(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV):
+	mkdir -p $(RUST_DEPS_DIR)/unpack
+	wget -O - https://github.com/geogriff-signal/prost/archive/$(PROST_GIT_REV).tar.gz \
+		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
+	mv $(RUST_DEPS_DIR)/unpack/prost-$(PROST_GIT_REV) $(RUST_DEPS_DIR)/
+
+$(RUST_DEPS_DIR)/ring-$(RING_GIT_REV):
+	mkdir -p $(RUST_DEPS_DIR)/unpack
+	wget -O - https://github.com/geogriff-signal/ring/archive/$(RING_GIT_REV).tar.gz \
+		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
+	mkdir $(RUST_DEPS_DIR)/unpack/ring-$(RING_GIT_REV)/.git # hack to get ring to generate asm in its build.rs
+	mv $(RUST_DEPS_DIR)/unpack/ring-$(RING_GIT_REV) $(RUST_DEPS_DIR)/
+
+$(RUST_DEPS_DIR)/serde_json-$(SERDE_JSON_GIT_REV):
+	mkdir -p $(RUST_DEPS_DIR)/unpack
+	wget -O - https://github.com/geogriff-signal/serde_json/archive/$(SERDE_JSON_GIT_REV).tar.gz \
+		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
+	mv $(RUST_DEPS_DIR)/unpack/serde_json-$(SERDE_JSON_GIT_REV) $(RUST_DEPS_DIR)/
+
+$(RUST_DEPS_DIR)/snow-$(SNOW_GIT_REV):
+	mkdir -p $(RUST_DEPS_DIR)/unpack
+	wget -O - https://github.com/geogriff-signal/snow/archive/$(SNOW_GIT_REV).tar.gz \
+		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
+	mv $(RUST_DEPS_DIR)/unpack/snow-$(SNOW_GIT_REV) $(RUST_DEPS_DIR)/
+
+$(RUST_DEPS_DIR)/webpki-$(WEBPKI_GIT_REV):
+	mkdir -p $(RUST_DEPS_DIR)/unpack
+	wget -O - https://github.com/briansmith/webpki/archive/$(WEBPKI_GIT_REV).tar.gz \
+		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
+	mv $(RUST_DEPS_DIR)/unpack/webpki-$(WEBPKI_GIT_REV) $(RUST_DEPS_DIR)/
 
 ## sgxsd
 
@@ -260,7 +310,9 @@ docker:
 	$(DOCKER) build --build-arg UID=$$(id -u) --build-arg GID=$$(id -g) \
 	  -t kbupd-enclave-builder ./docker
 	$(DOCKER) run -it --rm --user $$(id -u):$$(id -g) --cap-add SYS_PTRACE \
-		-v `pwd`/:/home/signal/src $(DOCKER_EXTRA) kbupd-enclave-builder \
+		-v `pwd`/:/home/rust/src $(DOCKER_EXTRA) \
+		--env MAKEFLAGS="$(MAKEFLAGS)" \
+		kbupd-enclave-builder \
 		sh -c "cd src; make $(MAKETARGET)"
 
 .PHONY: debuild

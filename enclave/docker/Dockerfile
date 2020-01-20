@@ -15,19 +15,19 @@ ARG UID
 ARG GID
 
 #Create a user to map the host user to.
-RUN    groupadd -o -g ${GID} signal \
-    && useradd -m -o -u ${UID} -g ${GID} -s /bin/bash signal \
+RUN    groupadd -o -g ${GID} rust \
+    && useradd -m -o -u ${UID} -g ${GID} -s /bin/bash rust \
     && mkdir -p /tmp/docker \
-    && chown -R signal.signal /tmp/docker
+    && chown -R rust.rust /tmp/docker
 
-USER signal
-ENV HOME /home/signal
-ENV USER signal
+USER rust
+ENV HOME /home/rust
+ENV USER rust
 ENV SHELL /bin/bash
 
-WORKDIR /home/signal
+WORKDIR /home/rust
 
-ARG TOOLCHAIN=1.37.0
+ARG TOOLCHAIN=1.40.0
 
 COPY rustup-init.sha256 /tmp/docker/
 
@@ -37,6 +37,6 @@ RUN    curl -f https://static.rust-lang.org/rustup/archive/1.20.2/x86_64-unknown
     && /tmp/rustup-init -y --profile minimal --component rustfmt --default-toolchain "${TOOLCHAIN}" \
     && rm -rf /tmp/rustup-init /tmp/docker
 
-ENV PATH="/home/signal/.cargo/bin:${PATH}"
+ENV PATH="/home/rust/.cargo/bin:${PATH}"
 
 CMD [ "/bin/bash" ]
