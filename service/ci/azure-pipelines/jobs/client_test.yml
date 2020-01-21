@@ -35,7 +35,7 @@ jobs:
   - task: DownloadSecureFile@1
     name: kbupd_enclave
     inputs:
-      secureFile: enclave-f51f435802ada769e67aaf5744372bb7e7d519eecf996d335eb5b46b872b5789-test.so
+      secureFile: enclave-a3baab19ef6ce6f34ab9ebb25ba722725ae44a8872dc0ff08ad6d83a9489de87-test.so
 
   - script: |
       chmod +x kbupd kbupctl kbuptlsd
