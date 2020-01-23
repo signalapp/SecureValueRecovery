@@ -22,7 +22,7 @@ use std::net::{ToSocketAddrs};
 use std::time::{Duration};
 
 use bytes::{Buf, BufMut, BytesMut, IntoBuf};
-use failure::{ResultExt};
+use failure::{format_err, ResultExt};
 use futures::future;
 use futures::sync::mpsc;
 use futures::prelude::*;
@@ -442,11 +442,20 @@ fn parse_node_id(node_id_bytes: &[u8]) -> Option<NodeId> {
 }
 
 fn parse_client_request(request: ClientEncryptedRequest) -> Result<KeyBackupRequest, failure::Error> {
+    let request_type = match ClientRequestType::from_i32(request.request_type) {
+        Some(ClientRequestType::Backup)      => KeyBackupRequestType::Backup,
+        Some(ClientRequestType::Restore)     => KeyBackupRequestType::Restore,
+        Some(ClientRequestType::Delete)      => KeyBackupRequestType::Delete,
+        Some(ClientRequestType::None) | None => {
+            return Err(format_err!("invalid client request type: {}", request.request_type));
+        }
+    };
     Ok(KeyBackupRequest {
         iv:        request.encrypted_message.iv[..].try_into().map_err(failure::Error::from).context("iv")?,
         mac:       request.encrypted_message.mac[..].try_into().map_err(failure::Error::from).context("mac")?,
         data:      request.encrypted_message.data,
         requestId: request.pending_request_id,
+        r#type:    request_type,
     })
 }
 

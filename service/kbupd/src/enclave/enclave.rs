@@ -242,8 +242,14 @@ impl Enclave {
                           -> Result<(), EnclaveError> {
         let server_handle = self.start_sgxsd_server()?;
 
+        let request_type = match request.r#type {
+            KeyBackupRequestType::Backup  => KBUPD_REQUEST_TYPE_BACKUP,
+            KeyBackupRequestType::Restore => KBUPD_REQUEST_TYPE_RESTORE,
+            KeyBackupRequestType::Delete  => KBUPD_REQUEST_TYPE_DELETE,
+        };
+
         let args = SgxsdServerCallArgs {
-            request_type: KBUPD_REQUEST_TYPE_ANY,
+            request_type,
             backup_id: backup_id.into(),
         };
 

@@ -22,7 +22,7 @@ export CARGO_HOME = $(CURDIR)/$(builddir)/cargo
 ## targets
 ##
 
-.PHONY: default all all-debug kbupd kbupd-debug kbupd-config kbupd-config-debug kbupctl kbupctl-debug kbuptlsd kbuptlsd-debug doc check test clippy bindgen distclean clean docker tar
+.PHONY: default all all-debug kbupd kbupd-debug kbupd-config kbupd-config-debug kbupctl kbupctl-debug kbuptlsd kbuptlsd-debug kbupd-api-client kbupd-api-client-debug doc check test clippy bindgen distclean clean docker tar
 .PHONY: FORCE
 
 .SUFFIXES:
@@ -57,6 +57,12 @@ kbuptlsd:
 
 kbuptlsd-debug:
 	$(CARGO) build --package=kbuptlsd --bins
+
+kbupd-api-client:
+	$(CARGO) build --package=kbupd_api_client --bins --release
+
+kbupd-api-client-debug:
+	$(CARGO) build --package=kbupd_api_client --bins
 
 doc:
 	$(CARGO) doc --package=kbupd --release --document-private-items --lib

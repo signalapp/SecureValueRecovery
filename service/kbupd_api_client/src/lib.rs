@@ -87,6 +87,15 @@ impl KeyBackupApiClient {
     {
         let client = kbupd_client::Client::new(&mut rand::thread_rng());
 
+        let request_type = match &request {
+            kbupd_client::Request { backup: Some(_), .. }  => KeyBackupRequestType::Backup,
+            kbupd_client::Request { restore: Some(_), .. } => KeyBackupRequestType::Restore,
+            kbupd_client::Request { delete: Some(_), .. }  => KeyBackupRequestType::Delete,
+            _ => {
+                return try_future::TryFuture::from_error(failure::err_msg("invalid empty client request"));
+            }
+        };
+
         let attestation_request = RemoteAttestationRequest {
             clientPublic: *client.client_pubkey(),
         };
@@ -117,6 +126,7 @@ impl KeyBackupApiClient {
                     iv:        encrypted_request.encrypted_message.iv,
                     mac:       encrypted_request.encrypted_message.mac,
                     data:      encrypted_request.encrypted_message.data,
+                    r#type:    request_type,
                 };
                 let key_backup_response = state
                     .put_backup_request(&credentials, &enclave_name, attestation_response_cookies, key_backup_request)
@@ -134,7 +144,7 @@ impl KeyBackupApiClient {
             },
         );
 
-        response
+        response.into()
     }
 
     pub fn get_attestation(
@@ -223,6 +233,7 @@ impl KeyBackupApiClient {
         ResponseTy: for<'de> Deserialize<'de> + Send + 'static,
     {
         let encoded_request = try_future!(serde_json::to_vec(&request).context("error serializing request as json"));
+        debug!("sending backup request: {}", std::str::from_utf8(&encoded_request).unwrap_or("<invalid utf8>"));
         let mut hyper_request = Request::new(Body::from(encoded_request));
 
         *hyper_request.method_mut() = Method::PUT;

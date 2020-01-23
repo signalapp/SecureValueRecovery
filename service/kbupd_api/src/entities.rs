@@ -95,6 +95,17 @@ pub struct KeyBackupRequest {
 
     #[serde(with = "base64::SerdeFixedLengthBase64")]
     pub mac: [u8; 16],
+
+    pub r#type: KeyBackupRequestType,
+}
+
+#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum KeyBackupRequestType {
+    Backup,
+    Restore,
+    Delete,
 }
 
 #[derive(Deserialize, Serialize)]
