@@ -49,6 +49,8 @@ pub struct FrontendApiConfig {
     #[serde(with = "hex")]
     pub backupIdSecret: Vec<u8>,
 
+    pub denyBackup: bool,
+
     #[serde(default)]
     pub limits: FrontendApiRateLimitsConfig,
 }

@@ -42,6 +42,7 @@ where BackupManagerTy: Clone,
 {
     router:                    route_recognizer::Router<Box<dyn ApiHandler<ApiService = Self>>>,
     backup_manager:            BackupManagerTy,
+    deny_backup:               bool,
     rate_limiters:             SignalApiRateLimiters,
     signal_user_authenticator: Arc<SignalUserAuthenticator>,
 }
@@ -68,7 +69,7 @@ lazy_static::lazy_static! {
 impl<BackupManagerTy> SignalApiService<BackupManagerTy>
 where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static,
 {
-    pub fn new(signal_user_authenticator: Arc<SignalUserAuthenticator>, backup_manager: BackupManagerTy, rate_limiters: SignalApiRateLimiters) -> Self {
+    pub fn new(signal_user_authenticator: Arc<SignalUserAuthenticator>, backup_manager: BackupManagerTy, deny_backup: bool, rate_limiters: SignalApiRateLimiters) -> Self {
         let mut router = route_recognizer::Router::new();
 
         router.add("/v1/ping", Self::api_handler(move |_service, _params, request| {
@@ -106,6 +107,7 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
         Self {
             router,
             backup_manager,
+            deny_backup,
             signal_user_authenticator,
             rate_limiters,
         }
@@ -189,6 +191,14 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
                           -> impl Future<Item = Result<KeyBackupResponse, Response<Body>>, Error = failure::Error> {
         let timer    = PUT_BACKUP_REQUEST_TIMER.time();
         let username = user.username.clone();
+        match &request.r#type {
+            KeyBackupRequestType::Backup if self.deny_backup => {
+                let mut response       = Response::<Body>::default();
+                *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
+                return future::Either::A(Ok(Err(response)).into_future());
+            }
+            _ => (),
+        }
         let limit    = self.rate_limiters.backup.sync_call(move |rate_limiter: &mut RateLimiter| {
             Self::handle_ratelimit_result(rate_limiter.validate(&username, 1))
         });
@@ -224,12 +234,13 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
                 }
             }
         });
-        limit.and_then(|maybe_ratelimit_response: Option<Response<Body>>| {
+        let response = limit.and_then(|maybe_ratelimit_response: Option<Response<Body>>| {
             match maybe_ratelimit_response {
                 Some(ratelimit_response) => TryFuture::from_ok(Err(ratelimit_response)),
                 None                     => response.into(),
             }
-        })
+        });
+        future::Either::B(response)
     }
 
     fn api_handler<F, H>(handler: F) -> Box<dyn ApiHandler<ApiService = Self>>

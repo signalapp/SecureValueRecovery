@@ -228,7 +228,7 @@ impl FrontendService {
         let status_refresh_task = EnclaveStatusRefreshTask::new(ENCLAVE_STATUS_REFRESH_INTERVAL, enclave_manager_tx.clone());
         let backup_id_key       = ring::hmac::SigningKey::new(&ring::digest::SHA256, &config.api.backupIdSecret);
         let backup_manager      = SignalBackupManager::new(enclave_manager_tx.clone(), backup_id_key, backup_request_manager_tx);
-        let api_service         = SignalApiService::new(signal_user_authenticator, backup_manager, api_rate_limiters);
+        let api_service         = SignalApiService::new(signal_user_authenticator, backup_manager, config.api.denyBackup, api_rate_limiters);
         let api_listener        = ApiListener::new(&config.api.listenHostPort, api_service).context("error starting api listener")?;
         let control_listener    = ControlListener::new(config.control.listenHostPort, enclave_manager_tx).context("error starting control listener")?;
 

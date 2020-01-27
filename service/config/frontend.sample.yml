@@ -2,6 +2,7 @@ api:
   listenHostPort:                                 # host:port to listen on for the HTTP API
   userAuthenticationTokenSharedSecret:            # hex-encoded secret shared with Signal-Server used to generate auth tokens for Signal users
   backupIdSecret:                                 # hex-encoded secret used to calculate Backup IDs assigned to Signal users
+  denyBackup:                                     # Whether to deny all BackupRequests [true|false]
   limits:
     token:                                        # Rate limits for token requests
       bucketSize:                                 # Leaky bucket size
