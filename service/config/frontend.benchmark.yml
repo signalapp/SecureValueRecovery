@@ -2,6 +2,7 @@ api:
   listenHostPort: 127.0.0.1:8000
   userAuthenticationTokenSharedSecret: 0000000000000000000000000000000000000000000000000000000000000000
   backupIdSecret: 0000000000000000000000000000000000000000000000000000000000000000
+  denyBackup: false
 
 attestation:
   host: https://test-as.sgx.trustedservices.intel.com/

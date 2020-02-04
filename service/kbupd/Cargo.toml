@@ -49,8 +49,8 @@ tokio-signal     = "0.2"
 try_future       = "0.1"
 
 [dev-dependencies]
-mockers        = "0.20"
-mockers_derive = "0.20"
+mockers        = "0.21"
+mockers_derive = "0.21"
 rand_chacha    = "0.1"
 
 [build-dependencies]
