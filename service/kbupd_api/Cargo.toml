@@ -6,6 +6,6 @@ license = "AGPL-3.0-or-later"
 edition = "2018"
 
 [dependencies]
-kbupd_util   = { path = "../kbupd_util" }
+kbupd_util   = { git = "https://github.com/signalapp/sgx_common.git", rev = "7d753bbf2f0505c241b812f47b69a90d5fb650ca" }
 serde        = "1.0"
 serde_derive = "1.0"
