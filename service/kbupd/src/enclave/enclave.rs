@@ -591,7 +591,7 @@ impl Enclave {
                     Some(kbupd_client::backup_response::Status::Ok)            => REPLICA_BACKUPS_BACKUP_OK_METER.mark(),
                     Some(kbupd_client::backup_response::Status::AlreadyExists) => REPLICA_BACKUPS_BACKUP_ALREADY_EXISTS_METER.mark(),
                     Some(kbupd_client::backup_response::Status::NotYetValid)   => REPLICA_BACKUPS_BACKUP_NOT_YET_VALID_METER.mark(),
-                    None => (),
+                    None => error!("invalid backup transaction status {}", backup_txn.status),
                 }
             }
             Transaction::Restore(restore_txn) => {
@@ -601,7 +601,7 @@ impl Enclave {
                     Some(kbupd_client::restore_response::Status::NotYetValid)   => REPLICA_BACKUPS_RESTORE_NOT_YET_VALID_METER.mark(),
                     Some(kbupd_client::restore_response::Status::Missing)       => REPLICA_BACKUPS_RESTORE_MISSING_METER.mark(),
                     Some(kbupd_client::restore_response::Status::PinMismatch)   => REPLICA_BACKUPS_RESTORE_PIN_MISMATCH_METER.mark(),
-                    None => (),
+                    None => error!("invalid restore transaction status {}", restore_txn.status),
                 }
             }
             Transaction::Delete(_) => {
