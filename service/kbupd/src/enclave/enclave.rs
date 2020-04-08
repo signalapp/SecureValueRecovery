@@ -83,20 +83,13 @@ lazy_static::lazy_static! {
 
     static ref REPLICA_BACKUPS_COUNT_GAUGE:      Gauge = METRICS.metric(&metric_name!("replica",  "backups", "count"));
     static ref REPLICA_BACKUPS_CREATE_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "create"));
-
-    static ref REPLICA_BACKUPS_BACKUP_OK_METER:              Meter = METRICS.metric(&metric_name!("replica",  "backups", "backup", "ok"));
-    static ref REPLICA_BACKUPS_BACKUP_ALREADY_EXISTS_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "backup", "already_exists"));
-    static ref REPLICA_BACKUPS_BACKUP_NOT_YET_VALID_METER:   Meter = METRICS.metric(&metric_name!("replica",  "backups", "backup", "not_yet_valid"));
-    static ref REPLICA_BACKUPS_RESTORE_OK_METER:             Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore", "ok"));
-    static ref REPLICA_BACKUPS_RESTORE_TOKEN_MISMATCH_METER: Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore", "token_mismatch"));
-    static ref REPLICA_BACKUPS_RESTORE_NOT_YET_VALID_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore", "not_yet_valid"));
-    static ref REPLICA_BACKUPS_RESTORE_MISSING_METER:        Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore", "missing"));
-    static ref REPLICA_BACKUPS_RESTORE_PIN_MISMATCH_METER:   Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore", "pin_mismatch"));
-    static ref REPLICA_BACKUPS_DELETE_METER:                 Meter = METRICS.metric(&metric_name!("replica",  "backups", "delete"));
-    static ref REPLICA_BACKUPS_XFER_IN_PROGRESS_METER:       Meter = METRICS.metric(&metric_name!("replica",  "backups", "xfer_in_progress"));
-    static ref REPLICA_BACKUPS_WRONG_PARTITION_METER:        Meter = METRICS.metric(&metric_name!("replica",  "backups", "wrong_partition"));
-    static ref REPLICA_BACKUPS_INVALID_REQUEST_METER:        Meter = METRICS.metric(&metric_name!("replica",  "backups", "invalid_request"));
-    static ref REPLICA_BACKUPS_INTERNAL_ERROR_METER:         Meter = METRICS.metric(&metric_name!("replica",  "backups", "internal_error"));
+    static ref REPLICA_BACKUPS_BACKUP_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "backup"));
+    static ref REPLICA_BACKUPS_RESTORE_METER:    Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore"));
+    static ref REPLICA_BACKUPS_DELETE_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "delete"));
+    static ref REPLICA_BACKUPS_XFER_IN_PROGRESS_METER: Meter = METRICS.metric(&metric_name!("replica",  "backups", "xfer_in_progress"));
+    static ref REPLICA_BACKUPS_WRONG_PARTITION_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "wrong_partition"));
+    static ref REPLICA_BACKUPS_INVALID_REQUEST_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "invalid_request"));
+    static ref REPLICA_BACKUPS_INTERNAL_ERROR_METER:   Meter = METRICS.metric(&metric_name!("replica",  "backups", "internal_error"));
 
     static ref FRONTEND_REQUESTS_INFLIGHT_GAUGE: Gauge = METRICS.metric(&metric_name!("frontend", "requests", "inflight"));
     static ref FRONTEND_REQUESTS_UNSENT_GAUGE:   Gauge = METRICS.metric(&metric_name!("frontend", "requests", "unsent"));
@@ -586,23 +579,11 @@ impl Enclave {
             Transaction::Create(_) => {
                 REPLICA_BACKUPS_CREATE_METER.mark();
             }
-            Transaction::Backup(backup_txn) => {
-                match kbupd_client::backup_response::Status::from_i32(backup_txn.status) {
-                    Some(kbupd_client::backup_response::Status::Ok)            => REPLICA_BACKUPS_BACKUP_OK_METER.mark(),
-                    Some(kbupd_client::backup_response::Status::AlreadyExists) => REPLICA_BACKUPS_BACKUP_ALREADY_EXISTS_METER.mark(),
-                    Some(kbupd_client::backup_response::Status::NotYetValid)   => REPLICA_BACKUPS_BACKUP_NOT_YET_VALID_METER.mark(),
-                    None => (),
-                }
+            Transaction::Backup(_) => {
+                REPLICA_BACKUPS_BACKUP_METER.mark();
             }
-            Transaction::Restore(restore_txn) => {
-                match kbupd_client::restore_response::Status::from_i32(restore_txn.status) {
-                    Some(kbupd_client::restore_response::Status::Ok)            => REPLICA_BACKUPS_RESTORE_OK_METER.mark(),
-                    Some(kbupd_client::restore_response::Status::TokenMismatch) => REPLICA_BACKUPS_RESTORE_TOKEN_MISMATCH_METER.mark(),
-                    Some(kbupd_client::restore_response::Status::NotYetValid)   => REPLICA_BACKUPS_RESTORE_NOT_YET_VALID_METER.mark(),
-                    Some(kbupd_client::restore_response::Status::Missing)       => REPLICA_BACKUPS_RESTORE_MISSING_METER.mark(),
-                    Some(kbupd_client::restore_response::Status::PinMismatch)   => REPLICA_BACKUPS_RESTORE_PIN_MISMATCH_METER.mark(),
-                    None => (),
-                }
+            Transaction::Restore(_) => {
+                REPLICA_BACKUPS_RESTORE_METER.mark();
             }
             Transaction::Delete(_) => {
                 REPLICA_BACKUPS_DELETE_METER.mark();
