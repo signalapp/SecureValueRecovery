@@ -1,10 +1,10 @@
 #
-# Azure Pipelines job to build the enclave from within in the kbupd-enclave-builder docker image.
+# Azure Pipelines job to build the insecure debug-mode enclave from within in the kbupd-enclave-builder docker image.
 #
 
 jobs:
-- job: make_all
-  displayName: make all
+- job: make_all_insecure
+  displayName: make all FEATURES=insecure
   pool:
     vmImage: ubuntu-18.04
   container: kbupd-enclave-builder
@@ -22,22 +22,18 @@ jobs:
   - script: make -C /home/rust/src/ bindgen
     displayName: make bindgen
 
-  - script: make -C /home/rust/src/ debuild
-    displayName: make debuild
+  - script: make -C /home/rust/src/ all FEATURES=insecure
+    displayName: make all FEATURES=insecure
 
   - publish:  enclave/build/libkbupd_enclave.unstripped.so
-    artifact: libkbupd_enclave.unstripped.so
+    artifact: insecure-libkbupd_enclave.unstripped.so
   - publish:  enclave/build/libkbupd_enclave.hardened.unstripped.so
-    artifact: libkbupd_enclave.hardened.unstripped.so
+    artifact: insecure-libkbupd_enclave.hardened.unstripped.so
   - publish:  enclave/build/libkbupd_enclave.hardened.unsigned.so
-    artifact: libkbupd_enclave.hardened.unsigned.so
+    artifact: insecure-libkbupd_enclave.hardened.unsigned.so
+  - publish:  enclave/build/libkbupd_enclave.hardened.debug.so
+    artifact: insecure-libkbupd_enclave.hardened.debug.so
   - publish:  enclave/build/libkbupd_enclave.hardened.signdata
-    artifact: libkbupd_enclave.hardened.signdata
+    artifact: insecure-libkbupd_enclave.hardened.signdata
   - publish:  enclave/build/libkbupd_enclave.hardened.mrenclave
-    artifact: libkbupd_enclave.hardened.mrenclave
-
-  - script: make -C /home/rust/src/ tar
-    displayName: make tar
-
-  - publish:  enclave/build/libkbupd_enclave.hardened.build.tar.bz2
-    artifact: libkbupd_enclave.hardened.build.tar.bz2
+    artifact: insecure-libkbupd_enclave.hardened.mrenclave

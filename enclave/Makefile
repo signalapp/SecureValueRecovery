@@ -118,7 +118,7 @@ doc: $(RUST_DEPS_DIRS)
 
 check: $(RUST_DEPS_DIRS)
 	$(CARGO) check --all --exclude=kbupd_enclave
-	$(CARGO) check --manifest-path=kbupd_enclave/Cargo.toml --lib --tests --features test
+	$(CARGO) check --manifest-path=kbupd_enclave/Cargo.toml --lib --tests --features test,$(if $(FEATURES),$(FEATURES))
 
 test: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	ASAN_OPTIONS="detect_leaks=0:$(ASAN_OPTIONS)" ./$(TEST_SGXSD_TARGET)
@@ -129,7 +129,7 @@ test: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	env -u CFLAGS \
 	RUST_BACKTRACE=full \
 	RUST_TEST_THREADS=1 \
-		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --features test -- --test-threads=1
+		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --features test,$(if $(FEATURES),$(FEATURES)) -- --test-threads=1
 
 test-asan: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	./$(TEST_SGXSD_TARGET)
@@ -146,11 +146,11 @@ test-asan: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	ASAN_OPTIONS="detect_odr_violation=1:detect_stack_use_after_return=true:check_initialization_order=true:strict_init_order=true:halt_on_error=false:$(ASAN_OPTIONS)" \
 	LSAN_OPTIONS="suppressions=$(CURDIR)/kbupd_enclave/lsan-ignore-test.txt:$(LSAN_OPTIONS)" \
 		$(RUSTUP) run $(RUSTUP_TOOLCHAIN_UNSTABLE) \
-		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --tests --features=test -- --test-threads=1
+		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --tests --features test,$(if $(FEATURES),$(FEATURES)) -- --test-threads=1
 
 clippy: $(RUST_DEPS_DIRS)
 	$(CARGO) clippy --all --exclude=kbupd_enclave
-	$(CARGO) clippy --manifest-path=kbupd_enclave/Cargo.toml --features=test
+	$(CARGO) clippy --manifest-path=kbupd_enclave/Cargo.toml --features test,$(if $(FEATURES),$(FEATURES))
 
 benchmark: $(RUST_DEPS_DIRS)
 	$(CARGO) bench --all
@@ -239,7 +239,7 @@ $(targetdir)/debug/prostc: FORCE $(RUST_DEPS_DIRS)
 	env -u CFLAGS $(CARGO) build --manifest-path=prostc/Cargo.toml --bin=prostc
 $(targetdir)/release/lib%.a: FORCE $(RUST_DEPS_DIRS)
 	env CFLAGS="" RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
-		$(CARGO) build -vv --release --package=$* --lib $(if $(FEATURES),--features $(FEATURES))
+		$(CARGO) build -vv --release --manifest-path=$*/Cargo.toml --lib $(if $(FEATURES),--features $(FEATURES))
 
 $(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV):
 	mkdir -p $(RUST_DEPS_DIR)/unpack

@@ -37,8 +37,24 @@ stages:
   jobs:
   - template: jobs/make_test.yml
 
+- stage: make_llvm_bolt
+  displayName: make llvm-bolt
+  dependsOn: docker_build_kbupd_enclave_builder
+  jobs:
+  - template: jobs/make_llvm_bolt.yml
+
+- stage: make_all_insecure
+  displayName: make all FEATURES=insecure
+  dependsOn:
+    - docker_build_kbupd_enclave_builder
+    - make_llvm_bolt
+  jobs:
+  - template: jobs/make_all_insecure.yml
+
 - stage: make_all
   displayName: make all
-  dependsOn: docker_build_kbupd_enclave_builder
+  dependsOn:
+    - docker_build_kbupd_enclave_builder
+    - make_llvm_bolt
   jobs:
   - template: jobs/make_all.yml
