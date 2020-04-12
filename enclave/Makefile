@@ -112,14 +112,14 @@ unsigned: $(builddir)/$(KBUPD_ENCLAVE_NAME).unsigned.so
 
 llvm-bolt: $(LLVM_BOLT)
 
-doc:
+doc: $(RUST_DEPS_DIRS)
 	env -u CFLAGS RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
 		$(CARGO) doc --package=kbupd_enclave --release --document-private-items --lib
 
-check:
+check: $(RUST_DEPS_DIRS)
 	$(CARGO) check --package=kbupd_enclave --lib --tests
 
-test: $(TEST_SGXSD_TARGET)
+test: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	ASAN_OPTIONS="detect_leaks=0:$(ASAN_OPTIONS)" ./$(TEST_SGXSD_TARGET)
 	env -u CFLAGS \
 	RUST_BACKTRACE=full \
@@ -130,7 +130,7 @@ test: $(TEST_SGXSD_TARGET)
 	RUST_TEST_THREADS=1 \
 		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --features test -- --test-threads=1
 
-test-asan: $(TEST_SGXSD_TARGET)
+test-asan: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	./$(TEST_SGXSD_TARGET)
 	env -u CFLAGS \
 	RUST_BACKTRACE=full \
@@ -147,11 +147,11 @@ test-asan: $(TEST_SGXSD_TARGET)
 		$(RUSTUP) run $(RUSTUP_TOOLCHAIN_UNSTABLE) \
 		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --tests --features=test -- --test-threads=1
 
-clippy:
+clippy: $(RUST_DEPS_DIRS)
 	$(CARGO) clippy --all --exclude=kbupd_enclave
 	$(CARGO) clippy --manifest-path=kbupd_enclave/Cargo.toml --features=test
 
-benchmark:
+benchmark: $(RUST_DEPS_DIRS)
 	$(CARGO) bench --all
 
 bindgen: $(BINDGEN) | $(SGX_INCLUDEDIR)
@@ -234,7 +234,7 @@ clean:
 .PHONY: FORCE
 FORCE:
 
-$(targetdir)/debug/prostc: FORCE
+$(targetdir)/debug/prostc: FORCE $(RUST_DEPS_DIRS)
 	env -u CFLAGS $(CARGO) build --manifest-path=prostc/Cargo.toml --bin=prostc
 $(targetdir)/release/lib%.a: FORCE $(RUST_DEPS_DIRS)
 	env CFLAGS="" RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
