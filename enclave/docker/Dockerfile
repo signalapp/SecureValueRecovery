@@ -11,12 +11,12 @@ RUN    apt-get update \
                llvm-dev libclang-dev clang \
     && rm -rf /var/lib/apt/lists/*
 
-ARG UID
-ARG GID
+ARG UID=0
+ARG GID=0
 
 #Create a user to map the host user to.
-RUN    groupadd -o -g ${GID} rust \
-    && useradd -m -o -u ${UID} -g ${GID} -s /bin/bash rust \
+RUN    groupadd -o -g "${GID}" rust \
+    && useradd -m -o -u "${UID}" -g "${GID}" -s /bin/bash rust \
     && mkdir -p /tmp/docker \
     && chown -R rust.rust /tmp/docker
 
@@ -34,7 +34,7 @@ COPY rustup-init.sha256 /tmp/docker/
 RUN    curl -f https://static.rust-lang.org/rustup/archive/1.20.2/x86_64-unknown-linux-gnu/rustup-init -o /tmp/rustup-init \
     && [ `sha256sum /tmp/rustup-init|cut -d' ' -f1` = `cut -d' ' -f1</tmp/docker/rustup-init.sha256` ] \
     && chmod a+x /tmp/rustup-init \
-    && /tmp/rustup-init -y --profile minimal --component rustfmt --default-toolchain "${TOOLCHAIN}" \
+    && /tmp/rustup-init -y --profile minimal --component rustfmt clippy --default-toolchain "${TOOLCHAIN}" \
     && rm -rf /tmp/rustup-init /tmp/docker
 
 ENV PATH="/home/rust/.cargo/bin:${PATH}"
