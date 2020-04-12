@@ -117,7 +117,8 @@ doc: $(RUST_DEPS_DIRS)
 		$(CARGO) doc --package=kbupd_enclave --release --document-private-items --lib
 
 check: $(RUST_DEPS_DIRS)
-	$(CARGO) check --package=kbupd_enclave --lib --tests
+	$(CARGO) check --all --exclude=kbupd_enclave
+	$(CARGO) check --manifest-path=kbupd_enclave/Cargo.toml --lib --tests --features test
 
 test: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	ASAN_OPTIONS="detect_leaks=0:$(ASAN_OPTIONS)" ./$(TEST_SGXSD_TARGET)
