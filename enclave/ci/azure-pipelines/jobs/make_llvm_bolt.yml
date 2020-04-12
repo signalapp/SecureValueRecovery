@@ -9,6 +9,8 @@ jobs:
     vmImage: ubuntu-18.04
   container: kbupd-enclave-builder
   timeoutInMinutes: 120
+  workspace:
+    clean: all
   steps:
   - script: |
       cp -a enclave /home/rust/src && \

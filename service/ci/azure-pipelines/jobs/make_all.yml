@@ -8,6 +8,8 @@ jobs:
   pool:
     vmImage: ubuntu-18.04
   container: kbupd-builder
+  workspace:
+    clean: all
   steps:
   - script: make -C service/ all
     displayName: make all

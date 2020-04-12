@@ -8,6 +8,8 @@ jobs:
   pool:
     vmImage: ubuntu-18.04
   container: kbupd-enclave-builder
+  workspace:
+    clean: all
   steps:
   - script: make -C enclave/ test
     displayName: make test
