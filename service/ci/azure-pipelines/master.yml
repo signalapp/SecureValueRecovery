@@ -40,6 +40,12 @@ stages:
   jobs:
   - template: jobs/make_all.yml
 
+- stage: client_test_insecure
+  displayName: client_test_insecure
+  dependsOn: make_all
+  jobs:
+  - template: jobs/client_test_insecure.yml
+
 - stage: client_test
   displayName: client_test
   dependsOn: make_all

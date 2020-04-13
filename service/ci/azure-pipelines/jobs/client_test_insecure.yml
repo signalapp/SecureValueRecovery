@@ -1,0 +1,56 @@
+#
+# Azure Pipelines steps to run service/test/client_test.py with the insecure debug-mode enclave built in the enclave CI pipeline
+#
+
+jobs:
+- job: client_test_insecure
+  displayName: client_test_insecure
+  pool: client_test
+  workspace:
+    clean: all
+  steps:
+  - checkout: none
+
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact:   insecure-libkbupd_enclave.hardened.debug.so
+      path:       .
+      source:     specific
+      project:    '$(System.TeamProjectId)'
+      pipeline:   6
+      runVersion: latestFromBranch
+      runBranch:  '$(Build.SourceBranch)'
+      preferTriggeringPipeline: true
+
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: kbupd
+      path:     .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: kbupctl
+      path:     .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: kbuptlsd
+      path:     .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: client_test
+      path:     .
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: client_test_config
+      path:     .
+
+  - script: |
+      chmod +x kbupd kbupctl kbuptlsd
+    displayName: set up client_test
+
+  - script: sha256sum libkbupd_enclave.hardened.debug.so
+
+  - script: python3 client_test.py
+    displayName:      client_test.py
+    timeoutInMinutes: 30
+    env:
+      ENCLAVE_DEBUG:  yes
