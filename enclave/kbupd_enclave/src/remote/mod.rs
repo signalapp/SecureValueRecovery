@@ -782,8 +782,11 @@ fn validate_ias_report(maybe_ias_report:     Option<&IasReport>,
                        expected_report_data: &[u8])
                        -> Result<AttestationParameters, AttestationVerificationError> {
     #[cfg(feature = "insecure")] {
-        if maybe_ias_report.is_none() {
-            return Ok(AttestationParameters { unix_timestamp_seconds: 0 });
+        match maybe_ias_report.as_ref() {
+            Some(ias_report) if ias_report.body.is_empty() => {
+                return Ok(AttestationParameters { unix_timestamp_seconds: 0 });
+            }
+            _ => (),
         }
     }
 
