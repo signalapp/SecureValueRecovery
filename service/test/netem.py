@@ -1,4 +1,4 @@
-import subprocess, atexit, threading, yaml, os, re, socket
+import subprocess, atexit, threading, yaml, os, re, socket, time
 from collections.abc import Mapping
 from partition import Partition
 from kbupd import Kbupd
@@ -259,7 +259,8 @@ class PlaybackThread(threading.Thread):
     def verb_droptohost(self, host, send_rst=False):
         try:
             iplist = socket.gethostbyname_ex(host)[2]
-        except socket.gaierror:
+        except OSError as e:
+            print(e, "Retrying")
             time.sleep(5)
             iplist = socket.gethostbyname_ex(host)[2]
         for ip in iplist:
@@ -281,12 +282,14 @@ class PlaybackThread(threading.Thread):
     def verb_rewritedst(self, old_dst, new_dst):
         try:
             iplist = socket.gethostbyname_ex(old_dst)[2]
-        except socket.gaierror:
+        except OSError as e:
+            print(e, "Retrying")
             time.sleep(5)
             iplist = socket.gethostbyname_ex(old_dst)[2]
         try:
             new_dst_ip = socket.gethostbyname(new_dst)
-        except socket.gaierror:
+        except OSError:
+            print(e, "Retrying")
             time.sleep(5)
             new_dst_ip = socket.gethostbyname(new_dst)
         for ip in iplist:

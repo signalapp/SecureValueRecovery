@@ -1,4 +1,4 @@
-import os, subprocess, tempfile, time, re, signal
+import os, subprocess, tempfile, time, re, signal, time
 
 from util import DIM, CLEAR, create_cgroup
 
@@ -54,6 +54,7 @@ class Kbupd():
         self.peer_key_file.flush()
 
         if os.getenv("ENCLAVE_DEBUG") != None:
+            #XXX Add SGX_DBG_OPTIN=1 to env here?  And warn if SGX_SDK_SOURCE_DIR isn't set?
             enclave_debug_args = ["--enclave-debug", os.getenv("ENCLAVE_DEBUG")]
         else:
             enclave_debug_args = []

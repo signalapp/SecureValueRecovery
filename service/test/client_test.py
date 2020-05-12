@@ -352,6 +352,7 @@ class KbupdTestCase(NetemTestCase):
             partition.wait_partition_destination()
             partition.finish_partition()
             self.partitions[len(self.partitions)-2].finish_partition()
+            #XXX These asserts blow up trying to add None in sum() if a partition has no leader.
             self.assertEqual(pre_partition_count - len(backup_ids),
                              sum([ i.get_backup_count() for i in self.partitions ]))
             if move:
