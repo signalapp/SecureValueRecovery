@@ -170,12 +170,12 @@ $(builddir)/%.unsigned.so: $(builddir)/%.unstripped.so
 	cp $< $@
 %.debug.config.xml: %.config.xml
 	sed -e 's@<DisableDebug>1</DisableDebug>@<DisableDebug>0</DisableDebug>@' $< > $@
-$(builddir)/%.debug.signdata: $(builddir)/%.unsigned.so %.debug.config.xml | $(SGX_SIGN)
-	$(SGX_SIGN) gendata -out $@ -enclave $(builddir)/$*.unsigned.so -config $*.debug.config.xml
-$(builddir)/%.debug.so: $(builddir)/%.unsigned.so $(builddir)/%.debug.signdata %.debug.config.xml %.debug.pub $(builddir)/%.debug.sig | $(SGX_SIGN)
+$(builddir)/%.debug.signdata: $(builddir)/%.unstripped.so %.debug.config.xml | $(SGX_SIGN)
+	$(SGX_SIGN) gendata -out $@ -enclave $(builddir)/$*.unstripped.so -config $*.debug.config.xml
+$(builddir)/%.debug.so: $(builddir)/%.unstripped.so $(builddir)/%.debug.signdata %.debug.config.xml %.debug.pub $(builddir)/%.debug.sig | $(SGX_SIGN)
 	$(SGX_SIGN) catsig \
 		-out $@ \
-		-enclave $(builddir)/$*.unsigned.so \
+		-enclave $(builddir)/$*.unstripped.so \
 		-unsigned $(builddir)/$*.debug.signdata \
 		-config $*.debug.config.xml \
 		-key $*.debug.pub \
