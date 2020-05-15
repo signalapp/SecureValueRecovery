@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+
+# Pipe output of "objdump -j .text -d enclave.so" into this
+# script and it will print all instructions that are unmitigated for Spectre/LVI.
+#
+# NOTE: This specifically looks for the mitigations our BOLT pass implement,
+#       and is not a general case detector.
+
+import sys, re, binascii
+import pyxed
+
+#XXX Add command line option to report on lfences that are not needed.
+
+WINDOW_SIZE=3
+
+start_func = re.compile(r'^([0-9a-f]+) <(.+)>:$')
+hexbyte = re.compile(r'^[0-9a-f][0-9a-f]$')
+conditional_jmp = re.compile(r'j[^m][a-z]*')
+
+retcode = 0
+func = None
+next_must_be_lfence = None
+window = [] #[(inst, argslist), ]
+
+insts = 0
+lfences = 0
+cond_jmps = 0
+loads = 0
+rets = 0
+
+# Checks if the previous inst's op and args "ago" instructions ago in the
+# window matches.
+def match_previous_inst(inst, args, ago):
+    if ago >= len(window):
+        return False
+
+    ago_inst_args = window[ago]
+    if ago_inst_args[0] == inst:
+        if tuple(ago_inst_args[1]) == tuple(args):
+            return True
+    return False
+
+def is_load(inst, inst_hex):
+    if inst.startswith('ret'):
+        return False #We handle ret's load with a different mitigation.
+
+    xed = pyxed.Decoder()
+    xed.set_mode(pyxed.XED_MACHINE_MODE_LONG_64, pyxed.XED_ADDRESS_WIDTH_64b)
+    xed.itext = binascii.unhexlify(inst_hex)
+    xed.runtime_address = 0x10001000 #Doesn't matter for our purposes.
+
+    xedinst = xed.decode()
+    assert(xedinst is not None)
+    for i in range(xedinst.get_number_of_memory_operands()):
+        if xedinst.is_mem_read(i):
+            return True
+
+    return False
+
+for line in sys.stdin:
+    #Track function boundaries
+    if func and (line == '' or line.isspace()):
+        #Unlikely, but we needed an lfence but hit the end of a function.
+        if next_must_be_lfence:
+            print('No lfence after load in (function ended)',
+                  func, ':', next_must_be_lfence)
+            retcode = 1
+            next_must_be_lfence = None
+        func = None
+        continue
+    if not func:
+        m = start_func.match(line)
+        if m:
+            func = m.group(2)
+            func_offset = m.group(1)
+            continue
+
+    if not func:
+        continue
+
+    #Parse instruction
+    line = line.rstrip()
+    line, _, _ = line.partition('#')
+    tokens = line.split()
+
+    offset = tokens.pop(0)[:-1]
+
+    inst_hex = ''
+    while hexbyte.match(tokens[0]):
+        inst_hex += tokens.pop(0)
+
+    if tokens[0].startswith('rep'):
+        is_rep = True
+        tokens.pop(0)
+    else:
+        is_rep = False
+    inst = tokens.pop(0)
+
+    insts += 1
+    if inst == 'lfence':
+        lfences += 1
+
+    args = []
+    for token in tokens:
+        args.extend(token.split(','))
+
+    #Check that all conditional jmps have a lfence before them
+    m = conditional_jmp.match(inst)
+    if m:
+        if not match_previous_inst('lfence', (), 0):
+            print('Unprotected conditional jmp in', func, ':', line)
+            retcode = 1
+        else:
+            cond_jmps += 1
+
+    #Check that all loads have an lfence after them
+    #If the previous instruction needs to be followed by an lfence, check that it is.
+    if next_must_be_lfence:
+        if inst != 'lfence':
+            print('No lfence after load in', func, ':', next_must_be_lfence)
+            retcode = 1
+        else:
+            loads += 1
+        next_must_be_lfence = None
+    #Set a flag if this is a load, so we can check that the next instruction is lfence.
+    if is_load(inst, inst_hex):
+        next_must_be_lfence = line
+
+    #Check that all rets have the mitigation before them
+    if inst.startswith('ret'):
+        if not (match_previous_inst('lfence', (), 0) and
+                match_previous_inst('shlq', ('$0x0', '(%rsp)'), 1)):
+            print('No mitigation before retq in', func, ':', line)
+            retcode = 1
+        else:
+            rets += 1
+
+    #Check that there are no memory-indirect callqs or jmpqs
+    if inst.startswith('call') or inst.startswith('jmp'):
+        for arg in args:
+            if '(' in args or ')' in args:
+                print('Indirect jmp or call in', func, ':', line)
+                retcode = 1
+
+    #Check that there are no "rep cmps" or "rep scas", as those are unsafe as well.
+    if is_rep and (inst.startswith('scas') or inst.startswith('cmps')):
+        print('rep cmps or rep scas in', func, ':', line)
+        retcode = 1
+
+    #Update instruction window
+    if len(window) > WINDOW_SIZE:
+        del(window[WINDOW_SIZE-1])
+    window.insert(0, (inst, args))
+
+print("Mitigated conditional jmps:", cond_jmps)
+print("Mitigated memory loads:", loads)
+print("Mitigated rets:", rets)
+print("Instructions:", insts, "Lfences:", lfences, "-", "%.3s%%" % (lfences/insts*100))
+
+sys.exit(retcode)

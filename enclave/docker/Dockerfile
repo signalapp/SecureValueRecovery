@@ -8,7 +8,7 @@ RUN    apt-get update \
                devscripts debhelper fakeroot libwww-perl gnupg \
                ocaml-native-compilers ocamlbuild automake autoconf libtool wget python pkg-config \
                libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev \
-               llvm-dev libclang-dev clang \
+               llvm-dev libclang-dev clang python3-distutils python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ARG UID=0

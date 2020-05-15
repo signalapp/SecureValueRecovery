@@ -90,7 +90,7 @@ $(builddir)/linux-sgx/linux-sgx-$(SGX_SDK_SOURCE_GIT_REV):
 LLVM_BOLT ?= $(builddir)/bin/llvm-bolt
 BOLT_DIR   = $(builddir)/bolt
 
-BOLT_GIT_REV      = 0655e9a71f43b3fc6a87e3c9be779dc76bc9efb9
+BOLT_GIT_REV      = faef3fcd5b5cb9dfc8a6fcd9041cb3d8b891387b
 BOLT_SRC_DIR      = $(BOLT_DIR)/llvm-bolt-$(BOLT_GIT_REV)
 BOLT_LLVM_GIT_REV = f137ed238db11440f03083b1c88b7ffc0f4af65e
 BOLT_LLVM_SRC_DIR = $(BOLT_DIR)/llvm-$(BOLT_LLVM_GIT_REV)
@@ -112,6 +112,26 @@ $(builddir)/bin/llvm-bolt: | $(BOLT_SRC_DIR)
 	   ninja )
 	mkdir -p $(builddir)/bin
 	strip -o $@ $(BOLT_DIR)/build/bin/llvm-bolt
+
+##
+## pyxed/Intel Xed
+##
+PYXED_DIR = $(builddir)/pyxed
+PYXED_PYTHONPATH = $(builddir)/pyxed/build/instdir/lib/python3.7/site-packages
+
+PYXED_GIT = https://github.com/huku-/pyxed
+PYXED_GIT_REV = b197cfe675533bd4720ff890002ee98ae52ceb3f
+
+$(PYXED_PYTHONPATH):
+	rm -rf $(PYXED_DIR)
+	mkdir -p $(PYXED_DIR)
+	git init $(PYXED_DIR)
+	git -C $(PYXED_DIR) remote add origin $(PYXED_GIT)
+	git -C $(PYXED_DIR) fetch --depth 1 $(PYXED_GIT) $(PYXED_GIT_REV)
+	git -C $(PYXED_DIR) checkout FETCH_HEAD
+	git -C $(PYXED_DIR) submodule update --init --recursive --depth 1
+	mkdir -p $(PYXED_DIR)/build/instdir
+	( cd $(PYXED_DIR); python3 setup.py install --prefix build/instdir )
 
 ##
 ## linking
@@ -138,18 +158,11 @@ $(builddir)/%.hardened.unstripped.so: $(builddir)/%.unstripped.so | $(LLVM_BOLT)
 		-skip-funcs=$(shell cat bolt_skip_funcs.txt) \
 		-eliminate-unreachable=0 -strip-rep-ret=0 -simplify-conditional-tail-calls=0 \
 		-align-macro-fusion=none \
-		-insert-retpolines -insert-lfences \
+		-insert-lfences \
 		-o $@ $<
 
-$(builddir)/%.hardened.unsigned.so: $(builddir)/%.hardened.unstripped.so
-	objdump -j .text --no-show-raw-insn -d $< | \
-	perl   -ne '$$cur{"branch"} = /^\s+[0-9a-f]+:\s+j[^m][a-z]*\s/;' \
-		-e '$$cur{"lfence"} = /^\s+[0-9a-f]+:\s+lfence/;' \
-		-e '$$fn = $$1 if /^[0-9a-f]+ <([^>]+)>:/;' \
-		-e 'if ($$cur{"branch"} && !$$prev{"branch"} && !$$prev{"lfence"}) { print "fn $$fn:\n$$prev$$_\n"; die if !grep(/$$fn\/1/, `cat bolt_skip_funcs.txt`); };' \
-		-e '%prev = %cur; $$prev = $$_;' \
-		-e '$$total{$$_} += $$cur{$$_} for (keys %cur);' \
-		-e 'END { print "$$_: ", $$total{$$_}, "\n" for (keys %total); }'
+$(builddir)/%.hardened.unsigned.so: $(builddir)/%.hardened.unstripped.so $(PYXED_PYTHONPATH)
+	objdump -w -j .text -d $< | PYTHONPATH=$(PYXED_PYTHONPATH) python3 bin/lvi_checker
 	objdump -j .text --no-show-raw-insn -d $< | \
 	  egrep '^\s+[0-9a-f]+:\s+(cpuid|getsec|rdpmc|sgdt|sidt|sldt|str|vmcall|vmfunc|rdtscp?|int[0-9a-z]*|iret|syscall|sysenter)\s+' | \
 	  wc -l | grep -q '^0$$'
