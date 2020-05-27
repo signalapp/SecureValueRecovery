@@ -130,6 +130,8 @@ $(PYXED_PYTHONPATH):
 	git -C $(PYXED_DIR) fetch --depth 1 $(PYXED_GIT) $(PYXED_GIT_REV)
 	git -C $(PYXED_DIR) checkout FETCH_HEAD
 	git -C $(PYXED_DIR) submodule update --init --recursive --depth 1
+	awk '/^static PyMethodDef methods\[\] =$$/ {ARG=4}; { if (ARG>0) {ARG=ARG-1} else {print} }' < $(PYXED_DIR)/pyxed.c > $(PYXED_DIR)/pyxed.c.new
+	mv $(PYXED_DIR)/pyxed.c.new $(PYXED_DIR)/pyxed.c #XXX Hack remove after pyxed bugfix.
 	mkdir -p $(PYXED_DIR)/build/instdir
 	( cd $(PYXED_DIR); python3 setup.py install --prefix build/instdir )
 
