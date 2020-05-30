@@ -236,6 +236,7 @@ fn setup_seccomp() -> Result<(), failure::Error> {
     let () = seccomp.allow(cstr!("restart_syscall"))?;
     let () = seccomp.allow(cstr!("sched_yield"))?;
     let () = seccomp.allow(cstr!("pause"))?;
+    let () = seccomp.allow(cstr!("getpid"))?;
     // XXX allow sigaction/sigprocmask/sigtimedwait/sigaltstack?
     // XXX allow restricted prctl? (used in glibc)
 
