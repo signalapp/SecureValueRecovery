@@ -13,7 +13,7 @@ failure       = "0.1"
 libc          = "0.2"
 log           = { version = "0.4", features = ["std"] }
 nix           = "0.13"
-openssl       = { rev = "ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0", git = "https://github.com/geogriff-signal/rust-openssl.git" }
+openssl       = { rev = "ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0", git = "https://github.com/signalapp/rust-openssl.git" }
 seccomp-sys   = "0.1"
 
 [build-dependencies]

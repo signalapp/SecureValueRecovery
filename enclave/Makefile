@@ -243,26 +243,26 @@ $(targetdir)/release/lib%.a: FORCE $(RUST_DEPS_DIRS)
 
 $(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV):
 	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/geogriff-signal/prost/archive/$(PROST_GIT_REV).tar.gz \
+	wget -O - https://github.com/signalapp/prost/archive/$(PROST_GIT_REV).tar.gz \
 		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
 	mv $(RUST_DEPS_DIR)/unpack/prost-$(PROST_GIT_REV) $(RUST_DEPS_DIR)/
 
 $(RUST_DEPS_DIR)/ring-$(RING_GIT_REV):
 	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/geogriff-signal/ring/archive/$(RING_GIT_REV).tar.gz \
+	wget -O - https://github.com/signalapp/ring/archive/$(RING_GIT_REV).tar.gz \
 		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
 	mkdir $(RUST_DEPS_DIR)/unpack/ring-$(RING_GIT_REV)/.git # hack to get ring to generate asm in its build.rs
 	mv $(RUST_DEPS_DIR)/unpack/ring-$(RING_GIT_REV) $(RUST_DEPS_DIR)/
 
 $(RUST_DEPS_DIR)/serde_json-$(SERDE_JSON_GIT_REV):
 	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/geogriff-signal/serde_json/archive/$(SERDE_JSON_GIT_REV).tar.gz \
+	wget -O - https://github.com/signalapp/serde_json/archive/$(SERDE_JSON_GIT_REV).tar.gz \
 		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
 	mv $(RUST_DEPS_DIR)/unpack/serde_json-$(SERDE_JSON_GIT_REV) $(RUST_DEPS_DIR)/
 
 $(RUST_DEPS_DIR)/snow-$(SNOW_GIT_REV):
 	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/geogriff-signal/snow/archive/$(SNOW_GIT_REV).tar.gz \
+	wget -O - https://github.com/signalapp/snow/archive/$(SNOW_GIT_REV).tar.gz \
 		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
 	mv $(RUST_DEPS_DIR)/unpack/snow-$(SNOW_GIT_REV) $(RUST_DEPS_DIR)/
 

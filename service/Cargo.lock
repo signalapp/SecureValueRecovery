@@ -998,7 +998,7 @@ dependencies = [
 [[package]]
 name = "openssl"
 version = "0.10.25"
-source = "git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0#ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0"
+source = "git+https://github.com/signalapp/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0#ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -1017,7 +1017,7 @@ checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 [[package]]
 name = "openssl-sys"
 version = "0.9.50"
-source = "git+https://github.com/geogriff-signal/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0#ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0"
+source = "git+https://github.com/signalapp/rust-openssl.git?rev=ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0#ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0"
 dependencies = [
  "autocfg 0.1.7",
  "cc",
