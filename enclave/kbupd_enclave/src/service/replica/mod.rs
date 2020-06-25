@@ -308,7 +308,7 @@ impl ReplicaState {
                 return Err(UntrustedXferReplyStatus::InvalidState);
             }
         };
-        let chunk_size = self.config.replication_chunk_size.min(xfer_destination.chunk_size());
+        let chunk_size = self.config.transfer_chunk_size.min(xfer_destination.chunk_size());
         let chunk_last = partition.data.next_chunk_last(chunk_size, xfer_destination.full_range());
         info!("requesting resume of partitioning process with next chunk {}", &chunk_last);
         let resume_xfer_txn = TransactionData {
@@ -837,7 +837,7 @@ impl ReplicaState {
         };
 
         if xfer_destination.remote_group().contains_authorized_node(&from) {
-            let chunk_size = self.config.replication_chunk_size.min(xfer_chunk_reply.chunk_size);
+            let chunk_size = self.config.transfer_chunk_size.min(xfer_chunk_reply.chunk_size);
             let chunk_last = partition.data.next_chunk_last(chunk_size, xfer_destination.full_range());
             let txn = TransactionData {
                 inner: Some(transaction_data::Inner::RemoveChunk(RemoveChunkTransaction {
