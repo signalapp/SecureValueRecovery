@@ -138,7 +138,7 @@ for line in sys.stdin:
     #Check that there are no memory-indirect callqs or jmpqs
     if inst.startswith('call') or inst.startswith('jmp'):
         for arg in args:
-            if '(' in args or ')' in args:
+            if '(' in arg or ')' in arg:
                 print('Indirect jmp or call in', func, ':', line)
                 retcode = 1
 
