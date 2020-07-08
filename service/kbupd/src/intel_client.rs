@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use hyper::client::HttpConnector;
-use ias_client::IasClient;
+use ias_client::{IasClient, IasApiVersion};
 use kbuptlsd::prelude::*;
 
 pub type KbupdIasClient = IasClient<TlsProxyConnector<HttpConnector>>;
@@ -29,5 +29,5 @@ pub fn new_ias_client(host: &str, tls_proxy: TlsClientProxySpawner) -> Result<Kb
 
     let tls_connector = TlsProxyConnector::new(Arc::new(tls_proxy), http_connector);
 
-    IasClient::new(host, None, tls_connector)
+    IasClient::new(host, Some(IasApiVersion::ApiVer3), None, tls_connector)
 }

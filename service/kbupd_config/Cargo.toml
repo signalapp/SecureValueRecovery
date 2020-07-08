@@ -11,7 +11,7 @@ default = ["clap"]
 
 [dependencies]
 clap         = { version = "2.33", optional = true }
-kbupd_util   = { git = "https://github.com/signalapp/sgx_common.git", rev = "7d753bbf2f0505c241b812f47b69a90d5fb650ca" }
+kbupd_util   = { git = "https://github.com/signalapp/sgx_common.git", rev = "580489343a37517d96451a5c0950d462d3e86a3b" }
 serde        = "1.0"
 serde_derive = "1.0"
 serde_yaml   = "0.8"
