@@ -25,7 +25,7 @@ SGX_LIBDIR ?= $(SGX_SDK_SOURCE_LIBDIR)
 export SGX_LIBDIR
 SGX_SIGN ?= $(SGX_SDK_SOURCE_LIBDIR)/sgx_sign
 SGX_EDGER8R ?= $(SGX_SDK_SOURCE_LIBDIR)/sgx_edger8r
-SGX_SDK_MAKE = env -u LDFLAGS -u CPPFLAGS CFLAGS="-D_TLIBC_USE_REP_STRING_ -fno-jump-tables -Wno-error=implicit-fallthrough" $(MAKE)
+SGX_SDK_MAKE = env -u LDFLAGS -u CPPFLAGS CFLAGS="-D_TLIBC_USE_REP_STRING_ -fno-jump-tables -mno-red-zone -mindirect-branch-register -Wno-error=implicit-fallthrough" $(MAKE)
 
 $(SGX_SDK_SOURCE_INCLUDEDIR): | $(SGX_SDK_SOURCE_DIR)
 
@@ -90,7 +90,7 @@ $(builddir)/linux-sgx/linux-sgx-$(SGX_SDK_SOURCE_GIT_REV):
 LLVM_BOLT ?= $(builddir)/bin/llvm-bolt
 BOLT_DIR   = $(builddir)/bolt
 
-BOLT_GIT_REV      = faef3fcd5b5cb9dfc8a6fcd9041cb3d8b891387b
+BOLT_GIT_REV      = 130d2c758964950cf713bddef123104b41642161
 BOLT_SRC_DIR      = $(BOLT_DIR)/llvm-bolt-$(BOLT_GIT_REV)
 BOLT_LLVM_GIT_REV = f137ed238db11440f03083b1c88b7ffc0f4af65e
 BOLT_LLVM_SRC_DIR = $(BOLT_DIR)/llvm-$(BOLT_LLVM_GIT_REV)
@@ -139,7 +139,7 @@ $(PYXED_PYTHONPATH):
 ## linking
 ##
 
-ENCLAVE_CFLAGS = -fvisibility=hidden -fPIC -I$(SGX_INCLUDEDIR)/tlibc -fno-jump-tables -fno-builtin -ffreestanding
+ENCLAVE_CFLAGS = -fvisibility=hidden -fPIC -I$(SGX_INCLUDEDIR)/tlibc -fno-jump-tables -mno-red-zone -mindirect-branch-register -fno-builtin -ffreestanding
 
 ENCLAVE_LDFLAGS = \
 	-Wl,-z,relro,-z,now,-z,noexecstack \
@@ -164,7 +164,10 @@ $(builddir)/%.hardened.unstripped.so: $(builddir)/%.unstripped.so | $(LLVM_BOLT)
 		-o $@ $<
 
 $(builddir)/%.hardened.unsigned.so: $(builddir)/%.hardened.unstripped.so $(PYXED_PYTHONPATH)
-	objdump -w -j .text -d $< | PYTHONPATH=$(PYXED_PYTHONPATH) python3 bin/lvi_checker
+	objdump -w -j .text --no-show-raw-insn -d $(builddir)/$*.unstripped.so | \
+	  bin/funcs_with_memindjmp > $(builddir)/funcs_with_memindjmp
+	objdump -w -j .text -d $< | \
+	  PYTHONPATH=$(PYXED_PYTHONPATH) python3 bin/lvi_checker $(builddir)/funcs_with_memindjmp
 	objdump -j .text --no-show-raw-insn -d $< | \
 	  egrep '^\s+[0-9a-f]+:\s+(cpuid|getsec|rdpmc|sgdt|sidt|sldt|str|vmcall|vmfunc|rdtscp?|int[0-9a-z]*|iret|syscall|sysenter)\s+' | \
 	  wc -l | grep -q '^0$$'

@@ -5,7 +5,7 @@ COPY apt.conf sources.list /etc/apt/
 RUN    apt-get update \
     && apt-get install -V -y --no-install-recommends --allow-downgrades \
                build-essential ca-certificates curl git cmake ninja-build \
-               devscripts debhelper fakeroot libwww-perl gnupg \
+               devscripts debhelper fakeroot libwww-perl gawk gnupg \
                ocaml-native-compilers ocamlbuild automake autoconf libtool wget python pkg-config \
                libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev \
                llvm-dev libclang-dev clang python3-distutils python3-dev \

@@ -36,7 +36,7 @@ CFLAGS = \
 
 LDFLAGS =
 
-ENCLAVE_RUSTFLAGS = -C opt-level=2 -C debuginfo=1 -C codegen-units=1 -C panic=abort -C llvm-args=-max-jump-table-size=1 -C llvm-args=-disable-tail-duplicate
+ENCLAVE_RUSTFLAGS = -C opt-level=2 -C debuginfo=1 -C codegen-units=1 -C panic=abort -C llvm-args=-max-jump-table-size=1 -C llvm-args=-disable-tail-duplicate -C no-redzone
 
 BINDGENFLAGS =
 CARGOBUILDFLAGS =
@@ -238,7 +238,7 @@ FORCE:
 $(targetdir)/debug/prostc: FORCE $(RUST_DEPS_DIRS)
 	env -u CFLAGS $(CARGO) build --manifest-path=prostc/Cargo.toml --bin=prostc
 $(targetdir)/release/lib%.a: FORCE $(RUST_DEPS_DIRS)
-	env CFLAGS="" RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
+	env CFLAGS="-mno-red-zone" RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
 		$(CARGO) build -vv --release --manifest-path=$*/Cargo.toml --lib $(if $(FEATURES),--features $(FEATURES))
 
 $(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV):

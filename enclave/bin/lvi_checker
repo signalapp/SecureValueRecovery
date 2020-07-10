@@ -9,13 +9,16 @@
 import sys, re, binascii
 import pyxed
 
-#XXX Add command line option to report on lfences that are not needed.
+#XXX Now that we have pyxed, we should use that everywhere instead of parsing "objdump -d".
+#XXX Add command line option to report on lfences that are not needed?
 
 WINDOW_SIZE=3
 
 start_func = re.compile(r'^([0-9a-f]+) <(.+)>:$')
 hexbyte = re.compile(r'^[0-9a-f][0-9a-f]$')
 conditional_jmp = re.compile(r'j[^m][a-z]*')
+redzone_arg = re.compile(r'[-]0x[0-9a-f]+[(]%rsp')
+redundant_rex = re.compile(r'rex[.][A-Z]+$')
 
 retcode = 0
 func = None
@@ -43,19 +46,30 @@ def match_previous_inst(inst, args, ago):
 def is_load(inst, inst_hex):
     if inst.startswith('ret'):
         return False #We handle ret's load with a different mitigation.
+    if redundant_rex.match(inst):
+        return False #Spurious REX prefixes freak Xed out.
 
     xed = pyxed.Decoder()
     xed.set_mode(pyxed.XED_MACHINE_MODE_LONG_64, pyxed.XED_ADDRESS_WIDTH_64b)
     xed.itext = binascii.unhexlify(inst_hex)
     xed.runtime_address = 0x10001000 #Doesn't matter for our purposes.
 
-    xedinst = xed.decode()
+    try:
+        xedinst = xed.decode()
+    except pyxed.InvalidInstructionError:
+        print('Invalid instruction in', func, inst)
+        raise
     assert(xedinst is not None)
     for i in range(xedinst.get_number_of_memory_operands()):
         if xedinst.is_mem_read(i):
             return True
 
     return False
+
+funcs_with_memindjmp = []
+if len(sys.argv) > 1:
+    with open(sys.argv[1], 'r') as f:
+        funcs_with_memindjmp = f.readlines()
 
 for line in sys.stdin:
     #Track function boundaries
@@ -147,6 +161,22 @@ for line in sys.stdin:
         print('rep cmps or rep scas in', func, ':', line)
         retcode = 1
 
+    #Check that there is no use of the redzone. Our memory-indirect jmp mitigation
+    #clobbers the redzone, so we need to make sure it is fully disabled.
+    #
+    #Note that this has false positives like:
+    #    mov    %ax,-0x1(%rsp,%r11,1)
+    #if the compiler can prove r11 is always greated than 1, it doesn't actually
+    #touch the redzone. We workaround this by passing in a file with a list of
+    #functions that use memory indirect jmps, which are the only mitigation
+    #that clobber the redzone, and only reporting on redzone accesses (real for
+    #false) inthem.
+    if not inst.startswith('lea'):
+        for arg in args:
+            if redzone_arg.match(arg) and func in funcs_with_memindjmp:
+                print('Use of redzone in', func, ':', line)
+                retcode = 1
+
     #Update instruction window
     if len(window) > WINDOW_SIZE:
         del(window[WINDOW_SIZE-1])
@@ -155,6 +185,6 @@ for line in sys.stdin:
 print("Mitigated conditional jmps:", cond_jmps)
 print("Mitigated memory loads:", loads)
 print("Mitigated rets:", rets)
-print("Instructions:", insts, "Lfences:", lfences, "-", "%.3s%%" % (lfences/insts*100))
+print("Instructions:", insts, "Lfences:", lfences, "-", "%.3f%%" % (lfences/insts*100))
 
 sys.exit(retcode)
