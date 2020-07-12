@@ -1,7 +1,7 @@
 [package]
 authors     = ["Open Whisper Systems"]
 name        = "kbupd"
-version     = "1.0.32-RC4"
+version     = "1.0.32"
 license     = "AGPL-3.0-or-later"
 description = "Key Backup Service Daemon"
 edition     = "2018"
