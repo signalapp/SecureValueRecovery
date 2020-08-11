@@ -5,22 +5,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::convert::{TryFrom};
 use std::collections::{hash_map, HashMap};
+use std::convert::TryFrom;
 use std::io;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration};
+use std::time::Duration;
 
 use futures::prelude::*;
-use futures::sync::{oneshot};
+use futures::sync::oneshot;
 use tokio::prelude::*;
 
-use crate::*;
+use super::connection::*;
+use super::peer::*;
 use crate::metrics::*;
 use crate::protobufs::kbupd::*;
 use crate::tls::*;
-use super::connection::*;
-use super::peer::*;
+use crate::*;
 
 const PEER_HELLO_TIMEOUT: Duration = Duration::from_secs(60 * 3);
 
@@ -50,56 +50,56 @@ lazy_static::lazy_static! {
 }
 
 impl PeerManager {
-    pub fn new(self_tx:      PeerManagerSender,
-               enclave_name: String,
-               enclave_tx:   EnclaveManagerSender,
-               node_id:      NodeId,
-               tls_client:   TlsClient)
-               -> Self
+    pub fn new(
+        self_tx: PeerManagerSender,
+        enclave_name: String,
+        enclave_tx: EnclaveManagerSender,
+        node_id: NodeId,
+        tls_client: TlsClient,
+    ) -> Self
     {
         let our_hello = Arc::new(RwLock::new(PeerConnectionHello {
-            node_id:     node_id.to_vec(),
-            partition:   None,
+            node_id:   node_id.to_vec(),
+            partition: None,
         }));
         Self {
             self_tx,
             enclave_name: enclave_name.into(),
             enclave_tx,
             node_id,
-            peers:        Default::default(),
+            peers: Default::default(),
             source_peers: Default::default(),
             our_hello,
             tls_client,
         }
     }
 
-    pub fn discover_peers(&mut self,
-                          addresses:  Vec<String>,
-                          tls_client: &TlsClient,
-                          reply_tx:   oneshot::Sender<Result<Vec<NodeId>, futures::Canceled>>)
+    pub fn discover_peers(
+        &mut self,
+        addresses: Vec<String>,
+        tls_client: &TlsClient,
+        reply_tx: oneshot::Sender<Result<Vec<NodeId>, futures::Canceled>>,
+    )
     {
         let mut peers = Vec::new();
         for address in addresses {
             info!("discovering peer at {}", &address);
-            let self_tx       = self.self_tx.clone();
-            let our_hello     = self.connection_hello();
-            let tls_client    = tls_client.clone();
+            let self_tx = self.self_tx.clone();
+            let our_hello = self.connection_hello();
+            let tls_client = tls_client.clone();
             let reconnect_looper = ReconnectLooper::new(move || -> Box<dyn Future<Item = NodeId, Error = ()> + Send> {
                 let connection = PeerConnection::connect(&address, tls_client);
-                let sent_hello = connection.and_then(move |connection: PeerConnection| {
-                    connection.send_hello(our_hello)
-                });
+                let sent_hello = connection.and_then(move |connection: PeerConnection| connection.send_hello(our_hello));
                 let peer_hello = sent_hello.and_then(PeerConnection::read_hello);
-                let address_2  = address.clone();
+                let address_2 = address.clone();
                 let peer_hello = peer_hello.map_err(move |error: io::Error| {
                     warn!("error connecting to peer at {}: {}", address_2, error);
                 });
 
                 let peer_node_id = peer_hello.and_then(move |(peer_hello, connection): (PeerConnectionHello, PeerConnection)| {
                     let peer_node_id = NodeId::try_from(&peer_hello.node_id[..]).map_err(drop);
-                    let _ignore      = self_tx.cast(move |peer_manager: &mut PeerManager| {
-                        peer_manager.add_connection(Some(address), peer_hello, connection)
-                    });
+                    let _ignore = self_tx
+                        .cast(move |peer_manager: &mut PeerManager| peer_manager.add_connection(Some(address), peer_hello, connection));
                     peer_node_id
                 });
                 Box::new(peer_node_id)
@@ -107,7 +107,7 @@ impl PeerManager {
             peers.push(reconnect_looper.into_future());
         }
 
-        let our_node_id   = self.node_id;
+        let our_node_id = self.node_id;
         let peer_node_ids = future::join_all(peers).map(move |peer_node_ids: Vec<NodeId>| {
             let peer_node_ids = peer_node_ids.into_iter().filter(|peer_node_id| peer_node_id != &our_node_id);
             peer_node_ids.collect::<Vec<NodeId>>()
@@ -128,11 +128,11 @@ impl PeerManager {
     pub fn set_partition_config(&mut self, partition: Option<PartitionConfig>) {
         let mut our_hello_guard = match self.our_hello.write() {
             Ok(our_hello_guard) => our_hello_guard,
-            Err(poison_error)   => poison_error.into_inner(),
+            Err(poison_error) => poison_error.into_inner(),
         };
         *our_hello_guard = PeerConnectionHello {
-            node_id:     self.node_id.to_vec(),
-            partition:   partition,
+            node_id: self.node_id.to_vec(),
+            partition,
         };
     }
 
@@ -166,7 +166,12 @@ impl PeerManager {
         MESSAGES_SENT_COUNT_METER.mark();
         MESSAGES_SENT_BYTES_METER.inc(message.data.len() as u64);
 
-        let SendMessageRequest { node_id: peer_node_id, data, syn, debug_msg } = message;
+        let SendMessageRequest {
+            node_id: peer_node_id,
+            data,
+            syn,
+            debug_msg,
+        } = message;
 
         let peer_node_id = match NodeId::try_from(&peer_node_id[..]) {
             Ok(peer_node_id) => peer_node_id,
@@ -177,12 +182,19 @@ impl PeerManager {
         };
 
         let peer_tx = match self.peers.entry(peer_node_id) {
-            hash_map::Entry::Occupied(peer_entry) => {
-                peer_entry.into_mut()
-            }
+            hash_map::Entry::Occupied(peer_entry) => peer_entry.into_mut(),
             hash_map::Entry::Vacant(peer_entry) => {
                 let (peer_tx, peer_rx) = actor::channel();
-                let peer = Peer::new(peer_entry.key().clone().into(), None, self.our_hello.clone(), self.tls_client.clone(), self.enclave_tx.clone(), self.enclave_name.clone(), None, peer_rx);
+                let peer = Peer::new(
+                    peer_entry.key().clone().into(),
+                    None,
+                    self.our_hello.clone(),
+                    self.tls_client.clone(),
+                    self.enclave_tx.clone(),
+                    self.enclave_name.clone(),
+                    None,
+                    peer_rx,
+                );
                 tokio::spawn(peer.map_err(|never: util::Never| match never {}));
                 warn!("waiting for peer {} with unknown address to connect", peer_entry.key());
                 peer_entry.insert(peer_tx)
@@ -193,16 +205,14 @@ impl PeerManager {
     }
 
     pub fn accept_connection(&mut self, connection: PeerConnection) {
-        let self_tx   = self.self_tx.clone();
+        let self_tx = self.self_tx.clone();
         let peer_addr = connection.framed.get_ref().peer_addr();
 
         let sent_hello = connection.send_hello(self.connection_hello());
         let peer_hello = sent_hello.and_then(PeerConnection::read_hello);
 
         let connection_started = peer_hello.map(move |(hello, connection): (PeerConnectionHello, PeerConnection)| {
-            let _ignore = self_tx.cast(move |peer_manager: &mut PeerManager| {
-                peer_manager.add_connection(None, hello, connection)
-            });
+            let _ignore = self_tx.cast(move |peer_manager: &mut PeerManager| peer_manager.add_connection(None, hello, connection));
         });
 
         let connection_started = connection_started.timeout(PEER_HELLO_TIMEOUT);
@@ -217,14 +227,10 @@ impl PeerManager {
         tokio::spawn(connection_started);
     }
 
-    pub fn add_connection(&mut self,
-                          maybe_address: Option<String>,
-                          peer_hello:    PeerConnectionHello,
-                          connection:    PeerConnection)
-    {
+    pub fn add_connection(&mut self, maybe_address: Option<String>, peer_hello: PeerConnectionHello, connection: PeerConnection) {
         let peer_node_id = match NodeId::try_from(&peer_hello.node_id[..]) {
             Ok(peer_node_id) if peer_node_id != self.node_id => peer_node_id,
-            Ok(_)  => return,
+            Ok(_) => return,
             Err(_) => {
                 error!("invalid node id from peer: {}", util::ToHex(&peer_hello.node_id));
                 return;
@@ -239,11 +245,22 @@ impl PeerManager {
 
         match self.peers.entry(peer_node_id) {
             hash_map::Entry::Occupied(peer_entry) => {
-                let _ignore = peer_entry.get().cast(|peer: &mut Peer| peer.accept_connection(maybe_address, connection));
+                let _ignore = peer_entry
+                    .get()
+                    .cast(|peer: &mut Peer| peer.accept_connection(maybe_address, connection));
             }
             hash_map::Entry::Vacant(peer_entry) => {
                 let (peer_tx, peer_rx) = actor::channel();
-                let peer = Peer::new(peer_entry.key().clone().into(), maybe_address, self.our_hello.clone(), self.tls_client.clone(), self.enclave_tx.clone(), self.enclave_name.clone(), Some(connection), peer_rx);
+                let peer = Peer::new(
+                    peer_entry.key().clone().into(),
+                    maybe_address,
+                    self.our_hello.clone(),
+                    self.tls_client.clone(),
+                    self.enclave_tx.clone(),
+                    self.enclave_name.clone(),
+                    Some(connection),
+                    peer_rx,
+                );
                 tokio::spawn(peer.map_err(|never: util::Never| match never {}));
                 peer_entry.insert(peer_tx);
             }
@@ -253,7 +270,7 @@ impl PeerManager {
     fn connection_hello(&self) -> PeerConnectionHello {
         let our_hello_guard = match self.our_hello.read() {
             Ok(our_hello_guard) => our_hello_guard,
-            Err(poison_error)   => poison_error.into_inner(),
+            Err(poison_error) => poison_error.into_inner(),
         };
         our_hello_guard.clone()
     }

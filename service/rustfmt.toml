@@ -1,7 +1,6 @@
 binop_separator              = "Back"
 enum_discrim_align_threshold = 30
 license_template_path        = "rustfmt.license-template"
-match_arm_align_threshold    = 30
 max_width                    = 140
 overflow_delimited_expr      = true
 reorder_impl_items           = true

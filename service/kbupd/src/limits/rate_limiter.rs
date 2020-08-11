@@ -5,10 +5,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::collections::{HashMap};
-use std::time::{Instant};
+use std::collections::HashMap;
+use std::time::Instant;
 
-use failure::{Fail};
+use failure::Fail;
 
 use super::leaky_bucket::*;
 use crate::metrics::*;
@@ -39,7 +39,7 @@ impl RateLimiter {
     pub fn new(name: &str, parameters: LeakyBucketParameters) -> Self {
         Self {
             parameters,
-            meter:   METRICS.metric(&metric_name(&[&metric_name!(""), name, "exceeded"])),
+            meter: METRICS.metric(&metric_name(&[&metric_name!(""), name, "exceeded"])),
             buckets: Default::default(),
         }
     }
@@ -48,11 +48,11 @@ impl RateLimiter {
         let bucket = Self::bucket_mut(key, &mut self.buckets, &self.parameters);
 
         match bucket.add(amount, Instant::now(), &self.parameters) {
-            Ok(())  => Ok(()),
+            Ok(()) => Ok(()),
             Err(()) => {
                 self.meter.mark();
                 Err(RateLimitError::Exceeded(RateLimitExceededError {
-                    key:       key.to_string(),
+                    key: key.to_string(),
                     amount,
                     leak_rate: self.parameters.leak_rate,
                 }))
@@ -64,8 +64,9 @@ impl RateLimiter {
         if buckets.contains_key(key) {
             buckets.get_mut(key).unwrap_or_else(|| unreachable!())
         } else {
-            buckets.entry(key.to_string())
-                   .or_insert_with(|| LeakyBucket::new(Instant::now(), parameters))
+            buckets
+                .entry(key.to_string())
+                .or_insert_with(|| LeakyBucket::new(Instant::now(), parameters))
         }
     }
 }

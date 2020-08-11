@@ -6,14 +6,14 @@
 //
 
 use std::io;
-use std::net::{SocketAddr};
-use std::sync::*;
+use std::net::SocketAddr;
 use std::os::unix::prelude::*;
-use std::path::{PathBuf};
+use std::path::PathBuf;
+use std::sync::*;
 
 use futures::prelude::*;
 use kbuptlsd::prelude::*;
-use log::{warn, debug, log};
+use log::{debug, log, warn};
 
 #[derive(Clone)]
 pub struct TlsClient {
@@ -26,8 +26,9 @@ impl TlsClient {
             spawner: Arc::new(TlsClientProxySpawner::new(bin_path, args)?),
         })
     }
+
     pub fn spawn(&self, stream: impl AsRawFd, address: SocketAddr) -> Result<TlsProxyStream, io::Error> {
-        let child     = self.spawner.spawn(stream, address)?;
+        let child = self.spawner.spawn(stream, address)?;
         let child_pid = child.pid();
 
         let (tls_stream, stderr_stream) = child.into_streams()?;
@@ -38,16 +39,14 @@ impl TlsClient {
             log!(target: &log_target, log_level, "{} => {}", address, line);
             Ok(())
         });
-        let stderr_logger = stderr_logger.then(move |result: Result<(), io::Error>| {
-            match result {
-                Ok(()) => {
-                    debug!("{} => child process died", address);
-                    Ok(())
-                }
-                Err(error) => {
-                    warn!("{} => error reading from child stderr: {}", address, error);
-                    Err(())
-                }
+        let stderr_logger = stderr_logger.then(move |result: Result<(), io::Error>| match result {
+            Ok(()) => {
+                debug!("{} => child process died", address);
+                Ok(())
+            }
+            Err(error) => {
+                warn!("{} => error reading from child stderr: {}", address, error);
+                Err(())
             }
         });
         tokio::spawn(stderr_logger);

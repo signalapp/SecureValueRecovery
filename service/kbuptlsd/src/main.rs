@@ -23,7 +23,7 @@ use rustunnel::{ClientChild, Identity, ServerChild};
 
 fn main() {
     match child::seccomp::configure_malloc() {
-        Ok(())     => (),
+        Ok(()) => (),
         Err(error) => {
             eprintln!("error setting up malloc for seccomp: {}", error);
             process::exit(1);
@@ -41,7 +41,7 @@ fn main() {
 
     let exit_code = match run(&arguments, log_level) {
         Ok(exit_code) => exit_code,
-        Err(error)    => {
+        Err(error) => {
             error!("initialization error: {:?}", error);
             1
         }
@@ -73,7 +73,7 @@ fn run_client(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> R
 
     let target_fd = match arguments.value_of("target_fd") {
         Some(target_fd_str) => Some(target_fd_str.parse::<RawFd>().context("invalid --target-fd")?),
-        None                => None,
+        None => None,
     };
 
     let close_fds = &[
@@ -94,7 +94,7 @@ fn run_client(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> R
             .ok_or_else(|| failure::format_err!("no client config in config file"))?;
         client_cert_p12 = client_config.clientCertificatePkcs12;
         tls_hostname = match client_config.hostnameValidation {
-            ClientHostnameValidationConfig::AcceptInvalid      => TlsHostname::AcceptInvalid,
+            ClientHostnameValidationConfig::AcceptInvalid => TlsHostname::AcceptInvalid,
             ClientHostnameValidationConfig::Hostname(hostname) => TlsHostname::new(hostname),
         };
 
@@ -142,7 +142,7 @@ fn run_client(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> R
 
     let source_pipe_stream = match ProxyPipeStream::stdio() {
         Ok(source_pipe_stream) => source_pipe_stream,
-        Err(error)             => {
+        Err(error) => {
             warn!("error setting up source pipe stream: {}", error);
             return Ok(());
         }
@@ -165,7 +165,7 @@ fn run_client(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> R
 
     let target_tcp_stream = match ProxyTcpStream::from_std(target_tcp_stream) {
         Ok(target_tcp_stream) => target_tcp_stream,
-        Err(error)            => {
+        Err(error) => {
             warn!("error setting up target tcp stream: {}", error);
             return Ok(());
         }
@@ -198,14 +198,14 @@ fn run_child(arguments: &clap::ArgMatches<'static>, log_level: log::Level) -> Re
     let identity = Identity::from_pkcs12_file(&key_path, "").context("invalid server certificate")?;
     let source_tcp_stream = match ProxyTcpStream::from_std(unsafe { TcpStream::from_raw_fd(source_fd) }) {
         Ok(source_tcp_stream) => source_tcp_stream,
-        Err(error)            => {
+        Err(error) => {
             warn!("error setting up source tcp stream: {}", error);
             return Ok(());
         }
     };
     let target_pipe_stream = match ProxyPipeStream::stdio() {
         Ok(target_pipe_stream) => target_pipe_stream,
-        Err(error)             => {
+        Err(error) => {
             warn!("error setting up target pipe stream: {}", error);
             return Ok(());
         }

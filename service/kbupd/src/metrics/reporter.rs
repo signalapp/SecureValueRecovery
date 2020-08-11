@@ -24,7 +24,7 @@ pub struct PeriodicReporter<ReporterTy> {
 }
 
 impl<ReporterTy> PeriodicReporter<ReporterTy>
-where ReporterTy: Reporter + 'static,
+where ReporterTy: Reporter + 'static
 {
     pub fn new(reporter: ReporterTy, registry: MetricRegistry, interval: Duration) -> Self {
         Self {
@@ -36,7 +36,7 @@ where ReporterTy: Reporter + 'static,
     }
 
     pub fn start(mut self) -> StopJoinHandle<()> {
-        let stop_state  = self.stop_state.clone();
+        let stop_state = self.stop_state.clone();
         let join_handle = thread::spawn(move || {
             while self.stop_state.sleep_while_running(self.interval) {
                 self.reporter.report(&self.registry);

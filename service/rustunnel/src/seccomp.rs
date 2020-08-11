@@ -6,15 +6,15 @@
 //
 
 use std::collections::*;
-use std::ffi::{CStr};
+use std::ffi::CStr;
 use std::fs;
 use std::os::unix::prelude::*;
-use std::path::{Path};
-use std::ptr::{NonNull};
 use std::panic;
+use std::path::Path;
+use std::ptr::NonNull;
 
 use failure::{format_err, ResultExt};
-use nix::errno::{Errno};
+use nix::errno::Errno;
 use nix::unistd;
 use seccomp_sys::*;
 
@@ -34,18 +34,21 @@ pub fn configure_malloc() -> Result<(), failure::Error> {
 }
 
 pub fn close_all_fds(keep_fds: &BTreeSet<RawFd>) -> Result<(), failure::Error> {
-    let fd_dir  = fs::read_dir(Path::new(r"/proc/self/fd/")).context("error reading /proc/self/fd/")?;
+    let fd_dir = fs::read_dir(Path::new(r"/proc/self/fd/")).context("error reading /proc/self/fd/")?;
     let mut fds = BTreeSet::new();
     for dir_entry_result in fd_dir {
         let fd_name = dir_entry_result.context("error reading /proc/self/fd/")?.file_name();
-        let fd      = fd_name.to_string_lossy().parse::<RawFd>().with_context(|_| format_err!("invalid fd number in /proc/self/fd/: {:?}", fd_name))?;
+        let fd = fd_name
+            .to_string_lossy()
+            .parse::<RawFd>()
+            .with_context(|_| format_err!("invalid fd number in /proc/self/fd/: {:?}", fd_name))?;
         fds.insert(fd);
     }
     for fd in fds.difference(&keep_fds) {
         match unistd::close(*fd) {
-            Ok(())                             => (),
+            Ok(()) => (),
             Err(nix::Error::Sys(Errno::EBADF)) => (),
-            Err(error)                         => util::convert_nix(Err(error))?,
+            Err(error) => util::convert_nix(Err(error))?,
         }
     }
     Ok(())
@@ -70,16 +73,25 @@ impl SeccompContext {
         let context = NonNull::new(unsafe { seccomp_init(SCMP_ACT_KILL_PROCESS) }).ok_or(())?;
         Ok(Self { context })
     }
+
     pub fn allow(&mut self, syscall_name: &CStr) -> Result<(), Errno> {
-        let syscall_nr = unsafe { seccomp_syscall_resolve_name(syscall_name.as_ptr() ) };
-        assert_eq!(0, errno_result(unsafe { seccomp_rule_add(self.context.as_ptr(), SCMP_ACT_ALLOW, syscall_nr, 0) })?);
+        let syscall_nr = unsafe { seccomp_syscall_resolve_name(syscall_name.as_ptr()) };
+        assert_eq!(
+            0,
+            errno_result(unsafe { seccomp_rule_add(self.context.as_ptr(), SCMP_ACT_ALLOW, syscall_nr, 0) })?
+        );
         Ok(())
     }
+
     pub fn deny_errno(&mut self, syscall_name: &CStr, errno: Errno) -> Result<(), Errno> {
-        let syscall_nr = unsafe { seccomp_syscall_resolve_name(syscall_name.as_ptr() ) };
-        assert_eq!(0, errno_result(unsafe { seccomp_rule_add(self.context.as_ptr(), SCMP_ACT_ERRNO(errno as u32), syscall_nr, 0) })?);
+        let syscall_nr = unsafe { seccomp_syscall_resolve_name(syscall_name.as_ptr()) };
+        assert_eq!(
+            0,
+            errno_result(unsafe { seccomp_rule_add(self.context.as_ptr(), SCMP_ACT_ERRNO(errno as u32), syscall_nr, 0) })?
+        );
         Ok(())
     }
+
     pub fn load(&mut self) -> Result<(), Errno> {
         assert_eq!(0, errno_result(unsafe { seccomp_load(self.context.as_ptr()) })?);
         Ok(())
@@ -97,9 +109,5 @@ impl Drop for SeccompContext {
 //
 
 fn errno_result(result: i32) -> Result<i32, Errno> {
-    if result >= 0 {
-        Ok(result)
-    } else {
-        Err(Errno::from_i32(-result))
-    }
+    if result >= 0 { Ok(result) } else { Err(Errno::from_i32(-result)) }
 }

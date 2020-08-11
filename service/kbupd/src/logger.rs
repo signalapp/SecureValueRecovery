@@ -9,13 +9,13 @@ use std::cell::*;
 use std::fmt;
 use std::io::{BufWriter, Stderr, Write};
 
-use chrono::format::{StrftimeItems};
+use chrono::format::StrftimeItems;
 use slog::{Drain, KV};
-use slog_async::{OverflowStrategy};
+use slog_async::OverflowStrategy;
 
 use crate::metrics::*;
 
-const ASYNC_QUEUE_SIZE:   usize = 1024;
+const ASYNC_QUEUE_SIZE: usize = 1024;
 const STDERR_BUFFER_SIZE: usize = 65535;
 
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S.%3f";
@@ -58,16 +58,17 @@ lazy_static::lazy_static! {
 impl Logger {
     pub fn new_with_guard(level: log::Level) -> (Self, LoggerGuard) {
         let slog_stderr = StderrDrain::new().ignore_res();
-        let slog_async  = slog_async::Async::new(slog_stderr);
+        let slog_async = slog_async::Async::new(slog_stderr);
 
-        let (slog_async, slog_async_guard) = slog_async.chan_size(ASYNC_QUEUE_SIZE)
-                                                       .overflow_strategy(OverflowStrategy::DropAndReport)
-                                                       .thread_name("logger".to_string())
-                                                       .build_with_guard();
+        let (slog_async, slog_async_guard) = slog_async
+            .chan_size(ASYNC_QUEUE_SIZE)
+            .overflow_strategy(OverflowStrategy::DropAndReport)
+            .thread_name("logger".to_string())
+            .build_with_guard();
 
         let slog_drain = LoggerDrain {
             drain: slog_async,
-            level: Self::slog_level(level)
+            level: Self::slog_level(level),
         };
 
         let slogger = slog::Logger::root(slog_drain, slog::o!());
@@ -81,8 +82,8 @@ impl Logger {
     fn slog_level(level: log::Level) -> slog::Level {
         match level {
             log::Level::Error => slog::Level::Error,
-            log::Level::Warn  => slog::Level::Warning,
-            log::Level::Info  => slog::Level::Info,
+            log::Level::Warn => slog::Level::Warning,
+            log::Level::Info => slog::Level::Info,
             log::Level::Debug => slog::Level::Debug,
             log::Level::Trace => slog::Level::Trace,
         }
@@ -100,29 +101,32 @@ impl log::Log for Logger {
             level:    Self::slog_level(record.level()),
             tag:      record.target(),
         };
-        self.slogger.log(&slog::Record::new(&slog_record, record.args(), slog::b!(
-            "location" => format_args!("{}:{}",
-                                       record.module_path().unwrap_or_default(),
-                                       record.line().unwrap_or_default())
-        )));
+        self.slogger.log(&slog::Record::new(
+            &slog_record,
+            record.args(),
+            slog::b!(
+                "location" => format_args!("{}:{}",
+                                           record.module_path().unwrap_or_default(),
+                                           record.line().unwrap_or_default())
+            ),
+        ));
     }
 
-    fn flush(&self) {
-    }
+    fn flush(&self) {}
 }
 
 impl<D> Drain for LoggerDrain<D>
-where D: Drain,
+where D: Drain
 {
-    type Ok  = ();
     type Err = slog::Never;
+    type Ok = ();
 
     fn log(&self, record: &slog::Record, values: &slog::OwnedKVList) -> Result<Self::Ok, Self::Err> {
         match record.level() {
-            slog::Level::Error   => ERROR_METER.mark(),
+            slog::Level::Error => ERROR_METER.mark(),
             slog::Level::Warning => WARN_METER.mark(),
-            slog::Level::Info    => INFO_METER.mark(),
-            _                    => (),
+            slog::Level::Info => INFO_METER.mark(),
+            _ => (),
         }
 
         if record.level().is_at_least(self.level) {
@@ -149,40 +153,44 @@ lazy_static::lazy_static! {
 }
 
 impl Drain for StderrDrain {
-    type Ok  = ();
     type Err = std::io::Error;
+    type Ok = ();
 
     fn log(&self, record: &slog::Record, values: &slog::OwnedKVList) -> Result<Self::Ok, Self::Err> {
         let mut output = self.buffer.borrow_mut();
 
         let syslog_severity = match record.level() {
             slog::Level::Critical => '2',
-            slog::Level::Error    => '3',
-            slog::Level::Warning  => '4',
-            slog::Level::Info     => '6',
-            slog::Level::Debug    => '7',
-            slog::Level::Trace    => '7',
+            slog::Level::Error => '3',
+            slog::Level::Warning => '4',
+            slog::Level::Info => '6',
+            slog::Level::Debug => '7',
+            slog::Level::Trace => '7',
         };
 
-        let timespec            = get_coarse_time();
-        let datetime            = chrono::NaiveDateTime::from_timestamp(timespec.0, timespec.1);
+        let timespec = get_coarse_time();
+        let datetime = chrono::NaiveDateTime::from_timestamp(timespec.0, timespec.1);
         let formatted_timestamp = datetime.format_with_items(TIMESTAMP_FORMAT_ITEMS.iter().cloned());
-        write!(output, "<{}>{} {:<5} [{}]",
-               syslog_severity,
-               formatted_timestamp,
-               record.level(),
-               record.tag())?;
+        write!(
+            output,
+            "<{}>{} {:<5} [{}]",
+            syslog_severity,
+            formatted_timestamp,
+            record.level(),
+            record.tag()
+        )?;
 
         if !record.module().is_empty() {
             write!(output, " {}:{}", record.module(), record.line())?;
         } else {
-            record.kv().serialize(record, &mut FnSerializer(|key: slog::Key, val: &fmt::Arguments<'_>| {
-                if key == "location" {
-                    write!(output, " {}", val)
-                } else {
-                    Ok(())
-                }
-            }))?;
+            record.kv().serialize(
+                record,
+                &mut FnSerializer(
+                    |key: slog::Key, val: &fmt::Arguments<'_>| {
+                        if key == "location" { write!(output, " {}", val) } else { Ok(()) }
+                    },
+                ),
+            )?;
         }
 
         write!(output, " === {}", record.msg())?;
@@ -221,7 +229,7 @@ fn get_coarse_time() -> (i64, u32) {
 }
 
 impl<Fun> slog::Serializer for FnSerializer<Fun>
-where Fun: FnMut(slog::Key, &fmt::Arguments<'_>) -> std::io::Result<()>,
+where Fun: FnMut(slog::Key, &fmt::Arguments<'_>) -> std::io::Result<()>
 {
     fn emit_arguments(&mut self, key: slog::Key, val: &fmt::Arguments<'_>) -> slog::Result {
         self.0(key, val).map_err(slog::Error::from)

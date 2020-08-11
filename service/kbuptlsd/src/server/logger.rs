@@ -8,7 +8,7 @@
 use std::cell::*;
 use std::rc::*;
 
-use chrono::format::{StrftimeItems};
+use chrono::format::StrftimeItems;
 
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S.%3f";
 
@@ -29,22 +29,22 @@ impl log::Log for Logger {
         if self.enabled(record.metadata()) {
             let syslog_severity = match record.level() {
                 log::Level::Error => '3',
-                log::Level::Warn  => '4',
-                log::Level::Info  => '6',
+                log::Level::Warn => '4',
+                log::Level::Info => '6',
                 log::Level::Debug => '7',
                 log::Level::Trace => '7',
             };
             let log_level_string = match record.level() {
                 log::Level::Error => "ERRO",
-                log::Level::Warn  => "WARN",
-                log::Level::Info  => "INFO",
+                log::Level::Warn => "WARN",
+                log::Level::Info => "INFO",
                 log::Level::Debug => "DEBG",
                 log::Level::Trace => "TRCE",
             };
 
-            let timespec            = get_coarse_time();
-            let datetime            = chrono::NaiveDateTime::from_timestamp(timespec.0, timespec.1);
-            let timestamp_format    = timestamp_format_items();
+            let timespec = get_coarse_time();
+            let datetime = chrono::NaiveDateTime::from_timestamp(timespec.0, timespec.1);
+            let timestamp_format = timestamp_format_items();
             let formatted_timestamp = datetime.format_with_items(timestamp_format.iter().cloned());
 
             let line = format!(
@@ -59,15 +59,14 @@ impl log::Log for Logger {
         }
     }
 
-    fn flush(&self) {
-    }
+    fn flush(&self) {}
 }
 
 fn timestamp_format_items() -> Rc<[chrono::format::Item<'static>]> {
     TIMESTAMP_FORMAT_ITEMS.with(|format_items_cell: &Cell<_>| {
         let format_items = match format_items_cell.take() {
             Some(format_items) => format_items,
-            None               => StrftimeItems::new(TIMESTAMP_FORMAT).collect::<Rc<[_]>>(),
+            None => StrftimeItems::new(TIMESTAMP_FORMAT).collect::<Rc<[_]>>(),
         };
         let format_items_2 = Rc::clone(&format_items);
         format_items_cell.set(Some(format_items));

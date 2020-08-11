@@ -78,9 +78,9 @@ impl KeyBackupApiClient {
         let client = kbupd_client::Client::new(&mut rand::thread_rng());
 
         let request_type = match &request {
-            kbupd_client::Request { backup: Some(_), .. }  => KeyBackupRequestType::Backup,
+            kbupd_client::Request { backup: Some(_), .. } => KeyBackupRequestType::Backup,
             kbupd_client::Request { restore: Some(_), .. } => KeyBackupRequestType::Restore,
-            kbupd_client::Request { delete: Some(_), .. }  => KeyBackupRequestType::Delete,
+            kbupd_client::Request { delete: Some(_), .. } => KeyBackupRequestType::Delete,
             _ => {
                 return try_future::TryFuture::from_error(failure::err_msg("invalid empty client request"));
             }
@@ -223,7 +223,10 @@ impl KeyBackupApiClient {
         ResponseTy: for<'de> Deserialize<'de> + Send + 'static,
     {
         let encoded_request = try_future!(serde_json::to_vec(&request).context("error serializing request as json"));
-        debug!("sending backup request: {}", std::str::from_utf8(&encoded_request).unwrap_or("<invalid utf8>"));
+        debug!(
+            "sending backup request: {}",
+            std::str::from_utf8(&encoded_request).unwrap_or("<invalid utf8>")
+        );
         let mut hyper_request = Request::new(Body::from(encoded_request));
 
         *hyper_request.method_mut() = Method::PUT;
@@ -258,7 +261,7 @@ impl KeyBackupApiClient {
         let response_data = response_body.concat2().map_err(failure::Error::from);
         let decoded_response = response_data.and_then(|full_response: Chunk| match serde_json::from_slice(&full_response) {
             Ok(decoded_response) => Ok((response_parts, decoded_response)),
-            Err(error)           => {
+            Err(error) => {
                 debug!(
                     "invalid server response: {}\n{}",
                     &error,

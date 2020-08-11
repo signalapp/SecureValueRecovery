@@ -5,14 +5,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::net::{SocketAddr, ToSocketAddrs};
 use std::io;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::os::unix::prelude::*;
-use std::os::unix::process::{CommandExt as _};
-use std::process::{Command};
+use std::os::unix::process::CommandExt as _;
+use std::process::Command;
 
 use nix::fcntl;
-use nix::fcntl::{FdFlag};
+use nix::fcntl::FdFlag;
 
 pub use rustunnel::util::*;
 
@@ -21,9 +21,10 @@ pub trait CommandExt {
 }
 
 pub fn to_socket_addr(address: impl ToSocketAddrs) -> io::Result<SocketAddr> {
-    address.to_socket_addrs()?
-           .next()
-           .ok_or(io::Error::new(io::ErrorKind::Other, "empty address"))
+    address
+        .to_socket_addrs()?
+        .next()
+        .ok_or(io::Error::new(io::ErrorKind::Other, "empty address"))
 }
 
 impl CommandExt for Command {

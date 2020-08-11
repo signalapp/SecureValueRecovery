@@ -7,18 +7,15 @@
 
 use std::mem;
 
-use prost::{Message};
+use prost::Message;
 use sgx_sdk_ffi::*;
 
-use crate::*;
 use crate::protobufs::kbupd::*;
+use crate::*;
 
 use super::sgxsd::*;
 
-use super::bindgen_wrapper::{
-    sgx_status_t,
-    sgxsd_msg_tag_t,
-};
+use super::bindgen_wrapper::{sgx_status_t, sgxsd_msg_tag_t};
 
 //
 // kbupd-specific ocalls
@@ -56,8 +53,8 @@ pub extern "C" fn kbupd_enclave_ocall_alloc(p_size: *mut usize) -> *mut libc::c_
     info!("allocating enclave storage of size {}", want_size);
 
     let mut data_vec: Vec<u8> = Vec::with_capacity(want_size);
-    let data:         *mut u8 = data_vec.as_mut_ptr();
-    let size:         usize   = data_vec.capacity();
+    let data: *mut u8 = data_vec.as_mut_ptr();
+    let size: usize = data_vec.capacity();
     std::mem::forget(data_vec);
 
     match unsafe { libc::mlock(data as *const libc::c_void, size) } {
@@ -73,7 +70,7 @@ pub extern "C" fn kbupd_enclave_ocall_alloc(p_size: *mut usize) -> *mut libc::c_
 
 #[no_mangle]
 pub extern "C" fn kbupd_enclave_ocall_panic(p_msg: *const u8, msg_size: usize) {
-    use std::io::{Write};
+    use std::io::Write;
 
     let msg = if !p_msg.is_null() {
         unsafe { std::slice::from_raw_parts(p_msg, msg_size) }
@@ -90,19 +87,27 @@ pub extern "C" fn kbupd_enclave_ocall_panic(p_msg: *const u8, msg_size: usize) {
 // sgxsd ocalls
 //
 
-
 #[no_mangle]
 pub extern "C" fn sgxsd_ocall_reply(
     p_header: *const SgxsdMessageHeader,
     p_data: *const u8,
     data_size: usize,
     raw_tag: sgxsd_msg_tag_t,
-) -> sgx_status_t {
+) -> sgx_status_t
+{
     // note: we take ownership of MessageTag here and release it
-    match (unsafe { MessageTag::from_tag(raw_tag) }, unsafe { p_header.as_ref() }, p_data.is_null()) {
+    match (
+        unsafe { MessageTag::from_tag(raw_tag) },
+        unsafe { p_header.as_ref() },
+        p_data.is_null(),
+    ) {
         (Some(MessageTag { callback }), Some(header), false) => {
             let data = unsafe { std::slice::from_raw_parts(p_data, data_size) }.to_vec();
-            callback(Ok(MessageReply { iv: header.iv, mac: header.mac, data }));
+            callback(Ok(MessageReply {
+                iv: header.iv,
+                mac: header.mac,
+                data,
+            }));
             SgxStatus::Success.into()
         }
         _ => SgxError::InvalidParameter.into(),

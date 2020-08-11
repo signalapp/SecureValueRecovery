@@ -7,11 +7,11 @@
 
 use std::sync::*;
 
-use futures::prelude::*;
-use futures::{try_ready};
 use ::hyper::client::connect::{Connect, Connected, Destination};
-use log::{warn, debug, log};
-use tokio::net::{TcpStream};
+use futures::prelude::*;
+use futures::try_ready;
+use log::{debug, log, warn};
+use tokio::net::TcpStream;
 
 use super::*;
 use crate::child;
@@ -34,13 +34,14 @@ impl<T> TlsProxyConnector<T> {
 }
 
 impl<T> Connect for TlsProxyConnector<T>
-where T:         Connect<Transport = TcpStream>,
-      T::Future: Send,
-      io::Error: From<<T::Future as Future>::Error>,
+where
+    T: Connect<Transport = TcpStream>,
+    T::Future: Send,
+    io::Error: From<<T::Future as Future>::Error>,
 {
+    type Error = io::Error;
+    type Future = TlsProxyConnecting<T>;
     type Transport = TlsProxyStream;
-    type Error     = io::Error;
-    type Future    = TlsProxyConnecting<T>;
 
     fn connect(&self, dst: Destination) -> Self::Future {
         Self::Future {
@@ -51,16 +52,17 @@ where T:         Connect<Transport = TcpStream>,
 }
 
 impl<T> Future for TlsProxyConnecting<T>
-where T:         Connect<Transport = TcpStream>,
-      io::Error: From<T::Error>,
+where
+    T: Connect<Transport = TcpStream>,
+    io::Error: From<T::Error>,
 {
-    type Item  = (TlsProxyStream, Connected);
     type Error = io::Error;
+    type Item = (TlsProxyStream, Connected);
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let (tcp_stream, _info) = try_ready!(self.connect.poll());
-        let peer_addr           = tcp_stream.peer_addr()?;
-        let (stdio, stderr)     = self.spawner.spawn(tcp_stream, peer_addr)?.into_streams()?;
+        let peer_addr = tcp_stream.peer_addr()?;
+        let (stdio, stderr) = self.spawner.spawn(tcp_stream, peer_addr)?.into_streams()?;
 
         tokio::spawn(log_proxy_stderr(stderr, peer_addr));
 
@@ -78,16 +80,14 @@ fn log_proxy_stderr(stderr_stream: TlsProxyStderrStream, address: SocketAddr) ->
         log!(target: "kbuptlsd::child", log_level, "{} => {}", address, line);
         Ok(())
     });
-    logger.then(move |result: Result<(), io::Error>| {
-        match result {
-            Ok(()) => {
-                debug!("{} => child process died", address);
-                Ok(())
-            }
-            Err(error) => {
-                warn!("{} => error reading from child stderr: {}", address, error);
-                Err(())
-            }
+    logger.then(move |result: Result<(), io::Error>| match result {
+        Ok(()) => {
+            debug!("{} => child process died", address);
+            Ok(())
+        }
+        Err(error) => {
+            warn!("{} => error reading from child stderr: {}", address, error);
+            Err(())
         }
     })
 }

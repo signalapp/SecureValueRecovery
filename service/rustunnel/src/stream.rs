@@ -7,7 +7,7 @@
 
 use std::io;
 use std::io::prelude::*;
-use std::net::{TcpStream};
+use std::net::TcpStream;
 use std::os::unix::io::{AsRawFd, IntoRawFd, RawFd};
 
 use nix::unistd;
@@ -46,9 +46,7 @@ impl ProxyTcpStream {
     pub fn from_std(stream: TcpStream) -> io::Result<Self> {
         stream.set_nodelay(true)?;
         stream.set_nonblocking(true)?;
-        Ok(Self {
-            fd: stream.into_raw_fd(),
-        })
+        Ok(Self { fd: stream.into_raw_fd() })
     }
 }
 
@@ -61,6 +59,7 @@ impl Write for ProxyTcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         <&Self>::write(&mut &*self, buf)
     }
+
     fn flush(&mut self) -> io::Result<()> {
         <&Self>::flush(&mut &*self)
     }
@@ -74,8 +73,9 @@ impl Read for &'_ ProxyTcpStream {
 
 impl Write for &'_ ProxyTcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-         util::convert_nix(unistd::write(self.fd, buf))
+        util::convert_nix(unistd::write(self.fd, buf))
     }
+
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
@@ -106,11 +106,12 @@ impl ProxyPipeStream {
             write_fd: Some(write_fd),
         })
     }
+
     pub fn stdio() -> io::Result<Self> {
-        let stdin              = Box::leak(Box::new(io::stdin()));
-        let _stdin_lock        = Box::leak(Box::new(stdin.lock()));
-        let stdout             = Box::leak(Box::new(io::stdout()));
-        let _stdout_lock       = Box::leak(Box::new(stdout.lock()));
+        let stdin = Box::leak(Box::new(io::stdin()));
+        let _stdin_lock = Box::leak(Box::new(stdin.lock()));
+        let stdout = Box::leak(Box::new(io::stdout()));
+        let _stdout_lock = Box::leak(Box::new(stdout.lock()));
 
         Self::new(libc::STDIN_FILENO, libc::STDOUT_FILENO)
     }
@@ -133,6 +134,7 @@ impl Write for ProxyPipeStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         <&Self>::write(&mut &*self, buf)
     }
+
     fn flush(&mut self) -> io::Result<()> {
         <&Self>::flush(&mut &*self)
     }
@@ -148,9 +150,10 @@ impl Write for &'_ ProxyPipeStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match self.write_fd {
             Some(write_fd) => util::convert_nix(unistd::write(write_fd, buf)),
-            None           => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
+
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
@@ -178,6 +181,7 @@ impl ProxyWrite for ProxyPipeStream {
             }
         })
     }
+
     fn shutdown(&mut self) -> Result<(), ProxyStreamError> {
         if let Some(write_fd) = self.write_fd.take() {
             util::convert_nix(unistd::close(write_fd)).map_err(ProxyStreamError::Io)

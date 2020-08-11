@@ -7,10 +7,10 @@
 
 #![allow(non_snake_case)]
 
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use kbupd_util::hex;
-use serde_derive::{Deserialize};
+use serde_derive::Deserialize;
 
 use crate::metrics::*;
 
@@ -58,7 +58,7 @@ pub struct FrontendApiRateLimitsConfig {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FrontendRateLimitConfig {
-    pub bucketSize:        u64,
+    pub bucketSize: u64,
 
     pub leakRatePerMinute: f64,
 }
@@ -137,7 +137,7 @@ pub struct FrontendPartitionReplicaConfig {
 impl Default for FrontendApiRateLimitsConfig {
     fn default() -> Self {
         Self {
-            token: FrontendRateLimitConfig {
+            token:       FrontendRateLimitConfig {
                 bucketSize:        10,
                 leakRatePerMinute: 10.0,
             },
@@ -145,7 +145,7 @@ impl Default for FrontendApiRateLimitsConfig {
                 bucketSize:        10,
                 leakRatePerMinute: 10.0,
             },
-            backup: FrontendRateLimitConfig {
+            backup:      FrontendRateLimitConfig {
                 bucketSize:        10,
                 leakRatePerMinute: 10.0,
             },

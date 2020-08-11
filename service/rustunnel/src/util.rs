@@ -8,16 +8,16 @@
 use std::io;
 use std::os::unix::prelude::*;
 
-use nix::errno::{Errno};
+use nix::errno::Errno;
 use nix::fcntl;
-use nix::fcntl::{OFlag};
+use nix::fcntl::OFlag;
 
 pub fn convert_nix<T>(result: nix::Result<T>) -> io::Result<T> {
     match result {
-        Ok(value)                             => Ok(value),
-        Err(nix::Error::Sys(errno))           => Err(errno.into()),
-        Err(nix::Error::InvalidPath)          => Err(Errno::EINVAL.into()),
-        Err(nix::Error::InvalidUtf8)          => Err(Errno::EINVAL.into()),
+        Ok(value) => Ok(value),
+        Err(nix::Error::Sys(errno)) => Err(errno.into()),
+        Err(nix::Error::InvalidPath) => Err(Errno::EINVAL.into()),
+        Err(nix::Error::InvalidUtf8) => Err(Errno::EINVAL.into()),
         Err(nix::Error::UnsupportedOperation) => Err(io::Error::new(io::ErrorKind::Other, "unsupported")),
     }
 }

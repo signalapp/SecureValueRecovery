@@ -25,6 +25,7 @@ impl AtomicCounter {
         let counter = Arc::downgrade(&self.counter);
         AtomicCounterGuard { _counter: counter }
     }
+
     pub fn count(&self) -> usize {
         Arc::weak_count(&self.counter)
     }

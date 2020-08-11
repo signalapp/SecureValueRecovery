@@ -6,7 +6,9 @@
 //
 
 macro_rules! metric_module_name {
-    () => (module_path!().replace("::", "."));
+    () => {
+        module_path!().replace("::", ".")
+    };
 }
 
 macro_rules! metric_name {

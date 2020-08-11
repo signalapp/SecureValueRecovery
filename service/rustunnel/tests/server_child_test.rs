@@ -116,7 +116,7 @@ fn build_client(test_ca: &mut TestCa, valid_chain: bool) -> Result<TlsConnector,
         .generate_signed_certificate("kbupdtlsd_test_client", false)
         .expect(error_line!());
     let client_cert_ca = match valid_chain {
-        true  => Some(&*test_ca),
+        true => Some(&*test_ca),
         false => None,
     };
     let client_cert_p12 = client_cert.to_pkcs12(client_cert_ca).context(error_line!())?;

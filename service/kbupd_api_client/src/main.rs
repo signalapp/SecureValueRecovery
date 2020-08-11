@@ -77,7 +77,7 @@ fn main() -> Result<(), failure::Error> {
 
             let backup_id = match backup_id {
                 Some(backup_id) => future::Either::A(Ok(backup_id).into_future()),
-                None            => {
+                None => {
                     let token_response = client
                         .get_token(&credentials, &enclave_name)
                         .map_err(|error| error.context("error during token request"));
@@ -235,12 +235,12 @@ fn main() -> Result<(), failure::Error> {
                         "backup" => {
                             let backup_response = match response.backup {
                                 Some(backup_response) => backup_response,
-                                None                  => return Err(format_err!("server response was empty: {:?}", &response)),
+                                None => return Err(format_err!("server response was empty: {:?}", &response)),
                             };
                             debug!("server response: {}", &backup_response);
                             let token = match backup_response.token.clone() {
                                 Some(token) => token,
-                                None        => return Err(format_err!("server backup response did not contain a token")),
+                                None => return Err(format_err!("server backup response did not contain a token")),
                             };
                             responses.push(Box::new(backup_response));
                             let state = RequestLoopState {
@@ -256,7 +256,7 @@ fn main() -> Result<(), failure::Error> {
                         "restore" => {
                             let restore_response = match response.restore {
                                 Some(restore_response) => restore_response,
-                                None                   => return Err(format_err!("server response was empty: {:?}", &response)),
+                                None => return Err(format_err!("server response was empty: {:?}", &response)),
                             };
                             debug!("server response: {}", &restore_response);
                             responses.push(Box::new(restore_response));

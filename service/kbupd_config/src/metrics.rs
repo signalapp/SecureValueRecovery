@@ -16,7 +16,7 @@ pub struct MetricsConfig {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields, tag="type", rename_all="lowercase")]
+#[serde(deny_unknown_fields, tag = "type", rename_all = "lowercase")]
 pub enum MetricsReporterConfig {
     Json(JsonMetricsReporterConfig),
 }

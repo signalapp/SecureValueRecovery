@@ -18,10 +18,7 @@ pub struct EnclaveStatusRefreshTask {
 }
 
 impl EnclaveStatusRefreshTask {
-    pub fn new(interval:           Duration,
-               enclave_manager_tx: EnclaveManagerSender)
-               -> Self
-    {
+    pub fn new(interval: Duration, enclave_manager_tx: EnclaveManagerSender) -> Self {
         Self {
             interval,
             enclave_manager_tx,
@@ -29,9 +26,8 @@ impl EnclaveStatusRefreshTask {
     }
 
     fn refresh_status(self) -> Result<Self, ()> {
-        self.enclave_manager_tx.cast(move |enclave_manager: &mut EnclaveManager| {
-            enclave_manager.refresh_status(false)
-        })?;
+        self.enclave_manager_tx
+            .cast(move |enclave_manager: &mut EnclaveManager| enclave_manager.refresh_status(false))?;
         Ok(self)
     }
 
@@ -40,9 +36,7 @@ impl EnclaveStatusRefreshTask {
             error!("tokio timer error: {}", error);
         });
 
-        let interval_timer = interval_timer_stream.fold(self, |state: Self, _now: Instant| {
-            state.refresh_status()
-        });
+        let interval_timer = interval_timer_stream.fold(self, |state: Self, _now: Instant| state.refresh_status());
 
         interval_timer.map(|_state: Self| {
             error!("tokio timer terminated");

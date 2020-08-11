@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use hyper::client::HttpConnector;
-use ias_client::{IasClient, IasApiVersion};
+use ias_client::{IasApiVersion, IasClient};
 use kbuptlsd::prelude::*;
 
 pub type KbupdIasClient = IasClient<TlsProxyConnector<HttpConnector>>;

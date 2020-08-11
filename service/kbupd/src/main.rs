@@ -33,7 +33,7 @@ fn main() {
     log::set_max_level(log_level.to_level_filter());
 
     match run(arguments) {
-        Ok(())     => (),
+        Ok(()) => (),
         Err(error) => {
             error!("initialization error: {:?}", error);
         }
@@ -219,7 +219,7 @@ impl Service {
     pub fn join(self) {
         match self {
             Service::Frontend(frontend) => frontend.join(),
-            Service::Replica(replica)   => replica.join(),
+            Service::Replica(replica) => replica.join(),
         }
     }
 }
@@ -252,8 +252,8 @@ where F: Fn(T) -> Result<U, E> {
 fn parse_yes_no(argument: &str) -> Result<bool, failure::Error> {
     match argument {
         "yes" | "" => Ok(true),
-        "no"       => Ok(false),
-        _          => bail!("invalid yes/no value: {}", argument),
+        "no" => Ok(false),
+        _ => bail!("invalid yes/no value: {}", argument),
     }
 }
 

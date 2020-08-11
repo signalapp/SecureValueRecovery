@@ -6,8 +6,8 @@
 //
 
 use futures::prelude::*;
-use futures::stream::{Fuse};
-use nix::sys::signal::{SaFlags, SigAction, SigHandler, SigSet, sigaction};
+use futures::stream::Fuse;
+use nix::sys::signal::{sigaction, SaFlags, SigAction, SigHandler, SigSet};
 
 pub struct MergeSignals {
     signals: Vec<Fuse<tokio_signal::unix::Signal>>,
@@ -19,44 +19,34 @@ pub fn ignore_signal(signum: nix::sys::signal::Signal) -> nix::Result<()> {
     Ok(())
 }
 
-pub fn handle_signals(signums: impl IntoIterator<Item = nix::sys::signal::Signal>) -> impl Future<Item = MergeSignals, Error = std::io::Error> {
+pub fn handle_signals(
+    signums: impl IntoIterator<Item = nix::sys::signal::Signal>,
+) -> impl Future<Item = MergeSignals, Error = std::io::Error> {
     let signals = signums.into_iter().map(move |signum: nix::sys::signal::Signal| {
         let signal = tokio_signal::unix::Signal::with_handle(signum as i32, &Default::default());
-        signal.map(|signal: tokio_signal::unix::Signal| {
-            signal.fuse()
-        })
+        signal.map(|signal: tokio_signal::unix::Signal| signal.fuse())
     });
-    let merged = futures::future::join_all(signals).map(move |signals: Vec<Fuse<tokio_signal::unix::Signal>>| {
-        MergeSignals {
-            signals,
-        }
-    });
+    let merged = futures::future::join_all(signals).map(move |signals: Vec<Fuse<tokio_signal::unix::Signal>>| MergeSignals { signals });
 
     merged
 }
 
 impl Stream for MergeSignals {
-    type Item  = nix::sys::signal::Signal;
     type Error = std::io::Error;
+    type Item = nix::sys::signal::Signal;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         let mut not_ready = false;
         for signal in &mut self.signals {
             match signal.poll()? {
-                Async::Ready(Some(signum)) => {
-                    match nix::sys::signal::Signal::from_c_int(signum) {
-                        Ok(signum) => return Ok(Some(signum).into()),
-                        Err(_)     => (),
-                    }
-                }
+                Async::Ready(Some(signum)) => match nix::sys::signal::Signal::from_c_int(signum) {
+                    Ok(signum) => return Ok(Some(signum).into()),
+                    Err(_) => (),
+                },
                 Async::Ready(None) => (),
-                Async::NotReady    => not_ready = true,
+                Async::NotReady => not_ready = true,
             }
         }
-        if not_ready {
-            Ok(Async::NotReady)
-        } else {
-            Ok(None.into())
-        }
+        if not_ready { Ok(Async::NotReady) } else { Ok(None.into()) }
     }
 }

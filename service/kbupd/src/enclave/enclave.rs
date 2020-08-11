@@ -6,24 +6,24 @@
 //
 
 use crate::enclave::attestation_manager::AttestationManager;
-use std::array::{TryFromSliceError};
-use std::collections::{HashMap};
+use std::array::TryFromSliceError;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
-use std::fmt::{Display, Debug};
-use std::marker::{PhantomData};
-use std::ops::{Deref};
+use std::fmt::{Debug, Display};
+use std::marker::PhantomData;
+use std::ops::Deref;
 
 use futures::sync::oneshot;
-use kbupd_api::entities::*;
-use kbupd_api::entities::{BackupId};
 use ias_client::*;
+use kbupd_api::entities::BackupId;
+use kbupd_api::entities::*;
 use sgx_sdk_ffi::*;
 
-use crate::*;
+use crate::metrics::*;
 use crate::peer::manager::*;
 use crate::protobufs::kbupd::*;
-use crate::metrics::*;
+use crate::*;
 
 use super::ffi::ecalls;
 use super::ffi::sgxsd::*;
@@ -50,7 +50,7 @@ pub struct Enclave {
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct NodeId([u8; 32]);
 
-pub use super::ffi::sgxsd::{SgxQuote};
+pub use super::ffi::sgxsd::SgxQuote;
 
 //
 // private defs
@@ -90,32 +90,34 @@ lazy_static::lazy_static! {
 //
 
 impl Enclave {
-    pub fn new(enclave_name:    String,
-               enclave_path:    &str,
-               enclave_debug:   bool,
-               sgx_spid:        [u8; 16],
-               peer_manager_tx: actor::Sender<PeerManager>,
-               attestation_tx:  actor::Sender<AttestationManager>)
-               -> Result<Self, EnclaveError> {
+    pub fn new(
+        enclave_name: String,
+        enclave_path: &str,
+        enclave_debug: bool,
+        sgx_spid: [u8; 16],
+        peer_manager_tx: actor::Sender<PeerManager>,
+        attestation_tx: actor::Sender<AttestationManager>,
+    ) -> Result<Self, EnclaveError>
+    {
         let enclave_id = create_enclave(enclave_path, enclave_debug).sgxsd_context("sgx_create_enclave")?;
 
         Ok(Self {
             enclave_name,
             enclave_id,
-            node_id:         Default::default(),
+            node_id: Default::default(),
             frontend_config: Default::default(),
-            replica_config:  Default::default(),
-            status:          Default::default(),
+            replica_config: Default::default(),
+            status: Default::default(),
             sgx_spid,
-            sgx_sig_rl:      Default::default(),
-            signed_quote:    Default::default(),
-            server_handle:   Default::default(),
-            send_queue:      Default::default(),
+            sgx_sig_rl: Default::default(),
+            signed_quote: Default::default(),
+            server_handle: Default::default(),
+            send_queue: Default::default(),
             peer_manager_tx,
             attestation_tx,
-            txn_requests:    Default::default(),
-            xfer_requests:   Default::default(),
-            _unsend:         Default::default(),
+            txn_requests: Default::default(),
+            xfer_requests: Default::default(),
+            _unsend: Default::default(),
         })
     }
 
@@ -134,7 +136,8 @@ impl Enclave {
         });
         self.run_to_completion()?;
         self.replica_config = Some(config);
-        self.node_id().ok_or(EnclaveError::InternalError("enclave did not reply to start request"))
+        self.node_id()
+            .ok_or(EnclaveError::InternalError("enclave did not reply to start request"))
     }
 
     pub fn start_replica_group(&mut self, start_message: StartReplicaGroupRequest) -> Result<(), EnclaveError> {
@@ -144,8 +147,11 @@ impl Enclave {
         self.run_to_completion()
     }
 
-    pub fn start_frontend(&mut self, start_message: StartFrontendRequest, pending_requests_table_order: u8)
-                          -> Result<NodeId, EnclaveError>
+    pub fn start_frontend(
+        &mut self,
+        start_message: StartFrontendRequest,
+        pending_requests_table_order: u8,
+    ) -> Result<NodeId, EnclaveError>
     {
         sgxsd_node_init(self.enclave_id, pending_requests_table_order)?;
 
@@ -155,7 +161,8 @@ impl Enclave {
         });
         self.run_to_completion()?;
         self.frontend_config = Some(config);
-        self.node_id().ok_or(EnclaveError::InternalError("enclave did not reply to start request"))
+        self.node_id()
+            .ok_or(EnclaveError::InternalError("enclave did not reply to start request"))
     }
 
     pub fn node_id(&self) -> Option<NodeId> {
@@ -163,7 +170,9 @@ impl Enclave {
     }
 
     pub fn status(&self) -> Option<&get_enclave_status_reply::Inner> {
-        self.status.as_ref().and_then(|status: &GetEnclaveStatusReply| status.inner.as_ref())
+        self.status
+            .as_ref()
+            .and_then(|status: &GetEnclaveStatusReply| status.inner.as_ref())
     }
 
     pub fn replica_config(&self) -> Option<&EnclaveReplicaConfig> {
@@ -204,10 +213,26 @@ impl Enclave {
             tag:        sgxsd_resp.encrypted_pending_request_id.mac.data,
             ciphertext: sgxsd_resp.encrypted_pending_request_id.data.to_vec(),
 
-            quote:         self.signed_quote.as_ref().map(|signed_quote| signed_quote.quote.clone()).unwrap_or_default(),
-            certificates:  self.signed_quote.as_ref().map(|signed_quote| util::pem::encode("CERTIFICATE", signed_quote.certificates.iter().map(|certificate| &certificate[..]))).unwrap_or_default(),
-            signature:     self.signed_quote.as_ref().map(|signed_quote| signed_quote.signature.clone()).unwrap_or_default(),
-            signatureBody: self.signed_quote.as_ref().map(|signed_quote| String::from_utf8_lossy(&signed_quote.body).to_string()).unwrap_or_default(),
+            quote:         self
+                .signed_quote
+                .as_ref()
+                .map(|signed_quote| signed_quote.quote.clone())
+                .unwrap_or_default(),
+            certificates:  self
+                .signed_quote
+                .as_ref()
+                .map(|signed_quote| util::pem::encode("CERTIFICATE", signed_quote.certificates.iter().map(|certificate| &certificate[..])))
+                .unwrap_or_default(),
+            signature:     self
+                .signed_quote
+                .as_ref()
+                .map(|signed_quote| signed_quote.signature.clone())
+                .unwrap_or_default(),
+            signatureBody: self
+                .signed_quote
+                .as_ref()
+                .map(|signed_quote| String::from_utf8_lossy(&signed_quote.body).to_string())
+                .unwrap_or_default(),
         })
     }
 
@@ -225,17 +250,19 @@ impl Enclave {
         }
     }
 
-    pub fn client_request(&mut self,
-                          backup_id: BackupId,
-                          request:   KeyBackupRequest,
-                          reply_tx:  oneshot::Sender<Result<KeyBackupResponse, KeyBackupError>>)
-                          -> Result<(), EnclaveError> {
+    pub fn client_request(
+        &mut self,
+        backup_id: BackupId,
+        request: KeyBackupRequest,
+        reply_tx: oneshot::Sender<Result<KeyBackupResponse, KeyBackupError>>,
+    ) -> Result<(), EnclaveError>
+    {
         let server_handle = self.start_sgxsd_server()?;
 
         let request_type = match request.r#type {
-            KeyBackupRequestType::Backup  => KBUPD_REQUEST_TYPE_BACKUP,
+            KeyBackupRequestType::Backup => KBUPD_REQUEST_TYPE_BACKUP,
             KeyBackupRequestType::Restore => KBUPD_REQUEST_TYPE_RESTORE,
-            KeyBackupRequestType::Delete  => KBUPD_REQUEST_TYPE_DELETE,
+            KeyBackupRequestType::Delete => KBUPD_REQUEST_TYPE_DELETE,
         };
 
         let args = SgxsdServerCallArgs {
@@ -244,8 +271,8 @@ impl Enclave {
         };
 
         let mut sgxsd_message_header = SgxsdMessageHeader {
-            iv:  SgxsdAesGcmIv { data: request.iv },
-            mac: SgxsdAesGcmMac { data: request.mac },
+            iv:                 SgxsdAesGcmIv { data: request.iv },
+            mac:                SgxsdAesGcmMac { data: request.mac },
             pending_request_id: Default::default(),
         };
 
@@ -255,25 +282,34 @@ impl Enclave {
             .and_then(decode_field(&mut sgxsd_message_header.pending_request_id.mac.data));
 
         let sgxsd_reply_fun = move |result: SgxsdResult<MessageReply>| {
-            let reply = result.map(|sgxsd_reply: MessageReply| {
-                KeyBackupResponse {
+            let reply = result
+                .map(|sgxsd_reply: MessageReply| KeyBackupResponse {
                     iv:   sgxsd_reply.iv.data,
                     mac:  sgxsd_reply.mac.data,
                     data: sgxsd_reply.data,
-                }
-            }).map_err(|error: SgxsdError| error.into());
+                })
+                .map_err(|error: SgxsdError| error.into());
             let _ignore = reply_tx.send(reply);
         };
 
-        let enclave_messages = sgxsd_server_call(self.enclave_id, args, &sgxsd_message_header, &request.data, sgxsd_reply_fun, server_handle)?;
+        let enclave_messages = sgxsd_server_call(
+            self.enclave_id,
+            args,
+            &sgxsd_message_header,
+            &request.data,
+            sgxsd_reply_fun,
+            server_handle,
+        )?;
         self.handle_enclave_messages(enclave_messages);
         Ok(())
     }
 
-    pub fn transaction_request(&mut self,
-                               data:      untrusted_transaction_request::Data,
-                               reply_fun: impl FnOnce(untrusted_transaction_reply::Data) + Send + 'static)
-                               -> Result<(), EnclaveError> {
+    pub fn transaction_request(
+        &mut self,
+        data: untrusted_transaction_request::Data,
+        reply_fun: impl FnOnce(untrusted_transaction_reply::Data) + Send + 'static,
+    ) -> Result<(), EnclaveError>
+    {
         let request_id = self.txn_requests.push(Box::new(reply_fun));
         self.enqueue_message(UntrustedMessage {
             inner: Some(untrusted_message::Inner::UntrustedTransactionRequest(UntrustedTransactionRequest {
@@ -284,9 +320,12 @@ impl Enclave {
         self.run_to_completion()
     }
 
-    pub fn xfer_request(&mut self,
-                        data: untrusted_xfer_request::Data,
-                        reply_fun: impl FnOnce(UntrustedXferReply) + Send + 'static) -> Result<(), EnclaveError> {
+    pub fn xfer_request(
+        &mut self,
+        data: untrusted_xfer_request::Data,
+        reply_fun: impl FnOnce(UntrustedXferReply) + Send + 'static,
+    ) -> Result<(), EnclaveError>
+    {
         let request_id = self.xfer_requests.push(Box::new(reply_fun));
         self.enqueue_message(UntrustedMessage {
             inner: Some(untrusted_message::Inner::UntrustedXferRequest(UntrustedXferRequest {
@@ -313,12 +352,11 @@ impl Enclave {
 
             let enclave_messages = ecalls::kbupd_send(self.enclave_id, messages)?;
             self.handle_enclave_messages(enclave_messages);
-        };
+        }
     }
 
     pub fn handle_enclave_messages(&mut self, enclave_messages: impl IntoIterator<Item = EnclaveMessage>) {
-        let enclave_message_inners = enclave_messages.into_iter()
-                                                     .filter_map(|enclave_message| enclave_message.inner);
+        let enclave_message_inners = enclave_messages.into_iter().filter_map(|enclave_message| enclave_message.inner);
         for enclave_message_inner in enclave_message_inners {
             self.handle_enclave_message(enclave_message_inner);
         }
@@ -337,17 +375,15 @@ impl Enclave {
                     }
                 };
             }
-            enclave_message::Inner::StartReplicaReply(reply) => {
-                match NodeId::try_from(&reply.node_id[..]) {
-                    Ok(node_id) => {
-                        info!("started replica {}", &node_id);
-                        self.node_id = Some(node_id);
-                    }
-                    Err(_) => {
-                        error!("invalid replica node id: {}", util::ToHex(&reply.node_id));
-                    }
+            enclave_message::Inner::StartReplicaReply(reply) => match NodeId::try_from(&reply.node_id[..]) {
+                Ok(node_id) => {
+                    info!("started replica {}", &node_id);
+                    self.node_id = Some(node_id);
                 }
-            }
+                Err(_) => {
+                    error!("invalid replica node id: {}", util::ToHex(&reply.node_id));
+                }
+            },
             enclave_message::Inner::StartReplicaGroupReply(reply) => {
                 if let Some(service_id) = &reply.service_id {
                     info!("started service {}", util::ToHex(&service_id.id));
@@ -357,35 +393,23 @@ impl Enclave {
                 }
             }
             enclave_message::Inner::SendMessageRequest(request) => {
-                let _ignore = self.peer_manager_tx.cast(|peer_manager: &mut PeerManager| {
-                    peer_manager.send_message(request)
-                });
+                let _ignore = self
+                    .peer_manager_tx
+                    .cast(|peer_manager: &mut PeerManager| peer_manager.send_message(request));
             }
-            enclave_message::Inner::GetQeInfoRequest(request) => {
-                self.handle_get_qe_info_request(request)
-            }
-            enclave_message::Inner::GetQuoteRequest(request) => {
-                self.handle_get_quote_request(request)
-            }
-            enclave_message::Inner::GetAttestationRequest(request) => {
-                self.handle_get_attestation_request(request)
-            }
-            enclave_message::Inner::UntrustedTransactionReply(reply) => {
-                self.handle_untrusted_transaction_reply(reply)
-            }
-            enclave_message::Inner::UntrustedXferReply(reply) => {
-                self.handle_untrusted_xfer_reply(reply)
-            }
-            enclave_message::Inner::GetEnclaveStatusReply(reply) => {
-                self.handle_get_enclave_status_reply(reply)
-            }
+            enclave_message::Inner::GetQeInfoRequest(request) => self.handle_get_qe_info_request(request),
+            enclave_message::Inner::GetQuoteRequest(request) => self.handle_get_quote_request(request),
+            enclave_message::Inner::GetAttestationRequest(request) => self.handle_get_attestation_request(request),
+            enclave_message::Inner::UntrustedTransactionReply(reply) => self.handle_untrusted_transaction_reply(reply),
+            enclave_message::Inner::UntrustedXferReply(reply) => self.handle_untrusted_xfer_reply(reply),
+            enclave_message::Inner::GetEnclaveStatusReply(reply) => self.handle_get_enclave_status_reply(reply),
             enclave_message::Inner::EnclaveLogSignal(enclave_log) => {
                 let level = match EnclaveLogLevel::from_i32(enclave_log.level) {
                     Some(EnclaveLogLevel::Error) => log::Level::Error,
-                    Some(EnclaveLogLevel::Warn)  => log::Level::Warn,
-                    Some(EnclaveLogLevel::Info)  => log::Level::Info,
+                    Some(EnclaveLogLevel::Warn) => log::Level::Warn,
+                    Some(EnclaveLogLevel::Info) => log::Level::Info,
                     Some(EnclaveLogLevel::Debug) => log::Level::Debug,
-                    None                         => log::Level::Error,
+                    None => log::Level::Error,
                 };
                 log::logger().log(
                     &log::RecordBuilder::new()
@@ -395,14 +419,13 @@ impl Enclave {
                         .module_path(std::str::from_utf8(&enclave_log.module).ok())
                         .file(std::str::from_utf8(&enclave_log.file).ok())
                         .line(Some(enclave_log.line))
-                        .build()
+                        .build(),
                 )
             }
-            enclave_message::Inner::EnclaveTransactionSignal(enclave_txn) => {
-                self.handle_enclave_transaction_signal(enclave_txn)
-            }
+            enclave_message::Inner::EnclaveTransactionSignal(enclave_txn) => self.handle_enclave_transaction_signal(enclave_txn),
         }
     }
+
     fn handle_get_qe_info_request(&mut self, _request: GetQeInfoRequest) {
         match get_qe_target_info() {
             Ok(qe_target_info) => {
@@ -426,7 +449,7 @@ impl Enclave {
     fn handle_get_quote_request(&mut self, request: GetQuoteRequest) {
         let sgx_report = match SgxReport::new(&request.sgx_report) {
             Ok(sgx_report) => sgx_report,
-            Err(())        => {
+            Err(()) => {
                 error!("sgx get_quote incorrect report length: {}", request.sgx_report.len());
                 return;
             }
@@ -437,7 +460,7 @@ impl Enclave {
                     inner: Some(untrusted_message::Inner::GetQuoteReply(GetQuoteReply {
                         request_id: request.request_id,
                         sgx_quote,
-                    }))
+                    })),
                 });
             }
             Err(err) => {
@@ -450,9 +473,9 @@ impl Enclave {
         info!("fetching attestation for {}", util::ToHex(&request.request_id));
 
         let enclave_name = self.enclave_name.clone();
-        let _ignore      = self.attestation_tx.cast(move |attestation_manager: &mut AttestationManager| {
-            attestation_manager.get_attestation(enclave_name, request)
-        });
+        let _ignore = self
+            .attestation_tx
+            .cast(move |attestation_manager: &mut AttestationManager| attestation_manager.get_attestation(enclave_name, request));
     }
 
     fn handle_untrusted_transaction_reply(&mut self, reply: UntrustedTransactionReply) {
@@ -473,45 +496,48 @@ impl Enclave {
         match &reply.inner {
             Some(get_enclave_status_reply::Inner::ReplicaStatus(status)) => {
                 if let Some(memory_status) = &status.memory_status {
-                    MEMORY_USED_GAUGE.update( memory_status.used_bytes);
+                    MEMORY_USED_GAUGE.update(memory_status.used_bytes);
                     MEMORY_CHUNKS_GAUGE.update(memory_status.free_chunks);
                 }
                 if let Some(partition_status) = &status.partition {
                     REPLICA_MIN_ATTESTATION_GAUGE.update(partition_status.min_attestation.unix_timestamp_seconds);
-                    REPLICA_TERM_GAUGE.update(           partition_status.current_term);
-                    REPLICA_LOG_PREV_GAUGE.update(       partition_status.prev_log_index);
-                    REPLICA_LOG_APPLIED_METER.set(       partition_status.last_applied_index);
-                    REPLICA_LOG_COMMITTED_METER.set(     partition_status.commit_index);
-                    REPLICA_LOG_APPENDED_METER.set(      partition_status.last_log_index);
-                    REPLICA_BACKUPS_COUNT_GAUGE.update(  partition_status.backup_count);
+                    REPLICA_TERM_GAUGE.update(partition_status.current_term);
+                    REPLICA_LOG_PREV_GAUGE.update(partition_status.prev_log_index);
+                    REPLICA_LOG_APPLIED_METER.set(partition_status.last_applied_index);
+                    REPLICA_LOG_COMMITTED_METER.set(partition_status.commit_index);
+                    REPLICA_LOG_APPENDED_METER.set(partition_status.last_log_index);
+                    REPLICA_BACKUPS_COUNT_GAUGE.update(partition_status.backup_count);
                 }
 
-                let partition_config = status.partition.as_ref().map(|partition: &EnclaveReplicaPartitionStatus| {
-                    PartitionConfig {
+                let partition_config = status
+                    .partition
+                    .as_ref()
+                    .map(|partition: &EnclaveReplicaPartitionStatus| PartitionConfig {
                         group_id: partition.group_id.clone(),
                         range:    partition.range.clone(),
-                        node_ids: partition.peers.iter()
-                                                 .map(|peer: &EnclavePeerStatus| peer.node_id.clone())
-                                                 .chain(self.node_id().map(Vec::from))
-                                                 .collect(),
-                    }
-                });
+                        node_ids: partition
+                            .peers
+                            .iter()
+                            .map(|peer: &EnclavePeerStatus| peer.node_id.clone())
+                            .chain(self.node_id().map(Vec::from))
+                            .collect(),
+                    });
 
-                let _ignore = self.peer_manager_tx.cast(move |peer_manager: &mut PeerManager| {
-                    peer_manager.set_partition_config(partition_config)
-                });
+                let _ignore = self
+                    .peer_manager_tx
+                    .cast(move |peer_manager: &mut PeerManager| peer_manager.set_partition_config(partition_config));
             }
             Some(get_enclave_status_reply::Inner::FrontendStatus(status)) => {
                 if let Some(memory_status) = &status.memory_status {
-                    MEMORY_USED_GAUGE.update( memory_status.used_bytes);
+                    MEMORY_USED_GAUGE.update(memory_status.used_bytes);
                     MEMORY_CHUNKS_GAUGE.update(memory_status.free_chunks);
                 }
                 let mut inflight_requests: u64 = 0;
-                let mut unsent_requests:   u64 = 0;
+                let mut unsent_requests: u64 = 0;
                 for partition_status in &status.partitions {
                     for peer in &partition_status.nodes {
                         inflight_requests += peer.inflight_requests;
-                        unsent_requests   += peer.unsent_requests;
+                        unsent_requests += peer.unsent_requests;
                     }
                 }
                 FRONTEND_REQUESTS_INFLIGHT_GAUGE.update(inflight_requests);
@@ -524,7 +550,7 @@ impl Enclave {
     }
 
     fn handle_enclave_transaction_signal(&mut self, enclave_txn: EnclaveTransactionSignal) {
-        use crate::protobufs::kbupd::enclave_transaction_signal::{Transaction};
+        use crate::protobufs::kbupd::enclave_transaction_signal::Transaction;
 
         let mut fetch_status = false;
 
@@ -548,7 +574,9 @@ impl Enclave {
                 fetch_status = true;
             }
             Some(Transaction::FinishXfer(_)) => {
-                let _ignore  = self.peer_manager_tx.cast(|peer_manager: &mut PeerManager| peer_manager.xfer_finished());
+                let _ignore = self
+                    .peer_manager_tx
+                    .cast(|peer_manager: &mut PeerManager| peer_manager.xfer_finished());
                 fetch_status = true;
             }
             None => (),
@@ -558,13 +586,13 @@ impl Enclave {
             self.enqueue_message(UntrustedMessage {
                 inner: Some(untrusted_message::Inner::GetEnclaveStatusRequest(GetEnclaveStatusRequest {
                     memory_status: false,
-                }))
+                })),
             })
         }
     }
 
     fn handle_enclave_frontend_request_transaction(&mut self, transaction: enclave_frontend_request_transaction::Transaction) {
-        use crate::protobufs::kbupd::enclave_frontend_request_transaction::{Transaction};
+        use crate::protobufs::kbupd::enclave_frontend_request_transaction::Transaction;
         match transaction {
             Transaction::Create(_) => {
                 REPLICA_BACKUPS_CREATE_METER.mark();
@@ -587,7 +615,7 @@ impl Enclave {
             Transaction::InvalidRequest(_) => {
                 REPLICA_BACKUPS_INVALID_REQUEST_METER.mark();
             }
-            Transaction::InternalError(_)  => {
+            Transaction::InternalError(_) => {
                 REPLICA_BACKUPS_INTERNAL_ERROR_METER.mark();
             }
         }
@@ -612,6 +640,7 @@ impl AsRef<[u8; 32]> for NodeId {
 
 impl Deref for NodeId {
     type Target = [u8];
+
     fn deref(&self) -> &[u8] {
         &self.0
     }
@@ -619,6 +648,7 @@ impl Deref for NodeId {
 
 impl TryFrom<&'_ [u8]> for NodeId {
     type Error = TryFromSliceError;
+
     fn try_from(from: &[u8]) -> Result<Self, Self::Error> {
         Ok(Self(from.try_into()?))
     }
@@ -670,6 +700,7 @@ impl<V> PendingRequestMap<V> {
         self.requests.insert(self.last_request_id.clone(), request);
         self.last_request_id.clone()
     }
+
     pub fn remove(&mut self, request_id: u64) -> Option<V> {
         self.requests.remove(&request_id)
     }

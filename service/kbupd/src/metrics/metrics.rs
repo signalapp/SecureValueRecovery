@@ -6,8 +6,8 @@
 //
 
 use std::convert::*;
-use std::sync::*;
 use std::sync::atomic::*;
+use std::sync::*;
 use std::time::*;
 
 use exponential_decay_histogram::*;
@@ -116,9 +116,11 @@ impl Counter {
     pub fn inc(&self, value: u64) {
         self.count.fetch_add(value, Ordering::SeqCst);
     }
+
     pub fn dec(&self, value: u64) {
         self.count.fetch_sub(value, Ordering::SeqCst);
     }
+
     pub fn guard(&self, value: u64) -> CounterGuard {
         self.inc(value);
         CounterGuard {
@@ -126,6 +128,7 @@ impl Counter {
             value,
         }
     }
+
     pub fn count(&self) -> u64 {
         self.count.load(Ordering::SeqCst)
     }
@@ -140,10 +143,11 @@ impl PartialEq for Counter {
 
 impl TryFrom<Metric> for Counter {
     type Error = ();
+
     fn try_from(metric: Metric) -> Result<Self, Self::Error> {
         match metric {
             Metric::Counter(counter) => Ok(counter),
-            _                        => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -177,6 +181,7 @@ impl Gauge {
         let value = value.as_();
         self.value.store(value.to_bits(), Ordering::SeqCst);
     }
+
     pub fn value(&self) -> f64 {
         f64::from_bits(self.value.load(Ordering::SeqCst))
     }
@@ -184,10 +189,11 @@ impl Gauge {
 
 impl TryFrom<Metric> for Gauge {
     type Error = ();
+
     fn try_from(metric: Metric) -> Result<Self, Self::Error> {
         match metric {
             Metric::Gauge(gauge) => Ok(gauge),
-            _                    => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -241,15 +247,15 @@ impl Meter {
 
     fn tick_to(&self, current_tick: Duration) {
         let current_tick = current_tick.as_secs();
-        let last_tick    = self.shared.last_tick.load(Ordering::SeqCst);
-        let elapsed      = current_tick.saturating_sub(last_tick);
-        let interval     = METER_INTERVAL.as_secs();
+        let last_tick = self.shared.last_tick.load(Ordering::SeqCst);
+        let elapsed = current_tick.saturating_sub(last_tick);
+        let interval = METER_INTERVAL.as_secs();
         if elapsed > interval {
             let ticks_elapsed = elapsed / interval;
             let new_last_tick = current_tick.saturating_sub(elapsed % interval);
             if self.shared.last_tick.compare_and_swap(last_tick, new_last_tick, Ordering::SeqCst) == last_tick {
                 let total = self.shared.tick_total.swap(0, Ordering::SeqCst);
-                let rate  = (total as f64) / (METER_INTERVAL.as_secs() as f64);
+                let rate = (total as f64) / (METER_INTERVAL.as_secs() as f64);
                 self.shared.m1_rate.tick(rate, ticks_elapsed);
                 self.shared.m5_rate.tick(rate, ticks_elapsed);
                 self.shared.m15_rate.tick(rate, ticks_elapsed);
@@ -260,10 +266,11 @@ impl Meter {
 
 impl TryFrom<Metric> for Meter {
     type Error = ();
+
     fn try_from(metric: Metric) -> Result<Self, Self::Error> {
         match metric {
             Metric::Meter(meter) => Ok(meter),
-            _                    => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -288,10 +295,11 @@ impl Default for MeterShared {
 
 impl TryFrom<Metric> for Histogram {
     type Error = ();
+
     fn try_from(metric: Metric) -> Result<Self, Self::Error> {
         match metric {
             Metric::Histogram(histogram) => Ok(histogram),
-            _                            => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -302,10 +310,11 @@ impl TryFrom<Metric> for Histogram {
 
 impl TryFrom<Metric> for Timer {
     type Error = ();
+
     fn try_from(metric: Metric) -> Result<Self, Self::Error> {
         match metric {
             Metric::Timer(timer) => Ok(timer),
-            _                    => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -332,7 +341,7 @@ impl ExponentiallyWeightedMovingAverage {
 
     pub fn tick(&self, rate: f64, ticks: u64) {
         if ticks != 0 {
-            let old_average     = f64::from_bits(self.average.load(Ordering::SeqCst));
+            let old_average = f64::from_bits(self.average.load(Ordering::SeqCst));
             let mut new_average = old_average + (self.alpha * (rate - old_average));
             if ticks > 1 {
                 new_average *= (1.0f64 - self.alpha).powi((ticks - 1) as i32);
@@ -364,6 +373,7 @@ impl Timer {
     pub fn meter(&self) -> &Meter {
         &self.meter
     }
+
     pub fn histogram(&self) -> &Histogram {
         &self.histogram
     }
@@ -392,15 +402,16 @@ impl<'a> Drop for TimerGuard<'a> {
 impl Histogram {
     pub fn update(&self, value: i64) {
         let mut sample_guard = match self.sample.try_lock() {
-            Ok(guard)                           => guard,
+            Ok(guard) => guard,
             Err(TryLockError::Poisoned(poison)) => poison.into_inner(),
-            Err(TryLockError::WouldBlock)       => return,
+            Err(TryLockError::WouldBlock) => return,
         };
         sample_guard.update(value);
     }
+
     pub fn snapshot(&self) -> Snapshot {
         let sample_guard = match self.sample.lock() {
-            Ok(guard) =>   guard,
+            Ok(guard) => guard,
             Err(poison) => poison.into_inner(),
         };
         sample_guard.snapshot()

@@ -7,7 +7,7 @@
 
 use std::io;
 
-use log::{info, debug};
+use log::{debug, info};
 use nix::poll::*;
 
 use super::stream::*;
@@ -41,34 +41,32 @@ impl ProxyBuffer {
         self.read_closed && self.write_closed
     }
 
-    pub fn proxy(&mut self,
-                 in_name:     &'static str,
-                 in_stream:   &mut impl ProxyRead,
-                 out_name:    &'static str,
-                 out_stream:  &mut impl ProxyWrite)
-                 -> Result<(EventFlags, EventFlags), ()>
+    pub fn proxy(
+        &mut self,
+        in_name: &'static str,
+        in_stream: &mut impl ProxyRead,
+        out_name: &'static str,
+        out_stream: &mut impl ProxyWrite,
+    ) -> Result<(EventFlags, EventFlags), ()>
     {
         while !self.is_closed() {
             match self.proxy_read(in_name, in_stream) {
-                Ok(())                           => (),
-                Err(ProxyStreamError::WantRead)  => return Ok((EventFlags::POLLIN,  EventFlags::empty())),
+                Ok(()) => (),
+                Err(ProxyStreamError::WantRead) => return Ok((EventFlags::POLLIN, EventFlags::empty())),
                 Err(ProxyStreamError::WantWrite) => return Ok((EventFlags::POLLOUT, EventFlags::empty())),
-                Err(ProxyStreamError::Io(_))     => return Err(()),
+                Err(ProxyStreamError::Io(_)) => return Err(()),
             }
             match self.proxy_write(out_name, out_stream) {
-                Ok(())                           => (),
-                Err(ProxyStreamError::WantRead)  => return Ok((EventFlags::empty(), EventFlags::POLLIN)),
+                Ok(()) => (),
+                Err(ProxyStreamError::WantRead) => return Ok((EventFlags::empty(), EventFlags::POLLIN)),
                 Err(ProxyStreamError::WantWrite) => return Ok((EventFlags::empty(), EventFlags::POLLOUT)),
-                Err(ProxyStreamError::Io(_))     => return Err(()),
+                Err(ProxyStreamError::Io(_)) => return Err(()),
             }
         }
         Ok((EventFlags::empty(), EventFlags::empty()))
     }
-    fn proxy_read(&mut self,
-                  in_name:     &'static str,
-                  in_stream:   &mut impl ProxyRead)
-                  -> Result<(), ProxyStreamError>
-    {
+
+    fn proxy_read(&mut self, in_name: &'static str, in_stream: &mut impl ProxyRead) -> Result<(), ProxyStreamError> {
         loop {
             let read_result = match self.read_from(in_stream) {
                 Ok(0) => {
@@ -80,11 +78,8 @@ impl ProxyBuffer {
                     debug!("{} bytes in buffer from {}", bytes_read, in_name);
                     Ok(())
                 }
-                Err(error @ ProxyStreamError::WantRead) |
-                Err(error @ ProxyStreamError::WantWrite) =>
-                    Err(error),
-                Err(ProxyStreamError::Io(ref error)) if error.kind() == io::ErrorKind::Interrupted =>
-                    continue,
+                Err(error @ ProxyStreamError::WantRead) | Err(error @ ProxyStreamError::WantWrite) => Err(error),
+                Err(ProxyStreamError::Io(ref error)) if error.kind() == io::ErrorKind::Interrupted => continue,
                 Err(ProxyStreamError::Io(error)) => {
                     if error.kind() == io::ErrorKind::UnexpectedEof {
                         info!("connection closed ungracefully by {}: {}", in_name, error);
@@ -97,11 +92,8 @@ impl ProxyBuffer {
             break read_result;
         }
     }
-    fn proxy_write(&mut self,
-                   out_name:    &'static str,
-                   out_stream:  &mut impl ProxyWrite)
-                   -> Result<(), ProxyStreamError>
-    {
+
+    fn proxy_write(&mut self, out_name: &'static str, out_stream: &mut impl ProxyWrite) -> Result<(), ProxyStreamError> {
         loop {
             let write_result = match self.write_to(out_stream) {
                 Ok(wrote_bytes) => {
@@ -117,11 +109,8 @@ impl ProxyBuffer {
                                     self.write_closed = true;
                                     Ok(())
                                 }
-                                Err(error @ ProxyStreamError::WantRead) |
-                                Err(error @ ProxyStreamError::WantWrite) =>
-                                    Err(error),
-                                Err(ProxyStreamError::Io(ref error)) if error.kind() == io::ErrorKind::Interrupted =>
-                                    continue,
+                                Err(error @ ProxyStreamError::WantRead) | Err(error @ ProxyStreamError::WantWrite) => Err(error),
+                                Err(ProxyStreamError::Io(ref error)) if error.kind() == io::ErrorKind::Interrupted => continue,
                                 Err(ProxyStreamError::Io(error)) => {
                                     info!("error shutting down connection to {}: {}", out_name, error);
                                     Err(ProxyStreamError::Io(error))
@@ -131,14 +120,11 @@ impl ProxyBuffer {
                             Ok(())
                         }
                     } else {
-                        continue
+                        continue;
                     }
                 }
-                Err(error @ ProxyStreamError::WantRead) |
-                Err(error @ ProxyStreamError::WantWrite) =>
-                    Err(error),
-                Err(ProxyStreamError::Io(ref error)) if error.kind() == io::ErrorKind::Interrupted =>
-                    continue,
+                Err(error @ ProxyStreamError::WantRead) | Err(error @ ProxyStreamError::WantWrite) => Err(error),
+                Err(ProxyStreamError::Io(ref error)) if error.kind() == io::ErrorKind::Interrupted => continue,
                 Err(ProxyStreamError::Io(error)) => {
                     info!("error writing to {}: {}", out_name, error);
                     Err(ProxyStreamError::Io(error))
@@ -150,7 +136,7 @@ impl ProxyBuffer {
 
     pub fn read_from(&mut self, stream: &mut impl ProxyRead) -> Result<usize, ProxyStreamError> {
         if self.position == self.length {
-            self.length   = stream.read(&mut self.buffer[..])?;
+            self.length = stream.read(&mut self.buffer[..])?;
             self.position = 0;
         } else {
             stream.read(&mut [])?;
@@ -161,7 +147,7 @@ impl ProxyBuffer {
     pub fn write_to(&mut self, stream: &mut impl ProxyWrite) -> Result<usize, ProxyStreamError> {
         if self.position < self.length {
             let wrote_bytes = stream.write(&mut self.buffer[self.position..self.length])?;
-            self.position   = self.position.saturating_add(wrote_bytes);
+            self.position = self.position.saturating_add(wrote_bytes);
             assert!(self.position <= self.length);
             Ok(wrote_bytes)
         } else {

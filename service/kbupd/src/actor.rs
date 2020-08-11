@@ -30,12 +30,14 @@ pub fn new<State>(state: State) -> (Sender<State>, impl Future<Item = (), Error 
 }
 
 pub fn spawn<State, Executor>(state: State, runtime: &Executor) -> Result<Sender<State>, failure::Error>
-where Executor: future::Executor<Box<dyn Future<Item = (), Error = ()> + Send + 'static>>,
-      State:    Send + 'static,
+where
+    Executor: future::Executor<Box<dyn Future<Item = (), Error = ()> + Send + 'static>>,
+    State: Send + 'static,
 {
     let (tx, future) = self::new(state);
-    runtime.execute(Box::new(future))
-           .map_err(|error: future::ExecuteError<_>| failure::format_err!("executor error: {:?}", error))?;
+    runtime
+        .execute(Box::new(future))
+        .map_err(|error: future::ExecuteError<_>| failure::format_err!("executor error: {:?}", error))?;
     Ok(tx)
 }
 
@@ -53,8 +55,8 @@ impl<State> Receiver<State> {
 }
 
 impl<State> Stream for Receiver<State> {
-    type Item  = Message<State>;
     type Error = ();
+    type Item = Message<State>;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         self.0.poll()
@@ -70,22 +72,26 @@ impl<State: 'static> Sender<State> {
         self.0.unbounded_send(Box::new(fun)).map_err(|_| ())
     }
 
-    pub fn call<T,E>(&self, fun: impl FnOnce(&mut State, oneshot::Sender<Result<T,E>>) + Send + 'static)
-               -> impl Future<Item = T, Error = E> + Send + 'static
-    where T: Send + 'static,
-          E: From<futures::Canceled> + Send + 'static
+    pub fn call<T, E>(
+        &self,
+        fun: impl FnOnce(&mut State, oneshot::Sender<Result<T, E>>) + Send + 'static,
+    ) -> impl Future<Item = T, Error = E> + Send + 'static
+    where
+        T: Send + 'static,
+        E: From<futures::Canceled> + Send + 'static,
     {
         let (tx, rx) = oneshot::channel();
-        let _ignore  = self.0.unbounded_send(Box::new(move |manager: &mut State| {
-            fun(manager, tx)
-        }));
-        rx.from_err().and_then(|result: Result<T,E>| result)
+        let _ignore = self.0.unbounded_send(Box::new(move |manager: &mut State| fun(manager, tx)));
+        rx.from_err().and_then(|result: Result<T, E>| result)
     }
 
-    pub fn sync_call<T,E>(&self, fun: impl FnOnce(&mut State) -> Result<T, E> + Send + 'static)
-                          -> impl Future<Item = T, Error = E> + Send + 'static
-    where T: Send + 'static,
-          E: From<futures::Canceled> + Send + 'static
+    pub fn sync_call<T, E>(
+        &self,
+        fun: impl FnOnce(&mut State) -> Result<T, E> + Send + 'static,
+    ) -> impl Future<Item = T, Error = E> + Send + 'static
+    where
+        T: Send + 'static,
+        E: From<futures::Canceled> + Send + 'static,
     {
         self.call(move |state: &mut State, reply_tx| {
             let _ignore = reply_tx.send(fun(state));

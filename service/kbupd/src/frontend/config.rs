@@ -9,7 +9,7 @@
 
 use kbupd_config::frontend::*;
 
-use crate::limits::leaky_bucket::{LeakyBucketParameters};
+use crate::limits::leaky_bucket::LeakyBucketParameters;
 use crate::protobufs::kbupd::{BackupId, PartitionKeyRangePb};
 
 //
@@ -32,8 +32,12 @@ impl From<FrontendRateLimitConfig> for LeakyBucketParameters {
 impl From<&FrontendPartitionRangeConfig> for PartitionKeyRangePb {
     fn from(range: &FrontendPartitionRangeConfig) -> Self {
         Self {
-            first: BackupId { id: range.firstBackupId.to_vec() },
-            last:  BackupId { id: range.lastBackupId.to_vec() },
+            first: BackupId {
+                id: range.firstBackupId.to_vec(),
+            },
+            last:  BackupId {
+                id: range.lastBackupId.to_vec(),
+            },
         }
     }
 }

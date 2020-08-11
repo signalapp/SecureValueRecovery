@@ -16,16 +16,14 @@ pub struct AnonymousUser {
 #[derive(Clone, Copy, Default)]
 pub struct AnonymousUserAuthenticator;
 
-pub enum AnonymousUserAuthenticationError {
-}
+pub enum AnonymousUserAuthenticationError {}
 
 impl Authenticator for AnonymousUserAuthenticator {
-    type User  = AnonymousUser;
     type Error = AnonymousUserAuthenticationError;
+    type User = AnonymousUser;
+
     fn authenticate(&self, _maybe_credentials: Option<BasicCredentials>) -> Result<Self::User, Self::Error> {
-        Ok(AnonymousUser {
-            _private: (),
-        })
+        Ok(AnonymousUser { _private: () })
     }
 }
 

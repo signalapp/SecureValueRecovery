@@ -5,24 +5,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::sync::{Arc};
+use std::sync::Arc;
 
 use bytes::{Buf, BufMut, BytesMut, IntoBuf};
-use prost::{Message};
+use prost::Message;
 
 use crate::protobufs::kbupd::*;
 
 pub struct PeerCodec;
 
 impl tokio_codec::Decoder for PeerCodec {
-    type Item  = PeerConnectionMessage;
     type Error = tokio::io::Error;
+    type Item = PeerConnectionMessage;
+
     fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if buffer.len() < 4 {
             return Ok(None);
         }
 
-        let frame_length    = buffer[..].into_buf().get_u32_be() as usize;
+        let frame_length = buffer[..].into_buf().get_u32_be() as usize;
         let frame_remaining = frame_length.saturating_sub(buffer.len() - 4);
         if frame_remaining != 0 {
             buffer.reserve(frame_remaining + 4);
@@ -30,7 +31,7 @@ impl tokio_codec::Decoder for PeerCodec {
         }
 
         buffer.advance(4);
-        let data    = buffer.split_to(frame_length);
+        let data = buffer.split_to(frame_length);
         let message = PeerConnectionMessage::decode(&data)?;
 
         Ok(Some(message))
@@ -38,8 +39,9 @@ impl tokio_codec::Decoder for PeerCodec {
 }
 
 impl tokio_codec::Encoder for PeerCodec {
-    type Item  = Arc<PeerConnectionMessage>;
     type Error = tokio::io::Error;
+    type Item = Arc<PeerConnectionMessage>;
+
     fn encode(&mut self, message: Arc<PeerConnectionMessage>, output: &mut BytesMut) -> Result<(), Self::Error> {
         let frame_len = match message.encoded_len() {
             frame_len if frame_len > u32::max_value() as usize - 4 => {
@@ -56,9 +58,9 @@ impl tokio_codec::Encoder for PeerCodec {
 
 #[cfg(test)]
 mod test {
-    use std::sync::{Arc};
+    use std::sync::Arc;
 
-    use bytes::{BytesMut};
+    use bytes::BytesMut;
     use tokio_codec::{Decoder, Encoder};
 
     use super::*;

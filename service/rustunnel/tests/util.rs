@@ -352,7 +352,7 @@ impl Write for &'_ TestPipeStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match self.write_fd {
             Some(write_fd) => convert_nix(unistd::write(write_fd, buf)),
-            None           => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
 

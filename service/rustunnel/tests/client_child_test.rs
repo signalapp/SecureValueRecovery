@@ -197,7 +197,7 @@ impl TestChild {
             .context(error_line!())?;
         let mut tls_stream = match tls_acceptor.accept(tcp_stream) {
             Ok(tls_stream) => tls_stream,
-            Err(error)     => return Ok(Err(error)),
+            Err(error) => return Ok(Err(error)),
         };
         thread::spawn(move || {
             stream_echo(&mut tls_stream).expect(error_line!());
@@ -224,7 +224,7 @@ impl TestChild {
         });
 
         match self.start_target(target_subject_name).context(error_line!())? {
-            Ok(())     => Ok(Ok(source_stream_1)),
+            Ok(()) => Ok(Ok(source_stream_1)),
             Err(error) => {
                 assert_stream_closed(source_stream_1).context(error_line!())?;
                 Ok(Err(error))

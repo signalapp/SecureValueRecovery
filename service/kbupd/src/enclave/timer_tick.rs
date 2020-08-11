@@ -10,8 +10,8 @@ use std::time::*;
 use futures::prelude::*;
 use tokio::timer;
 
-use crate::*;
 use crate::protobufs::kbupd::*;
+use crate::*;
 
 pub struct EnclaveTimerTickTask {
     interval:           Duration,
@@ -20,11 +20,7 @@ pub struct EnclaveTimerTickTask {
 }
 
 impl EnclaveTimerTickTask {
-    pub fn new(interval:           Duration,
-               enclave_name:       String,
-               enclave_manager_tx: EnclaveManagerSender)
-               -> Self
-    {
+    pub fn new(interval: Duration, enclave_name: String, enclave_manager_tx: EnclaveManagerSender) -> Self {
         Self {
             interval,
             enclave_name,
@@ -34,14 +30,16 @@ impl EnclaveTimerTickTask {
 
     fn tick(self) -> Result<Self, ()> {
         let enclave_name = self.enclave_name.clone();
-        let message      = UntrustedMessage {
+        let message = UntrustedMessage {
             inner: Some(untrusted_message::Inner::TimerTickSignal(TimerTickSignal {
-                now_secs: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                now_secs: SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
             })),
         };
-        self.enclave_manager_tx.cast(move |enclave_manager: &mut EnclaveManager| {
-            enclave_manager.untrusted_message(enclave_name, message)
-        })?;
+        self.enclave_manager_tx
+            .cast(move |enclave_manager: &mut EnclaveManager| enclave_manager.untrusted_message(enclave_name, message))?;
         Ok(self)
     }
 
@@ -50,9 +48,7 @@ impl EnclaveTimerTickTask {
             error!("tokio timer error: {}", error);
         });
 
-        let interval_timer = interval_timer_stream.fold(self, |state: Self, _now: Instant| {
-            state.tick()
-        });
+        let interval_timer = interval_timer_stream.fold(self, |state: Self, _now: Instant| state.tick());
 
         interval_timer.map(|_state: Self| {
             error!("tokio timer terminated");

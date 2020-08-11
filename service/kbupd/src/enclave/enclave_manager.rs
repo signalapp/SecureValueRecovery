@@ -5,20 +5,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::sync::mpsc;
 
 use failure::{Fail, ResultExt};
-use futures::sync::oneshot;
 use futures::prelude::*;
-use kbupd_api::entities::*;
-use kbupd_api::entities::{BackupId};
+use futures::sync::oneshot;
 use ias_client::*;
+use kbupd_api::entities::BackupId;
+use kbupd_api::entities::*;
 
-use crate::*;
-use crate::enclave::enclave::{Enclave};
+use crate::enclave::enclave::Enclave;
 use crate::peer::manager::*;
 use crate::protobufs::kbupd::*;
+use crate::*;
 
 use super::ffi::sgxsd::*;
 
@@ -27,27 +27,26 @@ type EnclaveManagerCallback = Box<dyn FnOnce(&mut EnclaveManager) -> Result<(), 
 #[derive(Clone)]
 pub struct EnclaveManagerSender(mpsc::Sender<EnclaveManagerCallback>);
 impl EnclaveManagerSender {
-    pub fn cast<F,FErr>(&self, fun: F) -> Result<(), ()>
-    where F: FnOnce(&mut EnclaveManager) -> Result<(), FErr> + Send + 'static,
-          failure::Error: From<FErr>,
+    pub fn cast<F, FErr>(&self, fun: F) -> Result<(), ()>
+    where
+        F: FnOnce(&mut EnclaveManager) -> Result<(), FErr> + Send + 'static,
+        failure::Error: From<FErr>,
     {
-        self.0.send(Box::new(move |manager: &mut EnclaveManager| {
-            Ok(fun(manager)?)
-        })).map_err(|_| ())
+        self.0
+            .send(Box::new(move |manager: &mut EnclaveManager| Ok(fun(manager)?)))
+            .map_err(|_| ())
     }
 
-    pub fn call<F,FErr,T,E>(&self, fun: F) -> impl Future<Item = T, Error = E>
-    where T: Send + 'static,
-          E: From<futures::Canceled> + Send + 'static,
-          F: FnOnce(&mut EnclaveManager, oneshot::Sender<Result<T,E>>) -> Result<(), FErr> + Send + 'static,
-          failure::Error: From<FErr>,
+    pub fn call<F, FErr, T, E>(&self, fun: F) -> impl Future<Item = T, Error = E>
+    where
+        T: Send + 'static,
+        E: From<futures::Canceled> + Send + 'static,
+        F: FnOnce(&mut EnclaveManager, oneshot::Sender<Result<T, E>>) -> Result<(), FErr> + Send + 'static,
+        failure::Error: From<FErr>,
     {
         let (tx, rx) = oneshot::channel();
-        let _ignore  = self.cast(move |manager: &mut EnclaveManager| {
-            fun(manager, tx)
-        });
-        rx.from_err()
-          .and_then(|result: Result<T,E>| result)
+        let _ignore = self.cast(move |manager: &mut EnclaveManager| fun(manager, tx));
+        rx.from_err().and_then(|result: Result<T, E>| result)
     }
 }
 
@@ -58,7 +57,7 @@ pub struct EnclaveManagerChannel {
 impl EnclaveManagerChannel {
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel();
-        let tx       = EnclaveManagerSender(tx);
+        let tx = EnclaveManagerSender(tx);
         Self { tx, rx }
     }
 
@@ -77,8 +76,11 @@ impl EnclaveManager {
     pub fn new(channel: EnclaveManagerChannel, enclaves: impl IntoIterator<Item = Enclave>) -> Self {
         Self {
             channel,
-            stopped:  false,
-            enclaves: enclaves.into_iter().map(|enclave: Enclave| (enclave.name().to_string(), enclave)).collect(),
+            stopped: false,
+            enclaves: enclaves
+                .into_iter()
+                .map(|enclave: Enclave| (enclave.name().to_string(), enclave))
+                .collect(),
         }
     }
 
@@ -98,13 +100,11 @@ impl EnclaveManager {
         Ok(())
     }
 
-    pub fn get_next_quotes(&self,
-                           reply_tx: oneshot::Sender<Result<Vec<(String, SgxQuote)>, failure::Error>>)
-                           -> Result<(), EnclaveError> {
+    pub fn get_next_quotes(&self, reply_tx: oneshot::Sender<Result<Vec<(String, SgxQuote)>, failure::Error>>) -> Result<(), EnclaveError> {
         let mut quotes: Vec<(String, SgxQuote)> = Vec::with_capacity(self.enclaves.len());
         for (enclave_name, enclave) in self.enclaves.iter() {
             let quote = match enclave.get_next_quote() {
-                Ok(quote)  => quote,
+                Ok(quote) => quote,
                 Err(error) => {
                     let context = error.clone().context(format!("error fetching quote for enclave {}", enclave_name));
                     let _ignore = reply_tx.send(Err(context.into()));
@@ -117,7 +117,12 @@ impl EnclaveManager {
         Ok(())
     }
 
-    pub fn start_replica_group(&mut self, enclave_name: &str, start_replica_group_request: StartReplicaGroupRequest) -> Result<(), EnclaveError> {
+    pub fn start_replica_group(
+        &mut self,
+        enclave_name: &str,
+        start_replica_group_request: StartReplicaGroupRequest,
+    ) -> Result<(), EnclaveError>
+    {
         if let Some(enclave) = self.enclaves.get_mut(enclave_name) {
             enclave.start_replica_group(start_replica_group_request)?;
             self.refresh_status(false)?;
@@ -133,10 +138,7 @@ impl EnclaveManager {
         }
     }
 
-    pub fn untrusted_message(&mut self,
-                             enclave_name: impl AsRef<str>,
-                             message:      UntrustedMessage)
-                             -> Result<(), EnclaveError> {
+    pub fn untrusted_message(&mut self, enclave_name: impl AsRef<str>, message: UntrustedMessage) -> Result<(), EnclaveError> {
         if let Some(enclave) = self.enclaves.get_mut(enclave_name.as_ref()) {
             enclave.enqueue_message(message);
             enclave.run_to_completion()?;
@@ -144,8 +146,12 @@ impl EnclaveManager {
         Ok(())
     }
 
-    pub fn get_attestation_reply(&mut self, enclave_name: String, request_id: Vec<u8>, result: Result<SignedQuote, GetQuoteSignatureError>)
-                                 -> Result<(), EnclaveError>
+    pub fn get_attestation_reply(
+        &mut self,
+        enclave_name: String,
+        request_id: Vec<u8>,
+        result: Result<SignedQuote, GetQuoteSignatureError>,
+    ) -> Result<(), EnclaveError>
     {
         match result {
             Ok(signed_quote) => {
@@ -155,7 +161,7 @@ impl EnclaveManager {
                         body:         signed_quote.body,
                         signature:    signed_quote.signature,
                         certificates: signed_quote.certificates,
-                    }
+                    },
                 };
                 if let Some(enclave) = self.enclaves.get_mut(&enclave_name) {
                     enclave.enqueue_message(UntrustedMessage {
@@ -171,11 +177,13 @@ impl EnclaveManager {
         Ok(())
     }
 
-    pub fn xfer(&mut self,
-                enclave_name: String,
-                request:      XferControlCommand,
-                reply_tx:     oneshot::Sender<Result<XferControlReply, failure::Error>>)
-                -> Result<(), EnclaveError> {
+    pub fn xfer(
+        &mut self,
+        enclave_name: String,
+        request: XferControlCommand,
+        reply_tx: oneshot::Sender<Result<XferControlReply, failure::Error>>,
+    ) -> Result<(), EnclaveError>
+    {
         if let Some(enclave) = self.enclaves.get_mut(&enclave_name) {
             let xfer_request_data = untrusted_xfer_request::Data::XferControlCommand(request as i32);
             enclave.xfer_request(xfer_request_data, move |reply: UntrustedXferReply| {
@@ -193,7 +201,7 @@ impl EnclaveManager {
         &mut self,
         enclave_name: String,
         request_data: untrusted_transaction_request::Data,
-        reply_tx:     oneshot::Sender<Result<untrusted_transaction_reply::Data, EnclaveTransactionError>>
+        reply_tx: oneshot::Sender<Result<untrusted_transaction_reply::Data, EnclaveTransactionError>>,
     ) -> Result<(), EnclaveError>
     {
         if let Some(enclave) = self.enclaves.get_mut(&enclave_name) {
@@ -206,11 +214,12 @@ impl EnclaveManager {
         }
     }
 
-    pub fn remote_attestation(&mut self,
-                              enclave_name: String,
-                              request:      RemoteAttestationRequest,
-                              reply_tx:     oneshot::Sender<Result<RemoteAttestationResponse, RemoteAttestationError>>)
-                              -> Result<(), EnclaveError>
+    pub fn remote_attestation(
+        &mut self,
+        enclave_name: String,
+        request: RemoteAttestationRequest,
+        reply_tx: oneshot::Sender<Result<RemoteAttestationResponse, RemoteAttestationError>>,
+    ) -> Result<(), EnclaveError>
     {
         if let Some(enclave) = self.enclaves.get_mut(&enclave_name) {
             let result = enclave.negotiate_client(&request);
@@ -228,12 +237,14 @@ impl EnclaveManager {
         }
     }
 
-    pub fn key_backup(&mut self,
-                      enclave_name: String,
-                      backup_id:    BackupId,
-                      request:      KeyBackupRequest,
-                      reply_tx:     oneshot::Sender<Result<KeyBackupResponse, KeyBackupError>>)
-                      -> Result<(), EnclaveError> {
+    pub fn key_backup(
+        &mut self,
+        enclave_name: String,
+        backup_id: BackupId,
+        request: KeyBackupRequest,
+        reply_tx: oneshot::Sender<Result<KeyBackupResponse, KeyBackupError>>,
+    ) -> Result<(), EnclaveError>
+    {
         if let Some(enclave) = self.enclaves.get_mut(&enclave_name) {
             enclave.start_sgxsd_server()?;
             let result = enclave.client_request(backup_id, request, reply_tx);
@@ -255,24 +266,25 @@ impl EnclaveManager {
             enclave.enqueue_message(UntrustedMessage {
                 inner: Some(untrusted_message::Inner::GetEnclaveStatusRequest(GetEnclaveStatusRequest {
                     memory_status,
-                }))
+                })),
             });
             enclave.run_to_completion()?;
         }
         Ok(())
     }
 
-    pub fn get_status(&mut self,
-                      request:  GetStatusControlRequest,
-                      reply_tx: oneshot::Sender<Result<GetStatusControlReply, failure::Error>>)
-                      -> Result<(), EnclaveError>
+    pub fn get_status(
+        &mut self,
+        request: GetStatusControlRequest,
+        reply_tx: oneshot::Sender<Result<GetStatusControlReply, failure::Error>>,
+    ) -> Result<(), EnclaveError>
     {
         let mut enclaves = Vec::with_capacity(self.enclaves.len());
         for (enclave_name, enclave) in &mut self.enclaves {
             enclave.enqueue_message(UntrustedMessage {
                 inner: Some(untrusted_message::Inner::GetEnclaveStatusRequest(GetEnclaveStatusRequest {
                     memory_status: request.memory_status,
-                }))
+                })),
             });
             enclave.run_to_completion()?;
 
@@ -284,14 +296,12 @@ impl EnclaveManager {
                 } else {
                     None
                 };
-                let status = enclave.status().map(|status: &get_enclave_status_reply::Inner| {
-                    match status {
-                        get_enclave_status_reply::Inner::FrontendStatus(status) => enclave_status::Status::FrontendStatus(status.clone()),
-                        get_enclave_status_reply::Inner::ReplicaStatus(status)  => enclave_status::Status::ReplicaStatus(status.clone()),
-                    }
+                let status = enclave.status().map(|status: &get_enclave_status_reply::Inner| match status {
+                    get_enclave_status_reply::Inner::FrontendStatus(status) => enclave_status::Status::FrontendStatus(status.clone()),
+                    get_enclave_status_reply::Inner::ReplicaStatus(status) => enclave_status::Status::ReplicaStatus(status.clone()),
                 });
                 enclaves.push(EnclaveStatus {
-                    name:    enclave_name.clone(),
+                    name: enclave_name.clone(),
                     node_id: node_id.to_vec(),
                     config,
                     status,
@@ -302,10 +312,13 @@ impl EnclaveManager {
         Ok(())
     }
 
-    pub fn get_peer_manager(&mut self, enclave_name: String, reply_tx: oneshot::Sender<Result<Option<PeerManagerSender>, futures::Canceled>>)
-                            -> Result<(), EnclaveError> {
-        let peer_manager_tx = (self.enclaves.get(&enclave_name))
-            .map(|enclave: &Enclave| enclave.peer_manager().clone());
+    pub fn get_peer_manager(
+        &mut self,
+        enclave_name: String,
+        reply_tx: oneshot::Sender<Result<Option<PeerManagerSender>, futures::Canceled>>,
+    ) -> Result<(), EnclaveError>
+    {
+        let peer_manager_tx = (self.enclaves.get(&enclave_name)).map(|enclave: &Enclave| enclave.peer_manager().clone());
         let _ignore = reply_tx.send(Ok(peer_manager_tx));
         Ok(())
     }
@@ -326,15 +339,16 @@ impl EnclaveManager {
 }
 
 impl backup::BackupEnclave for EnclaveManagerSender {
-    fn create_backup(&self, enclave_name: String, backup_id: BackupId)
-                     -> Box<dyn Future<Item = CreateBackupReply, Error = EnclaveTransactionError> + Send>
+    fn create_backup(
+        &self,
+        enclave_name: String,
+        backup_id: BackupId,
+    ) -> Box<dyn Future<Item = CreateBackupReply, Error = EnclaveTransactionError> + Send>
     {
         let request = untrusted_transaction_request::Data::CreateBackupRequest(CreateBackupRequest {
             backup_id: protobufs::kbupd::BackupId { id: backup_id.to_vec() },
         });
-        let reply_data = self.call(move |manager: &mut EnclaveManager, reply_tx| {
-            manager.transaction(enclave_name, request, reply_tx)
-        });
+        let reply_data = self.call(move |manager: &mut EnclaveManager, reply_tx| manager.transaction(enclave_name, request, reply_tx));
         let reply = reply_data.and_then(|reply_data: untrusted_transaction_reply::Data| {
             if let untrusted_transaction_reply::Data::CreateBackupReply(create_backup_reply) = reply_data {
                 Ok(create_backup_reply)
@@ -344,20 +358,25 @@ impl backup::BackupEnclave for EnclaveManagerSender {
         });
         Box::new(reply)
     }
-    fn get_attestation(&self, enclave_name: String, request: RemoteAttestationRequest)
-                       -> Box<dyn Future<Item = RemoteAttestationResponse, Error = RemoteAttestationError> + Send>
+
+    fn get_attestation(
+        &self,
+        enclave_name: String,
+        request: RemoteAttestationRequest,
+    ) -> Box<dyn Future<Item = RemoteAttestationResponse, Error = RemoteAttestationError> + Send>
     {
-        let reply = self.call(move |manager: &mut EnclaveManager, reply_tx| {
-            manager.remote_attestation(enclave_name, request, reply_tx)
-        });
+        let reply = self.call(move |manager: &mut EnclaveManager, reply_tx| manager.remote_attestation(enclave_name, request, reply_tx));
         Box::new(reply)
     }
-    fn put_backup_request(&self, enclave_name: String, backup_id: BackupId, request: KeyBackupRequest)
-                          -> Box<dyn Future<Item = KeyBackupResponse, Error = KeyBackupError> + Send>
+
+    fn put_backup_request(
+        &self,
+        enclave_name: String,
+        backup_id: BackupId,
+        request: KeyBackupRequest,
+    ) -> Box<dyn Future<Item = KeyBackupResponse, Error = KeyBackupError> + Send>
     {
-        let reply = self.call(move |manager: &mut EnclaveManager, reply_tx| {
-            manager.key_backup(enclave_name, backup_id, request, reply_tx)
-        });
+        let reply = self.call(move |manager: &mut EnclaveManager, reply_tx| manager.key_backup(enclave_name, backup_id, request, reply_tx));
         Box::new(reply)
     }
 }

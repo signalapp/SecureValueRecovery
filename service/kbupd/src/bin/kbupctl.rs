@@ -55,9 +55,9 @@ fn main() -> Result<(), failure::Error> {
     match subcommand_name {
         "info" | "status" => {
             let print_fun = match subcommand_name {
-                "info"   => print_info,
+                "info" => print_info,
                 "status" => print_status,
-                _        => unreachable!(),
+                _ => unreachable!(),
             };
             let control_request = ControlRequest {
                 id:   Default::default(),
@@ -104,11 +104,11 @@ fn main() -> Result<(), failure::Error> {
             let (xfer_subcommand_name, xfer_subcommand_arguments) = subcommand_arguments.subcommand();
             let _xfer_subcommand_arguments = xfer_subcommand_arguments.unwrap();
             let xfer_control_command = match xfer_subcommand_name {
-                "start"  => XferControlCommand::Start,
-                "pause"  => XferControlCommand::Pause,
+                "start" => XferControlCommand::Start,
+                "pause" => XferControlCommand::Pause,
                 "resume" => XferControlCommand::Resume,
                 "finish" => XferControlCommand::Finish,
-                _        => panic!("No subcommand"),
+                _ => panic!("No subcommand"),
             };
 
             let control_request = ControlRequest {
@@ -128,15 +128,15 @@ fn main() -> Result<(), failure::Error> {
                 .map(move |(reply, _framed): (ControlReply, ControlFramed)| {
                     let result = match reply.data {
                         Some(control_reply::Data::XferControlReply(reply)) => match UntrustedXferReplyStatus::from_i32(reply.status) {
-                            Some(UntrustedXferReplyStatus::Ok)             => Ok(()),
-                            Some(UntrustedXferReplyStatus::NotLeader)      => Err("not_leader"),
-                            Some(UntrustedXferReplyStatus::InvalidState)   => Err("invalid_state"),
+                            Some(UntrustedXferReplyStatus::Ok) => Ok(()),
+                            Some(UntrustedXferReplyStatus::NotLeader) => Err("not_leader"),
+                            Some(UntrustedXferReplyStatus::InvalidState) => Err("invalid_state"),
                             Some(UntrustedXferReplyStatus::Unknown) | None => Err("unknown"),
                         },
                         _ => Err("unknown"),
                     };
                     match result {
-                        Ok(())      => println!("ok"),
+                        Ok(()) => println!("ok"),
                         Err(status) => {
                             println!("{}", status);
                             error!("error fetching info: {}", status);
@@ -305,7 +305,7 @@ fn print_info(maybe_enclave_name: Option<String>, status: GetStatusControlReply)
     };
     let enclave_status = match maybe_enclave_status {
         Some(enclave_status) => enclave_status,
-        None                 => {
+        None => {
             if let Some(enclave_name) = &maybe_enclave_name {
                 error!("enclave status reply did not contain requested enclave {}", enclave_name);
             } else {
@@ -318,7 +318,7 @@ fn print_info(maybe_enclave_name: Option<String>, status: GetStatusControlReply)
     println!("node_id={}", ToHex(&enclave_status.node_id));
 
     match enclave_status.status {
-        Some(enclave_status::Status::ReplicaStatus(replica_status))    => {
+        Some(enclave_status::Status::ReplicaStatus(replica_status)) => {
             if let Some(partition_status) = &replica_status.partition {
                 if let Some(service_id) = &partition_status.service_id {
                     println!("service_id={}", ToHex(service_id));
@@ -405,7 +405,7 @@ fn client_request(
     create_backup_future
         .map(move |token: Vec<u8>| {
             let request = match subcommand.as_str() {
-                "backup"  => kbupd_client::Request {
+                "backup" => kbupd_client::Request {
                     backup:  Some(kbupd_client::BackupRequest {
                         service_id,
                         backup_id: Some(backup_id_1),
@@ -429,7 +429,7 @@ fn client_request(
                     }),
                     delete:  None,
                 },
-                _         => Default::default(),
+                _ => Default::default(),
             };
             request
         })

@@ -125,10 +125,10 @@ impl ClientChild {
 fn handshake<T: AsRawFd>(mut accept_result: Result<TlsStream<T>, HandshakeError<T>>) -> Result<TlsStream<T>, ()> {
     loop {
         let (stream, poll_flags) = match accept_result {
-            Ok(tls_stream)                         => return Ok(tls_stream),
-            Err(HandshakeError::WantRead(stream))  => (stream, EventFlags::POLLIN),
+            Ok(tls_stream) => return Ok(tls_stream),
+            Err(HandshakeError::WantRead(stream)) => (stream, EventFlags::POLLIN),
             Err(HandshakeError::WantWrite(stream)) => (stream, EventFlags::POLLOUT),
-            Err(HandshakeError::Failure(error))    => {
+            Err(HandshakeError::Failure(error)) => {
                 warn!("handshake error: {}", error);
                 return Err(());
             }
@@ -137,9 +137,9 @@ fn handshake<T: AsRawFd>(mut accept_result: Result<TlsStream<T>, HandshakeError<
 
         // XXX handshake timeout
         match poll(&mut poll_fds, -1) {
-            Ok(_event_count)                   => (),
+            Ok(_event_count) => (),
             Err(nix::Error::Sys(Errno::EINTR)) => (),
-            Err(error)                         => {
+            Err(error) => {
                 error!("error polling sockets: {}", error);
                 return Err(());
             }
@@ -190,9 +190,9 @@ fn proxy(
 
         debug!("polling: {:?}", &poll_fds);
         match poll(&mut poll_fds, -1) {
-            Ok(_event_count)                   => (),
+            Ok(_event_count) => (),
             Err(nix::Error::Sys(Errno::EINTR)) => continue,
-            Err(error)                         => {
+            Err(error) => {
                 error!("error polling sockets: {}", error);
                 return Err(());
             }

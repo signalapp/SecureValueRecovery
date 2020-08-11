@@ -6,6 +6,7 @@
 //
 
 #[allow(dead_code, non_snake_case, non_camel_case_types, non_upper_case_globals, improper_ctypes)]
+#[rustfmt::skip]
 mod bindgen_wrapper;
 
 pub mod ecalls;

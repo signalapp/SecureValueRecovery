@@ -112,7 +112,7 @@ impl From<SgxsdError> for RemoteAttestationError {
     fn from(error: SgxsdError) -> Self {
         match error.status.err() {
             Some(SgxError::InvalidParameter) => RemoteAttestationError::InvalidInput,
-            _                                => RemoteAttestationError::EnclaveError(EnclaveError::SgxsdError(error)),
+            _ => RemoteAttestationError::EnclaveError(EnclaveError::SgxsdError(error)),
         }
     }
 }
@@ -121,7 +121,7 @@ impl From<EnclaveError> for RemoteAttestationError {
     fn from(error: EnclaveError) -> Self {
         match error {
             EnclaveError::SgxsdError(sgxsd_error) => Self::from(sgxsd_error),
-            _                                     => RemoteAttestationError::EnclaveError(error),
+            _ => RemoteAttestationError::EnclaveError(error),
         }
     }
 }
@@ -145,13 +145,10 @@ impl From<futures::Canceled> for KeyBackupError {
 impl From<SgxsdError> for KeyBackupError {
     fn from(error: SgxsdError) -> Self {
         match (error.kind, error.status.err()) {
-            (SgxsdErrorKind::Returned,
-             Some(SgxError::InvalidParameter))            => KeyBackupError::InvalidInput,
-            (SgxsdErrorKind::Returned,
-             Some(SgxError::MacMismatch))                 => KeyBackupError::MacMismatch,
-            (SgxsdErrorKind::Returned,
-             Some(SgxError::SgxsdPendingRequestNotFound)) => KeyBackupError::PendingRequestIdNotFound,
-            _                                             => KeyBackupError::EnclaveError(EnclaveError::SgxsdError(error)),
+            (SgxsdErrorKind::Returned, Some(SgxError::InvalidParameter)) => KeyBackupError::InvalidInput,
+            (SgxsdErrorKind::Returned, Some(SgxError::MacMismatch)) => KeyBackupError::MacMismatch,
+            (SgxsdErrorKind::Returned, Some(SgxError::SgxsdPendingRequestNotFound)) => KeyBackupError::PendingRequestIdNotFound,
+            _ => KeyBackupError::EnclaveError(EnclaveError::SgxsdError(error)),
         }
     }
 }
@@ -160,7 +157,7 @@ impl From<EnclaveError> for KeyBackupError {
     fn from(error: EnclaveError) -> Self {
         match error {
             EnclaveError::SgxsdError(sgxsd_error) => Self::from(sgxsd_error),
-            _                                     => KeyBackupError::EnclaveError(error),
+            _ => KeyBackupError::EnclaveError(error),
         }
     }
 }

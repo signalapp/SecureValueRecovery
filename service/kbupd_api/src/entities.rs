@@ -7,25 +7,21 @@
 
 #![allow(non_snake_case)]
 
-use std::array::{TryFromSliceError};
+use std::array::TryFromSliceError;
 use std::convert::{TryFrom, TryInto};
-use std::ops::{Deref};
+use std::ops::Deref;
 
 use kbupd_util::base64;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[serde(transparent)]
 pub struct BackupId(#[serde(with = "base64::SerdeFixedLengthBase64")] [u8; 32]);
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PingResponse {
-}
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
+pub struct PingResponse {}
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct GetTokenResponse {
     pub backupId: BackupId,
 
@@ -35,15 +31,13 @@ pub struct GetTokenResponse {
     pub tries: u16,
 }
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct RemoteAttestationRequest {
     #[serde(with = "base64::SerdeFixedLengthBase64")]
     pub clientPublic: [u8; 32],
 }
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct RemoteAttestationResponse {
     #[serde(with = "base64::SerdeFixedLengthBase64")]
     pub serverEphemeralPublic: [u8; 32],
@@ -71,8 +65,7 @@ pub struct RemoteAttestationResponse {
     pub signatureBody: String,
 }
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct KeyBackupRequest {
     #[serde(with = "base64")]
     pub requestId: Vec<u8>,
@@ -89,8 +82,7 @@ pub struct KeyBackupRequest {
     pub r#type: KeyBackupRequestType,
 }
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum KeyBackupRequestType {
     Backup,
@@ -98,8 +90,7 @@ pub enum KeyBackupRequestType {
     Delete,
 }
 
-#[derive(Deserialize, Serialize)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct KeyBackupResponse {
     #[serde(with = "base64::SerdeFixedLengthBase64")]
     pub iv: [u8; 12],
@@ -117,6 +108,7 @@ pub struct KeyBackupResponse {
 
 impl Deref for BackupId {
     type Target = [u8];
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -124,6 +116,7 @@ impl Deref for BackupId {
 
 impl TryFrom<&[u8]> for BackupId {
     type Error = TryFromSliceError;
+
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         Ok(Self(value.try_into()?))
     }

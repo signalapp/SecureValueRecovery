@@ -7,16 +7,16 @@
 
 use std::io;
 use std::io::prelude::*;
-use std::net::{SocketAddr};
+use std::net::SocketAddr;
 use std::os::unix::prelude::*;
-use std::process::{Child, ChildStdin, ChildStdout, ChildStderr};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 
 use futures::prelude::*;
-use log::{info, debug};
-use mio::unix::{EventedFd};
+use log::{debug, info};
+use mio::unix::EventedFd;
 use tokio::codec::{FramedRead, LinesCodec};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::reactor::{PollEvented2};
+use tokio::reactor::PollEvented2;
 
 use crate::util;
 
@@ -59,15 +59,21 @@ impl TlsProxyChild {
     }
 
     pub fn into_streams(self) -> Result<(TlsProxyStream, TlsProxyStderrStream), io::Error> {
-        let child_stdin   = self.child.stdin.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "stdin"))?;
-        let child_stdout  = self.child.stdout.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "stdout"))?;
-        let child_stderr  = self.child.stderr.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "stderr"))?;
-        let stdio_stream  = TlsProxyStream {
+        let child_stdin = self.child.stdin.ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "stdin"))?;
+        let child_stdout = self
+            .child
+            .stdout
+            .ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "stdout"))?;
+        let child_stderr = self
+            .child
+            .stderr
+            .ok_or_else(|| io::Error::new(io::ErrorKind::BrokenPipe, "stderr"))?;
+        let stdio_stream = TlsProxyStream {
             stdin:   TlsProxyStdioAsync::new(child_stdin)?,
             stdout:  TlsProxyStdioAsync::new(child_stdout)?,
             address: self.address,
         };
-        let child_stderr  = TlsProxyStdioAsync::new(child_stderr)?;
+        let child_stderr = TlsProxyStdioAsync::new(child_stderr)?;
         let stderr_stream = FramedRead::new(child_stderr, LinesCodec::new());
         Ok((stdio_stream, stderr_stream))
     }
@@ -94,9 +100,9 @@ impl TlsProxyStream {
 
             let (target_tcp_stream_rx, target_tcp_stream_tx) = target_tcp_stream.split();
 
-            let proxied_stdin  = tokio::io::copy(target_tcp_stream_rx, self.stdin).then(move |result: io::Result<_>| {
+            let proxied_stdin = tokio::io::copy(target_tcp_stream_rx, self.stdin).then(move |result: io::Result<_>| {
                 match result {
-                    Ok(_)      => info!("{} => connection closed by target", address),
+                    Ok(_) => info!("{} => connection closed by target", address),
                     Err(error) => info!("{} => error proxying target -> source: {}", address, error),
                 }
                 Ok(())
@@ -128,6 +134,7 @@ impl Read for TlsProxyStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.stdout.read(buf)
     }
+
     fn read_vectored(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> io::Result<usize> {
         self.stdout.read_vectored(bufs)
     }
@@ -137,16 +144,17 @@ impl Write for TlsProxyStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.stdin.write(buf)
     }
+
     fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
         self.stdin.write_vectored(bufs)
     }
+
     fn flush(&mut self) -> io::Result<()> {
         self.stdin.flush()
     }
 }
 
-impl AsyncRead for TlsProxyStream {
-}
+impl AsyncRead for TlsProxyStream {}
 
 impl AsyncWrite for TlsProxyStream {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
@@ -171,13 +179,14 @@ impl<T: Read + AsRawFd> Read for TlsProxyStdioAsync<T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match &mut self.stdio {
             Some(stdio) => stdio.read(buf),
-            None        => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
+
     fn read_vectored(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> io::Result<usize> {
         match &mut self.stdio {
             Some(stdio) => stdio.read_vectored(bufs),
-            None        => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
 }
@@ -186,25 +195,26 @@ impl<T: Write + AsRawFd> Write for TlsProxyStdioAsync<T> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match &mut self.stdio {
             Some(stdio) => stdio.write(buf),
-            None        => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
+
     fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
         match &mut self.stdio {
             Some(stdio) => stdio.write_vectored(bufs),
-            None        => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
+
     fn flush(&mut self) -> io::Result<()> {
         match &mut self.stdio {
             Some(stdio) => stdio.flush(),
-            None        => Err(io::ErrorKind::NotConnected.into()),
+            None => Err(io::ErrorKind::NotConnected.into()),
         }
     }
 }
 
-impl<T: Read + AsRawFd> AsyncRead for TlsProxyStdioAsync<T> {
-}
+impl<T: Read + AsRawFd> AsyncRead for TlsProxyStdioAsync<T> {}
 
 impl<T: Write + AsRawFd> AsyncWrite for TlsProxyStdioAsync<T> {
     fn shutdown(&mut self) -> Poll<(), io::Error> {
@@ -221,6 +231,7 @@ impl<T: Read> Read for TlsProxyStdioEvented<T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.stdio.read(buf)
     }
+
     fn read_vectored(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> io::Result<usize> {
         self.stdio.read_vectored(bufs)
     }
@@ -230,24 +241,22 @@ impl<T: Write> Write for TlsProxyStdioEvented<T> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.stdio.write(buf)
     }
+
     fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
         self.stdio.write_vectored(bufs)
     }
+
     fn flush(&mut self) -> io::Result<()> {
         self.stdio.flush()
     }
 }
 
 impl<T: AsRawFd> mio::Evented for TlsProxyStdioEvented<T> {
-    fn register(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt)
-                -> io::Result<()>
-    {
+    fn register(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
         EventedFd(&self.stdio.as_raw_fd()).register(poll, token, interest, opts)
     }
 
-    fn reregister(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt)
-                  -> io::Result<()>
-    {
+    fn reregister(&self, poll: &mio::Poll, token: mio::Token, interest: mio::Ready, opts: mio::PollOpt) -> io::Result<()> {
         EventedFd(&self.stdio.as_raw_fd()).reregister(poll, token, interest, opts)
     }
 

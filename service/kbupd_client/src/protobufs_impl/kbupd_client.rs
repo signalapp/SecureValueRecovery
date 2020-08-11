@@ -30,12 +30,12 @@ impl<'a> std::fmt::Display for ToHex<'a> {
 impl std::fmt::Display for kbupd_client::BackupRequest {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "service_id={} ", &self.service_id.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "backup_id={} ",  &self.backup_id.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "token={} ",      &self.token.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "data={} ",       &self.data.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "pin={} ",        &self.pin.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "tries={} ",      &self.tries.unwrap_or(0))?;
-        write!(fmt, "valid_from={}",  &self.valid_from.unwrap_or(0))?;
+        write!(fmt, "backup_id={} ", &self.backup_id.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "token={} ", &self.token.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "data={} ", &self.data.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "pin={} ", &self.pin.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "tries={} ", &self.tries.unwrap_or(0))?;
+        write!(fmt, "valid_from={}", &self.valid_from.unwrap_or(0))?;
         Ok(())
     }
 }
@@ -47,10 +47,10 @@ impl std::fmt::Display for kbupd_client::BackupRequest {
 impl std::fmt::Display for kbupd_client::RestoreRequest {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "service_id={} ", &self.service_id.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "backup_id={} ",   &self.backup_id.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "token={} ",      &self.token.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "pin={} ",        &self.pin.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "valid_from={}",  &self.valid_from.unwrap_or(0))?;
+        write!(fmt, "backup_id={} ", &self.backup_id.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "token={} ", &self.token.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "pin={} ", &self.pin.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "valid_from={}", &self.valid_from.unwrap_or(0))?;
         Ok(())
     }
 }
@@ -62,7 +62,7 @@ impl std::fmt::Display for kbupd_client::RestoreRequest {
 impl std::fmt::Display for kbupd_client::DeleteRequest {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "service_id={} ", &self.service_id.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "backup_id={}",   &self.backup_id.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "backup_id={}", &self.backup_id.as_ref().map(ToHex::new).unwrap_or_default())?;
         Ok(())
     }
 }
@@ -95,8 +95,8 @@ impl std::fmt::Display for kbupd_client::RestoreResponse {
             write!(fmt, "status={:?} ", &self.status)?;
         }
         write!(fmt, "token={} ", &self.token.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "data={} ",  &self.data.as_ref().map(ToHex::new).unwrap_or_default())?;
-        write!(fmt, "tries={}",  &self.tries.unwrap_or(0))?;
+        write!(fmt, "data={} ", &self.data.as_ref().map(ToHex::new).unwrap_or_default())?;
+        write!(fmt, "tries={}", &self.tries.unwrap_or(0))?;
         Ok(())
     }
 }

@@ -7,10 +7,10 @@
 
 #![allow(non_snake_case)]
 
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use kbupd_util::hex;
-use serde_derive::{Deserialize};
+use serde_derive::Deserialize;
 
 use crate::metrics::*;
 

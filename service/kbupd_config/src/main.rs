@@ -18,10 +18,10 @@ fn main() {
 
     match subcommand_name {
         "validate" => match validate(&subcommand_arguments) {
-            Ok(())  => (),
+            Ok(()) => (),
             Err(()) => std::process::exit(1),
         },
-        _          => unreachable!(),
+        _ => unreachable!(),
     }
 }
 
@@ -38,7 +38,7 @@ fn validate(arguments: &clap::ArgMatches<'static>) -> Result<(), ()> {
     for config_file_path in config_file_paths {
         let config_file = match fs::File::open(&config_file_path) {
             Ok(config_file) => config_file,
-            Err(error)      => {
+            Err(error) => {
                 eprintln!("error opening config file {}: {}", config_file_path.display(), error);
                 continue;
             }
@@ -46,12 +46,12 @@ fn validate(arguments: &clap::ArgMatches<'static>) -> Result<(), ()> {
 
         let parse_result = match subcommand_name {
             "frontend" => serde_yaml::from_reader::<_, FrontendConfig>(config_file).map(drop),
-            "replica"  => serde_yaml::from_reader::<_, ReplicaConfig>(config_file).map(drop),
-            _          => unreachable!(),
+            "replica" => serde_yaml::from_reader::<_, ReplicaConfig>(config_file).map(drop),
+            _ => unreachable!(),
         };
 
         match parse_result {
-            Ok(())     => eprintln!("parsed config file {}", config_file_path.display()),
+            Ok(()) => eprintln!("parsed config file {}", config_file_path.display()),
             Err(error) => {
                 eprintln!("error parsing config file {}: {:?}", config_file_path.display(), error);
                 result = Err(());

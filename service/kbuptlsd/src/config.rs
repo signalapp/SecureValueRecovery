@@ -7,9 +7,9 @@
 
 #![allow(non_snake_case)]
 
-use std::io::{Read};
+use std::io::Read;
 
-use serde_derive::{Deserialize};
+use serde_derive::Deserialize;
 use serde_yaml;
 
 use crate::base64;
@@ -32,10 +32,7 @@ pub struct ClientConfig {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Base64ConfigValue(
-    #[serde(with = "base64")]
-    pub Vec<u8>
-);
+pub struct Base64ConfigValue(#[serde(with = "base64")] pub Vec<u8>);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

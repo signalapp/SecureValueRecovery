@@ -21,18 +21,17 @@ impl log::Log for Logger {
         if self.enabled(record.metadata()) {
             let log_level_string = match record.level() {
                 log::Level::Error => "ERRO",
-                log::Level::Warn  => "WARN",
-                log::Level::Info  => "INFO",
+                log::Level::Warn => "WARN",
+                log::Level::Info => "INFO",
                 log::Level::Debug => "DEBG",
                 log::Level::Trace => "TRCE",
             };
-            let line    = format!("{:<4} {}\n", log_level_string, record.args());
+            let line = format!("{:<4} {}\n", log_level_string, record.args());
             let _ignore = write!(io::stderr(), "{}", line);
         }
     }
 
-    fn flush(&self) {
-    }
+    fn flush(&self) {}
 }
 
 pub fn parse_line(line: &str) -> (log::Level, &str) {
@@ -42,6 +41,6 @@ pub fn parse_line(line: &str) -> (log::Level, &str) {
         Some("INFO ") => (log::Level::Info, line.get(5..).unwrap_or_else(|| unreachable!())),
         Some("DEBG ") => (log::Level::Debug, line.get(5..).unwrap_or_else(|| unreachable!())),
         Some("TRCE ") => (log::Level::Trace, line.get(5..).unwrap_or_else(|| unreachable!())),
-        _             => (log::Level::Info, &line[..]),
+        _ => (log::Level::Info, &line[..]),
     }
 }
