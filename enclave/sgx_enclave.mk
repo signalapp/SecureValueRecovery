@@ -139,7 +139,7 @@ $(PYXED_PYTHONPATH):
 ## linking
 ##
 
-ENCLAVE_CFLAGS = -fvisibility=hidden -fPIC -I$(SGX_INCLUDEDIR)/tlibc -fno-jump-tables -mno-red-zone -mindirect-branch-register -fno-builtin -ffreestanding
+ENCLAVE_CFLAGS = -fvisibility=hidden -fPIC -I$(SGX_INCLUDEDIR)/tlibc -fno-jump-tables -mno-red-zone -fno-builtin -ffreestanding
 
 ENCLAVE_LDFLAGS = \
 	-Wl,-z,relro,-z,now,-z,noexecstack \
