@@ -5,10 +5,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use alloc::string::{ToString};
-use core::panic::{PanicInfo};
+use alloc::string::ToString;
+use core::panic::PanicInfo;
 
-use super::bindgen_wrapper::{kbupd_enclave_ocall_panic};
+use super::bindgen_wrapper::kbupd_enclave_ocall_panic;
 
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {

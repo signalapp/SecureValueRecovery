@@ -16,7 +16,7 @@ use super::raft_log_data::*;
 use std::num::*;
 
 use bytes::*;
-use num_traits::{ToPrimitive};
+use num_traits::ToPrimitive;
 
 pub struct RaftLogIndex {
     storage: StorageArray<RaftLogIndexEntry>,
@@ -82,8 +82,10 @@ impl RaftLogIndex {
             match self.storage.get(index).unwrap_or_else(|| panic!("overflow")) {
                 Ok(slot) => slot,
                 Err(storage_error) => {
-                    error!("storage error reading from raft log index {} (current length {}): {}",
-                           index, self.len, storage_error);
+                    error!(
+                        "storage error reading from raft log index {} (current length {}): {}",
+                        index, self.len, storage_error
+                    );
                     None
                 }
             }
@@ -97,14 +99,16 @@ impl RaftLogIndex {
             let index = self.wrap_add(self.len);
             match self.storage.get_mut(index).unwrap_or_else(|| panic!("overflow")) {
                 Ok(slot) => {
-                    self.len           = self.len.checked_add(1).unwrap_or_else(|| unreachable!());
+                    self.len = self.len.checked_add(1).unwrap_or_else(|| unreachable!());
                     self.last_log_term = entry.term;
-                    *slot              = Some(entry);
+                    *slot = Some(entry);
                     Ok(())
                 }
                 Err(storage_error) => {
-                    error!("storage error appending to raft log index {} (current length {}): {}",
-                           index, self.len, storage_error);
+                    error!(
+                        "storage error appending to raft log index {} (current length {}): {}",
+                        index, self.len, storage_error
+                    );
                     Err(())
                 }
             }
@@ -118,15 +122,17 @@ impl RaftLogIndex {
             let entry = match self.storage.get(self.tail).unwrap_or_else(|| panic!("overflow")) {
                 Ok(entry) => entry.cloned(),
                 Err(storage_error) => {
-                    error!("storage error popping from raft log index {} (current length {}): {}",
-                           self.tail, self.len, storage_error);
+                    error!(
+                        "storage error popping from raft log index {} (current length {}): {}",
+                        self.tail, self.len, storage_error
+                    );
                     None
                 }
             };
-            self.prev_log_idx  = self.prev_log_idx + 1;
+            self.prev_log_idx = self.prev_log_idx + 1;
             self.prev_log_term = entry.as_ref().map(|entry| entry.term);
-            self.tail          = self.wrap_add(1);
-            self.len           = new_len;
+            self.tail = self.wrap_add(1);
+            self.len = new_len;
             entry
         } else {
             None
@@ -134,7 +140,7 @@ impl RaftLogIndex {
     }
 
     pub fn cancel_from(&mut self, from_log_idx: LogIdx) -> Result<Vec<RaftLogDataEntry>, ()> {
-        let mut cancelled    = Vec::new();
+        let mut cancelled = Vec::new();
         let from_offset: u64 = from_log_idx.id.checked_sub((self.prev_log_idx + 1).id).ok_or(())?;
         let from_offset: u32 = from_offset.to_u32().ok_or(())?;
         if let Some(cancel_len) = self.len.checked_sub(from_offset) {
@@ -167,11 +173,15 @@ impl RaftLogIndex {
                         error!("error reading raft log index entry {} to cancel", cancel_log_idx);
                     }
                 }
-                self.len           = from_offset;
+                self.len = from_offset;
                 self.last_log_term = new_last_log_term;
             }
         } else {
-            warn!("tried to cancel non-existent raft log entries from {} (last is {})", from_log_idx, self.last_log_idx());
+            warn!(
+                "tried to cancel non-existent raft log entries from {} (last is {})",
+                from_log_idx,
+                self.last_log_idx()
+            );
         }
         Ok(cancelled)
     }
@@ -185,8 +195,9 @@ impl RaftLogIndex {
             if addend <= self.storage.len() {
                 addend - index_rem
             } else {
-                (addend - index_rem).checked_rem(self.storage.len())
-                                    .unwrap_or_else(|| unreachable!())
+                (addend - index_rem)
+                    .checked_rem(self.storage.len())
+                    .unwrap_or_else(|| unreachable!())
             }
         }
     }
@@ -196,6 +207,7 @@ impl StorageValue for RaftLogIndexEntry {
     fn encoded_len() -> u32 {
         8 + 8 + 8 + 4
     }
+
     fn encode<B: BufMut>(maybe_value: Option<&Self>, buf: &mut B) {
         if let Some(value) = maybe_value {
             buf.put_u64_le(value.term.id);
@@ -210,6 +222,7 @@ impl StorageValue for RaftLogIndexEntry {
             buf.put_u64_le(0);
         }
     }
+
     fn decode<B: Buf>(buf: &mut B) -> Option<Self> {
         let term = buf.get_u64_le();
         if term != 0 {
@@ -227,10 +240,7 @@ impl StorageValue for RaftLogIndexEntry {
                     }),
                 })
             } else {
-                Some(Self {
-                    term,
-                    data: None,
-                })
+                Some(Self { term, data: None })
             }
         } else {
             None

@@ -8,7 +8,7 @@
 mod raft_log_data;
 mod raft_log_index;
 
-use sgx_ffi::util::{SecretValue};
+use sgx_ffi::util::SecretValue;
 
 use crate::prelude::*;
 use crate::protobufs::raft::*;
@@ -36,12 +36,15 @@ impl RaftLogStorage {
             cancelled: Default::default(),
         })
     }
+
     pub fn take_cancelled(&mut self) -> Vec<SecretValue<Vec<u8>>> {
         std::mem::replace(&mut self.cancelled, Default::default())
     }
+
     pub fn data_len(&self) -> usize {
         self.data.len()
     }
+
     pub fn set_index_cache_size(&mut self, index_cache_size: usize) {
         self.index.set_cache_size(index_cache_size);
     }
@@ -66,10 +69,9 @@ impl RaftLog for RaftLogStorage {
             Err(RaftLogAppendError::OutOfSpace { log_entry })
         }
     }
+
     fn pop_front(&mut self, truncate_to: LogIdx) -> Result<(), ()> {
-        if (!self.index.is_empty() &&
-            self.index.prev_log_idx() < truncate_to)
-        {
+        if (!self.index.is_empty() && self.index.prev_log_idx() < truncate_to) {
             if let Some(popped_entry) = self.index.pop_front() {
                 if let Some(popped_data_entry) = &popped_entry.data {
                     self.data.pop_front_to(popped_data_entry);
@@ -80,20 +82,23 @@ impl RaftLog for RaftLogStorage {
             Err(())
         }
     }
+
     fn cancel_from(&mut self, from_log_idx: LogIdx) -> Result<usize, ()> {
         let cancelled_data_entries = self.index.cancel_from(from_log_idx)?;
         self.cancelled = self.data.cancel(cancelled_data_entries);
         Ok(self.cancelled.len())
     }
+
     fn get(&mut self, log_idx: LogIdx) -> Option<LogEntry> {
         let index_entry = self.index.get(log_idx)?;
-        let entry_data  = if let Some(data_entry) = &index_entry.data {
+        let entry_data = if let Some(data_entry) = &index_entry.data {
             self.data.read(data_entry)?
         } else {
             SecretValue::new(Vec::new())
         };
         Some(LogEntry::new(index_entry.term, entry_data))
     }
+
     fn get_len(&mut self, log_idx: LogIdx) -> Option<usize> {
         let index_entry = self.index.get(log_idx)?;
         if let Some(data_entry) = &index_entry.data {
@@ -102,6 +107,7 @@ impl RaftLog for RaftLogStorage {
             Some(0)
         }
     }
+
     fn get_term(&mut self, log_idx: LogIdx) -> Option<TermId> {
         if log_idx == self.index.prev_log_idx() {
             self.index.prev_log_term()
@@ -109,12 +115,15 @@ impl RaftLog for RaftLogStorage {
             self.index.get(log_idx).map(|entry| entry.term)
         }
     }
+
     fn prev_idx(&self) -> LogIdx {
         self.index.prev_log_idx()
     }
+
     fn last_idx(&self) -> LogIdx {
         self.index.last_log_idx()
     }
+
     fn last_term(&self) -> TermId {
         self.index.last_log_term()
     }

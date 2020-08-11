@@ -9,18 +9,14 @@
 #![cfg_attr(not(any(test, feature = "test")), no_std)]
 #![cfg_attr(not(any(test, feature = "test")), feature(alloc_error_handler))]
 #![cfg_attr(not(any(test, feature = "test")), feature(thread_local))]
-#![allow(
-    unused_parens,
-    clippy::style,
-    clippy::large_enum_variant,
-)]
+#![allow(unused_parens, clippy::style, clippy::large_enum_variant)]
 #![warn(
     bare_trait_objects,
     elided_lifetimes_in_paths,
     trivial_numeric_casts,
     variant_size_differences,
     clippy::integer_arithmetic,
-    clippy::wildcard_enum_match_arm,
+    clippy::wildcard_enum_match_arm
 )]
 #![deny(
     clippy::cast_possible_truncation,
@@ -48,7 +44,7 @@
     clippy::unimplemented,
     clippy::use_debug,
     clippy::use_self,
-    clippy::use_underscore_binding,
+    clippy::use_underscore_binding
 )]
 
 extern crate alloc;
@@ -73,46 +69,46 @@ mod prelude;
 #[allow(clippy::all, clippy::pedantic, clippy::integer_arithmetic)]
 mod protobufs;
 mod protobufs_impl;
-mod service;
-mod storage;
 mod raft;
 mod remote;
 mod remote_group;
+mod service;
+mod storage;
 mod util;
 
-pub use crate::ffi::ecalls::{
-    kbupd_send,
-    kbupd_send_flush,
-};
+pub use crate::ffi::ecalls::{kbupd_send, kbupd_send_flush};
 
 pub mod external {
-    use sgx_ffi::sgx::{SgxStatus};
-    use sgxsd_ffi::ecalls::{SgxsdServer};
+    use sgx_ffi::sgx::SgxStatus;
+    use sgxsd_ffi::ecalls::SgxsdServer;
 
     use crate::service::main;
 
     #[no_mangle]
-    pub extern "C" fn sgxsd_enclave_server_init(p_args:   *const <main::SgxsdState as SgxsdServer>::InitArgs,
-                                                pp_state: *mut *mut main::SgxsdState)
-                                                -> SgxStatus
+    pub extern "C" fn sgxsd_enclave_server_init(
+        p_args: *const <main::SgxsdState as SgxsdServer>::InitArgs,
+        pp_state: *mut *mut main::SgxsdState,
+    ) -> SgxStatus
     {
         sgxsd_ffi::ecalls::sgxsd_enclave_server_init(p_args, pp_state)
     }
 
     #[no_mangle]
-    pub extern "C" fn sgxsd_enclave_server_handle_call(p_args:   *const <main::SgxsdState as SgxsdServer>::HandleCallArgs,
-                                                       msg_buf:  sgxsd_ffi::ecalls::sgxsd_msg_buf_t,
-                                                       mut from: sgxsd_ffi::ecalls::sgxsd_msg_from_t,
-                                                       pp_state: *mut *mut main::SgxsdState)
-                                                       -> SgxStatus
+    pub extern "C" fn sgxsd_enclave_server_handle_call(
+        p_args: *const <main::SgxsdState as SgxsdServer>::HandleCallArgs,
+        msg_buf: sgxsd_ffi::ecalls::sgxsd_msg_buf_t,
+        mut from: sgxsd_ffi::ecalls::sgxsd_msg_from_t,
+        pp_state: *mut *mut main::SgxsdState,
+    ) -> SgxStatus
     {
         sgxsd_ffi::ecalls::sgxsd_enclave_server_handle_call(p_args, msg_buf, &mut from, pp_state)
     }
 
     #[no_mangle]
-    pub extern "C" fn sgxsd_enclave_server_terminate(p_args:  *const <main::SgxsdState as SgxsdServer>::TerminateArgs,
-                                                     p_state: *mut main::SgxsdState)
-                                                     -> SgxStatus
+    pub extern "C" fn sgxsd_enclave_server_terminate(
+        p_args: *const <main::SgxsdState as SgxsdServer>::TerminateArgs,
+        p_state: *mut main::SgxsdState,
+    ) -> SgxStatus
     {
         sgxsd_ffi::ecalls::sgxsd_enclave_server_terminate(p_args, p_state)
     }

@@ -264,24 +264,12 @@ fn bindgen_test_layout___mbstate_t__bindgen_ty_1() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<__mbstate_t__bindgen_ty_1>())).__wc as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__mbstate_t__bindgen_ty_1),
-            "::",
-            stringify!(__wc)
-        )
+        concat!("Offset of field: ", stringify!(__mbstate_t__bindgen_ty_1), "::", stringify!(__wc))
     );
     assert_eq!(
-        unsafe {
-            &(*(::core::ptr::null::<__mbstate_t__bindgen_ty_1>())).__wcb as *const _ as usize
-        },
+        unsafe { &(*(::core::ptr::null::<__mbstate_t__bindgen_ty_1>())).__wcb as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__mbstate_t__bindgen_ty_1),
-            "::",
-            stringify!(__wcb)
-        )
+        concat!("Offset of field: ", stringify!(__mbstate_t__bindgen_ty_1), "::", stringify!(__wcb))
     );
 }
 impl Default for __mbstate_t__bindgen_ty_1 {
@@ -304,22 +292,12 @@ fn bindgen_test_layout___mbstate_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<__mbstate_t>())).__c as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__mbstate_t),
-            "::",
-            stringify!(__c)
-        )
+        concat!("Offset of field: ", stringify!(__mbstate_t), "::", stringify!(__c))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<__mbstate_t>())).__v as *const _ as usize },
         4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__mbstate_t),
-            "::",
-            stringify!(__v)
-        )
+        concat!("Offset of field: ", stringify!(__mbstate_t), "::", stringify!(__v))
     );
 }
 impl Default for __mbstate_t {
@@ -381,22 +359,12 @@ fn bindgen_test_layout__attributes_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_attributes_t>())).flags as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_attributes_t),
-            "::",
-            stringify!(flags)
-        )
+        concat!("Offset of field: ", stringify!(_attributes_t), "::", stringify!(flags))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_attributes_t>())).xfrm as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_attributes_t),
-            "::",
-            stringify!(xfrm)
-        )
+        concat!("Offset of field: ", stringify!(_attributes_t), "::", stringify!(xfrm))
     );
 }
 pub type sgx_attributes_t = _attributes_t;
@@ -420,21 +388,12 @@ fn bindgen_test_layout__sgx_misc_attribute_t() {
         concat!("Alignment of ", stringify!(_sgx_misc_attribute_t))
     );
     assert_eq!(
-        unsafe {
-            &(*(::core::ptr::null::<_sgx_misc_attribute_t>())).secs_attr as *const _ as usize
-        },
+        unsafe { &(*(::core::ptr::null::<_sgx_misc_attribute_t>())).secs_attr as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_sgx_misc_attribute_t),
-            "::",
-            stringify!(secs_attr)
-        )
+        concat!("Offset of field: ", stringify!(_sgx_misc_attribute_t), "::", stringify!(secs_attr))
     );
     assert_eq!(
-        unsafe {
-            &(*(::core::ptr::null::<_sgx_misc_attribute_t>())).misc_select as *const _ as usize
-        },
+        unsafe { &(*(::core::ptr::null::<_sgx_misc_attribute_t>())).misc_select as *const _ as usize },
         16usize,
         concat!(
             "Offset of field: ",
@@ -469,12 +428,7 @@ fn bindgen_test_layout__sgx_cpu_svn_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_sgx_cpu_svn_t>())).svn as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_sgx_cpu_svn_t),
-            "::",
-            stringify!(svn)
-        )
+        concat!("Offset of field: ", stringify!(_sgx_cpu_svn_t), "::", stringify!(svn))
     );
 }
 pub type sgx_cpu_svn_t = _sgx_cpu_svn_t;
@@ -498,12 +452,7 @@ fn bindgen_test_layout__sgx_key_id_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_sgx_key_id_t>())).id as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_sgx_key_id_t),
-            "::",
-            stringify!(id)
-        )
+        concat!("Offset of field: ", stringify!(_sgx_key_id_t), "::", stringify!(id))
     );
 }
 pub type sgx_key_id_t = _sgx_key_id_t;
@@ -536,102 +485,52 @@ fn bindgen_test_layout__key_request_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).key_name as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(key_name)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(key_name))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).key_policy as *const _ as usize },
         2usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(key_policy)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(key_policy))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).isv_svn as *const _ as usize },
         4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(isv_svn)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(isv_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).reserved1 as *const _ as usize },
         6usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(reserved1)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(reserved1))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).cpu_svn as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(cpu_svn)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(cpu_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).attribute_mask as *const _ as usize },
         24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(attribute_mask)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(attribute_mask))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).key_id as *const _ as usize },
         40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(key_id)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(key_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).misc_mask as *const _ as usize },
         72usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(misc_mask)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(misc_mask))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).config_svn as *const _ as usize },
         76usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(config_svn)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(config_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_key_request_t>())).reserved2 as *const _ as usize },
         78usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_key_request_t),
-            "::",
-            stringify!(reserved2)
-        )
+        concat!("Offset of field: ", stringify!(_key_request_t), "::", stringify!(reserved2))
     );
 }
 impl Default for _key_request_t {
@@ -660,12 +559,7 @@ fn bindgen_test_layout__sgx_measurement_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_sgx_measurement_t>())).m as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_sgx_measurement_t),
-            "::",
-            stringify!(m)
-        )
+        concat!("Offset of field: ", stringify!(_sgx_measurement_t), "::", stringify!(m))
     );
 }
 pub type sgx_measurement_t = _sgx_measurement_t;
@@ -690,12 +584,7 @@ fn bindgen_test_layout__sgx_report_data_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_sgx_report_data_t>())).d as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_sgx_report_data_t),
-            "::",
-            stringify!(d)
-        )
+        concat!("Offset of field: ", stringify!(_sgx_report_data_t), "::", stringify!(d))
     );
 }
 impl Default for _sgx_report_data_t {
@@ -734,82 +623,42 @@ fn bindgen_test_layout__target_info_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).mr_enclave as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(mr_enclave)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(mr_enclave))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).attributes as *const _ as usize },
         32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(attributes)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(attributes))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).reserved1 as *const _ as usize },
         48usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(reserved1)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(reserved1))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).config_svn as *const _ as usize },
         50usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(config_svn)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(config_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).misc_select as *const _ as usize },
         52usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(misc_select)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(misc_select))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).reserved2 as *const _ as usize },
         56usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(reserved2)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(reserved2))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).config_id as *const _ as usize },
         64usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(config_id)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(config_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_target_info_t>())).reserved3 as *const _ as usize },
         128usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_target_info_t),
-            "::",
-            stringify!(reserved3)
-        )
+        concat!("Offset of field: ", stringify!(_target_info_t), "::", stringify!(reserved3))
     );
 }
 impl Default for _target_info_t {
@@ -853,162 +702,82 @@ fn bindgen_test_layout__report_body_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).cpu_svn as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(cpu_svn)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(cpu_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).misc_select as *const _ as usize },
         16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(misc_select)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(misc_select))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).reserved1 as *const _ as usize },
         20usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(reserved1)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(reserved1))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).isv_ext_prod_id as *const _ as usize },
         32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(isv_ext_prod_id)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(isv_ext_prod_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).attributes as *const _ as usize },
         48usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(attributes)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(attributes))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).mr_enclave as *const _ as usize },
         64usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(mr_enclave)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(mr_enclave))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).reserved2 as *const _ as usize },
         96usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(reserved2)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(reserved2))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).mr_signer as *const _ as usize },
         128usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(mr_signer)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(mr_signer))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).reserved3 as *const _ as usize },
         160usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(reserved3)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(reserved3))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).config_id as *const _ as usize },
         192usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(config_id)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(config_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).isv_prod_id as *const _ as usize },
         256usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(isv_prod_id)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(isv_prod_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).isv_svn as *const _ as usize },
         258usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(isv_svn)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(isv_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).config_svn as *const _ as usize },
         260usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(config_svn)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(config_svn))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).reserved4 as *const _ as usize },
         262usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(reserved4)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(reserved4))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).isv_family_id as *const _ as usize },
         304usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(isv_family_id)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(isv_family_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_body_t>())).report_data as *const _ as usize },
         320usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_body_t),
-            "::",
-            stringify!(report_data)
-        )
+        concat!("Offset of field: ", stringify!(_report_body_t), "::", stringify!(report_data))
     );
 }
 impl Default for _report_body_t {
@@ -1039,32 +808,17 @@ fn bindgen_test_layout__report_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_t>())).body as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_t),
-            "::",
-            stringify!(body)
-        )
+        concat!("Offset of field: ", stringify!(_report_t), "::", stringify!(body))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_t>())).key_id as *const _ as usize },
         384usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_t),
-            "::",
-            stringify!(key_id)
-        )
+        concat!("Offset of field: ", stringify!(_report_t), "::", stringify!(key_id))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_report_t>())).mac as *const _ as usize },
         416usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_report_t),
-            "::",
-            stringify!(mac)
-        )
+        concat!("Offset of field: ", stringify!(_report_t), "::", stringify!(mac))
     );
 }
 impl Default for _report_t {
@@ -1094,12 +848,7 @@ fn bindgen_test_layout__spid_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_spid_t>())).id as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_spid_t),
-            "::",
-            stringify!(id)
-        )
+        concat!("Offset of field: ", stringify!(_spid_t), "::", stringify!(id))
     );
 }
 pub type sgx_spid_t = _spid_t;
@@ -1123,12 +872,7 @@ fn bindgen_test_layout__basename_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_basename_t>())).name as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_basename_t),
-            "::",
-            stringify!(name)
-        )
+        concat!("Offset of field: ", stringify!(_basename_t), "::", stringify!(name))
     );
 }
 pub type sgx_basename_t = _basename_t;
@@ -1152,12 +896,7 @@ fn bindgen_test_layout__quote_nonce() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_quote_nonce>())).rand as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_quote_nonce),
-            "::",
-            stringify!(rand)
-        )
+        concat!("Offset of field: ", stringify!(_quote_nonce), "::", stringify!(rand))
     );
 }
 pub type sgx_quote_nonce_t = _quote_nonce;
@@ -1216,12 +955,7 @@ fn bindgen_test_layout__platform_info() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_platform_info>())).platform_info as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_platform_info),
-            "::",
-            stringify!(platform_info)
-        )
+        concat!("Offset of field: ", stringify!(_platform_info), "::", stringify!(platform_info))
     );
 }
 impl Default for _platform_info {
@@ -1252,32 +986,17 @@ fn bindgen_test_layout__update_info_bit() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_update_info_bit>())).ucodeUpdate as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_update_info_bit),
-            "::",
-            stringify!(ucodeUpdate)
-        )
+        concat!("Offset of field: ", stringify!(_update_info_bit), "::", stringify!(ucodeUpdate))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_update_info_bit>())).csmeFwUpdate as *const _ as usize },
         4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_update_info_bit),
-            "::",
-            stringify!(csmeFwUpdate)
-        )
+        concat!("Offset of field: ", stringify!(_update_info_bit), "::", stringify!(csmeFwUpdate))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_update_info_bit>())).pswUpdate as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_update_info_bit),
-            "::",
-            stringify!(pswUpdate)
-        )
+        concat!("Offset of field: ", stringify!(_update_info_bit), "::", stringify!(pswUpdate))
     );
 }
 pub type sgx_update_info_bit_t = _update_info_bit;
@@ -1301,12 +1020,7 @@ fn bindgen_test_layout__att_key_id_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_att_key_id_t>())).att_key_id as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_att_key_id_t),
-            "::",
-            stringify!(att_key_id)
-        )
+        concat!("Offset of field: ", stringify!(_att_key_id_t), "::", stringify!(att_key_id))
     );
 }
 impl Default for _att_key_id_t {
@@ -1337,18 +1051,10 @@ fn bindgen_test_layout__qe_report_info_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_qe_report_info_t>())).nonce as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_qe_report_info_t),
-            "::",
-            stringify!(nonce)
-        )
+        concat!("Offset of field: ", stringify!(_qe_report_info_t), "::", stringify!(nonce))
     );
     assert_eq!(
-        unsafe {
-            &(*(::core::ptr::null::<_qe_report_info_t>())).app_enclave_target_info as *const _
-                as usize
-        },
+        unsafe { &(*(::core::ptr::null::<_qe_report_info_t>())).app_enclave_target_info as *const _ as usize },
         16usize,
         concat!(
             "Offset of field: ",
@@ -1360,12 +1066,7 @@ fn bindgen_test_layout__qe_report_info_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<_qe_report_info_t>())).qe_report as *const _ as usize },
         528usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_qe_report_info_t),
-            "::",
-            stringify!(qe_report)
-        )
+        concat!("Offset of field: ", stringify!(_qe_report_info_t), "::", stringify!(qe_report))
     );
 }
 impl Default for _qe_report_info_t {
@@ -1391,32 +1092,20 @@ extern "C" {
     pub fn sgx_verify_report(report: *const sgx_report_t) -> sgx_status_t;
 }
 extern "C" {
-    pub fn sgx_get_key(
-        key_request: *const sgx_key_request_t,
-        key: *mut sgx_key_128bit_t,
-    ) -> sgx_status_t;
+    pub fn sgx_get_key(key_request: *const sgx_key_request_t, key: *mut sgx_key_128bit_t) -> sgx_status_t;
 }
 pub type errno_t = libc::c_int;
 extern "C" {
     pub fn memchr(arg1: *const libc::c_void, arg2: libc::c_int, arg3: usize) -> *mut libc::c_void;
 }
 extern "C" {
-    pub fn memcmp(arg1: *const libc::c_void, arg2: *const libc::c_void, arg3: usize)
-        -> libc::c_int;
+    pub fn memcmp(arg1: *const libc::c_void, arg2: *const libc::c_void, arg3: usize) -> libc::c_int;
 }
 extern "C" {
-    pub fn memcpy(
-        arg1: *mut libc::c_void,
-        arg2: *const libc::c_void,
-        arg3: usize,
-    ) -> *mut libc::c_void;
+    pub fn memcpy(arg1: *mut libc::c_void, arg2: *const libc::c_void, arg3: usize) -> *mut libc::c_void;
 }
 extern "C" {
-    pub fn memmove(
-        arg1: *mut libc::c_void,
-        arg2: *const libc::c_void,
-        arg3: usize,
-    ) -> *mut libc::c_void;
+    pub fn memmove(arg1: *mut libc::c_void, arg2: *const libc::c_void, arg3: usize) -> *mut libc::c_void;
 }
 extern "C" {
     pub fn memset(arg1: *mut libc::c_void, arg2: libc::c_int, arg3: usize) -> *mut libc::c_void;
@@ -1440,25 +1129,13 @@ extern "C" {
     pub fn strlen(arg1: *const libc::c_char) -> usize;
 }
 extern "C" {
-    pub fn strncat(
-        arg1: *mut libc::c_char,
-        arg2: *const libc::c_char,
-        arg3: usize,
-    ) -> *mut libc::c_char;
+    pub fn strncat(arg1: *mut libc::c_char, arg2: *const libc::c_char, arg3: usize) -> *mut libc::c_char;
 }
 extern "C" {
-    pub fn strncmp(
-        arg1: *const libc::c_char,
-        arg2: *const libc::c_char,
-        arg3: usize,
-    ) -> libc::c_int;
+    pub fn strncmp(arg1: *const libc::c_char, arg2: *const libc::c_char, arg3: usize) -> libc::c_int;
 }
 extern "C" {
-    pub fn strncpy(
-        arg1: *mut libc::c_char,
-        arg2: *const libc::c_char,
-        arg3: usize,
-    ) -> *mut libc::c_char;
+    pub fn strncpy(arg1: *mut libc::c_char, arg2: *const libc::c_char, arg3: usize) -> *mut libc::c_char;
 }
 extern "C" {
     pub fn strpbrk(arg1: *const libc::c_char, arg2: *const libc::c_char) -> *mut libc::c_char;
@@ -1491,11 +1168,7 @@ extern "C" {
     pub fn strnlen(arg1: *const libc::c_char, arg2: usize) -> usize;
 }
 extern "C" {
-    pub fn consttime_memequal(
-        b1: *const libc::c_void,
-        b2: *const libc::c_void,
-        len: usize,
-    ) -> libc::c_int;
+    pub fn consttime_memequal(b1: *const libc::c_void, b2: *const libc::c_void, len: usize) -> libc::c_int;
 }
 extern "C" {
     pub fn bcmp(arg1: *const libc::c_void, arg2: *const libc::c_void, arg3: usize) -> libc::c_int;
@@ -1510,31 +1183,19 @@ extern "C" {
     pub fn index(arg1: *const libc::c_char, arg2: libc::c_int) -> *mut libc::c_char;
 }
 extern "C" {
-    pub fn mempcpy(
-        arg1: *mut libc::c_void,
-        arg2: *const libc::c_void,
-        arg3: usize,
-    ) -> *mut libc::c_void;
+    pub fn mempcpy(arg1: *mut libc::c_void, arg2: *const libc::c_void, arg3: usize) -> *mut libc::c_void;
 }
 extern "C" {
     pub fn rindex(arg1: *const libc::c_char, arg2: libc::c_int) -> *mut libc::c_char;
 }
 extern "C" {
-    pub fn stpncpy(
-        dest: *mut libc::c_char,
-        src: *const libc::c_char,
-        n: usize,
-    ) -> *mut libc::c_char;
+    pub fn stpncpy(dest: *mut libc::c_char, src: *const libc::c_char, n: usize) -> *mut libc::c_char;
 }
 extern "C" {
     pub fn strcasecmp(arg1: *const libc::c_char, arg2: *const libc::c_char) -> libc::c_int;
 }
 extern "C" {
-    pub fn strncasecmp(
-        arg1: *const libc::c_char,
-        arg2: *const libc::c_char,
-        arg3: usize,
-    ) -> libc::c_int;
+    pub fn strncasecmp(arg1: *const libc::c_char, arg2: *const libc::c_char, arg3: usize) -> libc::c_int;
 }
 extern "C" {
     pub fn ffs(arg1: libc::c_int) -> libc::c_int;
@@ -1546,11 +1207,7 @@ extern "C" {
     pub fn ffsll(arg1: libc::c_longlong) -> libc::c_int;
 }
 extern "C" {
-    pub fn strtok_r(
-        arg1: *mut libc::c_char,
-        arg2: *const libc::c_char,
-        arg3: *mut *mut libc::c_char,
-    ) -> *mut libc::c_char;
+    pub fn strtok_r(arg1: *mut libc::c_char, arg2: *const libc::c_char, arg3: *mut *mut libc::c_char) -> *mut libc::c_char;
 }
 extern "C" {
     pub fn strerror_r(arg1: libc::c_int, arg2: *mut libc::c_char, arg3: usize) -> libc::c_int;
@@ -1563,11 +1220,7 @@ pub struct div_t {
 }
 #[test]
 fn bindgen_test_layout_div_t() {
-    assert_eq!(
-        ::core::mem::size_of::<div_t>(),
-        8usize,
-        concat!("Size of: ", stringify!(div_t))
-    );
+    assert_eq!(::core::mem::size_of::<div_t>(), 8usize, concat!("Size of: ", stringify!(div_t)));
     assert_eq!(
         ::core::mem::align_of::<div_t>(),
         4usize,
@@ -1576,22 +1229,12 @@ fn bindgen_test_layout_div_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<div_t>())).quot as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(div_t),
-            "::",
-            stringify!(quot)
-        )
+        concat!("Offset of field: ", stringify!(div_t), "::", stringify!(quot))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<div_t>())).rem as *const _ as usize },
         4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(div_t),
-            "::",
-            stringify!(rem)
-        )
+        concat!("Offset of field: ", stringify!(div_t), "::", stringify!(rem))
     );
 }
 #[repr(C)]
@@ -1602,11 +1245,7 @@ pub struct ldiv_t {
 }
 #[test]
 fn bindgen_test_layout_ldiv_t() {
-    assert_eq!(
-        ::core::mem::size_of::<ldiv_t>(),
-        16usize,
-        concat!("Size of: ", stringify!(ldiv_t))
-    );
+    assert_eq!(::core::mem::size_of::<ldiv_t>(), 16usize, concat!("Size of: ", stringify!(ldiv_t)));
     assert_eq!(
         ::core::mem::align_of::<ldiv_t>(),
         8usize,
@@ -1615,22 +1254,12 @@ fn bindgen_test_layout_ldiv_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<ldiv_t>())).quot as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(ldiv_t),
-            "::",
-            stringify!(quot)
-        )
+        concat!("Offset of field: ", stringify!(ldiv_t), "::", stringify!(quot))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<ldiv_t>())).rem as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(ldiv_t),
-            "::",
-            stringify!(rem)
-        )
+        concat!("Offset of field: ", stringify!(ldiv_t), "::", stringify!(rem))
     );
 }
 #[repr(C)]
@@ -1654,22 +1283,12 @@ fn bindgen_test_layout_lldiv_t() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<lldiv_t>())).quot as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(lldiv_t),
-            "::",
-            stringify!(quot)
-        )
+        concat!("Offset of field: ", stringify!(lldiv_t), "::", stringify!(quot))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<lldiv_t>())).rem as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(lldiv_t),
-            "::",
-            stringify!(rem)
-        )
+        concat!("Offset of field: ", stringify!(lldiv_t), "::", stringify!(rem))
     );
 }
 extern "C" {
@@ -1696,12 +1315,7 @@ extern "C" {
         arg2: *const libc::c_void,
         arg3: usize,
         arg4: usize,
-        arg5: ::core::option::Option<
-            unsafe extern "C" fn(
-                arg1: *const libc::c_void,
-                arg2: *const libc::c_void,
-            ) -> libc::c_int,
-        >,
+        arg5: ::core::option::Option<unsafe extern "C" fn(arg1: *const libc::c_void, arg2: *const libc::c_void) -> libc::c_int>,
     ) -> *mut libc::c_void;
 }
 extern "C" {
@@ -1730,12 +1344,7 @@ extern "C" {
         arg1: *mut libc::c_void,
         arg2: usize,
         arg3: usize,
-        arg4: ::core::option::Option<
-            unsafe extern "C" fn(
-                arg1: *const libc::c_void,
-                arg2: *const libc::c_void,
-            ) -> libc::c_int,
-        >,
+        arg4: ::core::option::Option<unsafe extern "C" fn(arg1: *const libc::c_void, arg2: *const libc::c_void) -> libc::c_int>,
     );
 }
 extern "C" {
@@ -1745,11 +1354,7 @@ extern "C" {
     pub fn strtod(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char) -> f64;
 }
 extern "C" {
-    pub fn strtol(
-        arg1: *const libc::c_char,
-        arg2: *mut *mut libc::c_char,
-        arg3: libc::c_int,
-    ) -> libc::c_long;
+    pub fn strtol(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char, arg3: libc::c_int) -> libc::c_long;
 }
 extern "C" {
     pub fn strtof(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char) -> f32;
@@ -1764,28 +1369,16 @@ extern "C" {
     pub fn lldiv(arg1: libc::c_longlong, arg2: libc::c_longlong) -> lldiv_t;
 }
 extern "C" {
-    pub fn strtoll(
-        arg1: *const libc::c_char,
-        arg2: *mut *mut libc::c_char,
-        arg3: libc::c_int,
-    ) -> libc::c_longlong;
+    pub fn strtoll(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char, arg3: libc::c_int) -> libc::c_longlong;
 }
 extern "C" {
-    pub fn strtoul(
-        arg1: *const libc::c_char,
-        arg2: *mut *mut libc::c_char,
-        arg3: libc::c_int,
-    ) -> libc::c_ulong;
+    pub fn strtoul(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char, arg3: libc::c_int) -> libc::c_ulong;
 }
 extern "C" {
     pub fn strtold(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char) -> u128;
 }
 extern "C" {
-    pub fn strtoull(
-        arg1: *const libc::c_char,
-        arg2: *mut *mut libc::c_char,
-        arg3: libc::c_int,
-    ) -> libc::c_ulonglong;
+    pub fn strtoull(arg1: *const libc::c_char, arg2: *mut *mut libc::c_char, arg3: libc::c_int) -> libc::c_ulonglong;
 }
 extern "C" {
     pub fn mblen(arg1: *const libc::c_char, arg2: usize) -> libc::c_int;
@@ -1837,102 +1430,52 @@ fn bindgen_test_layout_mallinfo() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).arena as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(arena)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(arena))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).ordblks as *const _ as usize },
         4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(ordblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(ordblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).smblks as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(smblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(smblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).hblks as *const _ as usize },
         12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(hblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(hblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).hblkhd as *const _ as usize },
         16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(hblkhd)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(hblkhd))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).usmblks as *const _ as usize },
         20usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(usmblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(usmblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).fsmblks as *const _ as usize },
         24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(fsmblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(fsmblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).uordblks as *const _ as usize },
         28usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(uordblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(uordblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).fordblks as *const _ as usize },
         32usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(fordblks)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(fordblks))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<mallinfo>())).keepcost as *const _ as usize },
         36usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mallinfo),
-            "::",
-            stringify!(keepcost)
-        )
+        concat!("Offset of field: ", stringify!(mallinfo), "::", stringify!(keepcost))
     );
 }
 pub type __builtin_va_list = [__va_list_tag; 1usize];
@@ -1959,44 +1502,22 @@ fn bindgen_test_layout___va_list_tag() {
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<__va_list_tag>())).gp_offset as *const _ as usize },
         0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__va_list_tag),
-            "::",
-            stringify!(gp_offset)
-        )
+        concat!("Offset of field: ", stringify!(__va_list_tag), "::", stringify!(gp_offset))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<__va_list_tag>())).fp_offset as *const _ as usize },
         4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__va_list_tag),
-            "::",
-            stringify!(fp_offset)
-        )
+        concat!("Offset of field: ", stringify!(__va_list_tag), "::", stringify!(fp_offset))
     );
     assert_eq!(
-        unsafe {
-            &(*(::core::ptr::null::<__va_list_tag>())).overflow_arg_area as *const _ as usize
-        },
+        unsafe { &(*(::core::ptr::null::<__va_list_tag>())).overflow_arg_area as *const _ as usize },
         8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__va_list_tag),
-            "::",
-            stringify!(overflow_arg_area)
-        )
+        concat!("Offset of field: ", stringify!(__va_list_tag), "::", stringify!(overflow_arg_area))
     );
     assert_eq!(
         unsafe { &(*(::core::ptr::null::<__va_list_tag>())).reg_save_area as *const _ as usize },
         16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(__va_list_tag),
-            "::",
-            stringify!(reg_save_area)
-        )
+        concat!("Offset of field: ", stringify!(__va_list_tag), "::", stringify!(reg_save_area))
     );
 }
 impl Default for __va_list_tag {

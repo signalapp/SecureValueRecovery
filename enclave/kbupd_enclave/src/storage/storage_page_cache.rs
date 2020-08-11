@@ -12,7 +12,7 @@ use std::marker::*;
 use std::rc::*;
 
 use bytes::*;
-use num_traits::{ToPrimitive};
+use num_traits::ToPrimitive;
 
 use crate::lru::*;
 use crate::storage::storage_data::*;
@@ -23,9 +23,9 @@ const PAGE_SIZE: u16 = 4096;
 pub struct StoragePageCache<V> {
     cache_size: usize,
 
-    pages:   Box<[StoragePage<V>]>,
-    cached:  Lru<StoragePageIndex>,
-    data:    StorageData,
+    pages:  Box<[StoragePage<V>]>,
+    cached: Lru<StoragePageIndex>,
+    data:   StorageData,
 }
 
 #[derive(Debug)]
@@ -79,18 +79,18 @@ struct UncachedStoragePage {
 }
 
 impl<V> StoragePageCache<V>
-where V: StorageValue,
+where V: StorageValue
 {
     pub fn with_page_count(page_count: u32, cache_size: usize) -> Result<Self, ()> {
         let data_size = page_count.to_usize().checked_mul(PAGE_SIZE.into()).ok_or(())?;
         Self::new(data_size, cache_size)
     }
+
     pub fn new(data_size: usize, cache_size: usize) -> Result<Self, ()> {
-        let cache_size     = cache_size.max(1);
-        let data           = StorageData::new(data_size)?;
+        let cache_size = cache_size.max(1);
+        let data = StorageData::new(data_size)?;
         let max_page_count = StorageItemIndex::<V>::max_page_count().to_usize();
-        let page_count     = (data.len() / usize::from(PAGE_SIZE)).max(1)
-                                                                  .min(max_page_count);
+        let page_count = (data.len() / usize::from(PAGE_SIZE)).max(1).min(max_page_count);
 
         let mut pages: Vec<StoragePage<V>> = Vec::with_capacity(page_count);
         pages.extend(std::iter::repeat_with(Default::default).take(page_count));
@@ -98,7 +98,7 @@ where V: StorageValue,
         Ok(Self {
             cache_size,
 
-            pages:  pages.into(),
+            pages: pages.into(),
             cached: Default::default(),
             data,
         })
@@ -109,10 +109,7 @@ where V: StorageValue,
     }
 
     pub fn item_index(&self, index: u32) -> Option<StorageItemIndex<V>> {
-        let entry = StorageItemIndex {
-            index,
-            _data: PhantomData,
-        };
+        let entry = StorageItemIndex { index, _data: PhantomData };
         if u32::from(entry.page_index()) < self.page_count() {
             Some(entry)
         } else {
@@ -136,8 +133,7 @@ where V: StorageValue,
 
     fn read_page(&mut self, page_index: StoragePageIndex) -> Result<&mut CachedStoragePage<V>, StorageError> {
         match self.pages.get(usize::from(page_index)) {
-            Some(StoragePage::Free) |
-            Some(StoragePage::Uncached(_)) => {
+            Some(StoragePage::Free) | Some(StoragePage::Uncached(_)) => {
                 while self.cached.len() >= self.cache_size {
                     if let Some(evict_lru_entry) = self.cached.pop_front() {
                         debug!("evicting storage page {}", evict_lru_entry.get());
@@ -147,15 +143,12 @@ where V: StorageValue,
                     }
                 }
             }
-            None |
-            Some(StoragePage::Poisoned) |
-            Some(StoragePage::Cached(_)) => {
-            }
+            None | Some(StoragePage::Poisoned) | Some(StoragePage::Cached(_)) => {}
         }
 
         if let Some(page) = self.pages.get_mut(usize::from(page_index)) {
             let cached_page = match page.read(&self.data, &mut self.cached, page_index) {
-                Ok(cached_page)    => cached_page,
+                Ok(cached_page) => cached_page,
                 Err(storage_error) => {
                     error!("fatal error reading page {}: {}", page_index, storage_error);
                     return Err(storage_error);
@@ -206,38 +199,43 @@ impl From<StoragePageIndex> for usize {
 }
 
 impl<V> StorageItemIndex<V>
-where V: StorageValue,
+where V: StorageValue
 {
     fn page_index(&self) -> StoragePageIndex {
         StoragePageIndex(self.index / V::items_per_page())
     }
+
     fn item_index(&self) -> usize {
         (self.index % V::items_per_page()).to_usize()
     }
+
     fn max_page_count() -> u32 {
         u32::max_value() / V::items_per_page()
     }
 }
 
 impl<V> StoragePage<V>
-where V: StorageValue,
+where V: StorageValue
 {
-    fn read(&mut self,
-            data:       &StorageData,
-            cached:     &mut Lru<StoragePageIndex>,
-            page_index: StoragePageIndex)
-            -> Result<&mut CachedStoragePage<V>, StorageError>
+    fn read(
+        &mut self,
+        data: &StorageData,
+        cached: &mut Lru<StoragePageIndex>,
+        page_index: StoragePageIndex,
+    ) -> Result<&mut CachedStoragePage<V>, StorageError>
     {
         match self {
-            StoragePage::Cached(cached_page) => {
-                Ok(cached_page)
-            }
+            StoragePage::Cached(cached_page) => Ok(cached_page),
             StoragePage::Uncached(uncached_page) => {
                 debug!("reading storage page {}", page_index);
-                let lru_entry       = cached.push_back(page_index);
-                let mut cached_page = Box::new(CachedStoragePage::new(CachedStoragePageDirtyState::Clean(uncached_page.nonce), lru_entry));
-                let offset          = usize::from(page_index).checked_mul(PAGE_SIZE.into())
-                                                             .ok_or(StorageError::InternalError)?;
+                let lru_entry = cached.push_back(page_index);
+                let mut cached_page = Box::new(CachedStoragePage::new(
+                    CachedStoragePageDirtyState::Clean(uncached_page.nonce),
+                    lru_entry,
+                ));
+                let offset = usize::from(page_index)
+                    .checked_mul(PAGE_SIZE.into())
+                    .ok_or(StorageError::InternalError)?;
                 match data.read(offset, PAGE_SIZE.into(), uncached_page.nonce) {
                     Ok(decrypted) => {
                         let items_data = decrypted.get()[..].chunks(V::encoded_len().to_usize());
@@ -248,7 +246,7 @@ where V: StorageValue,
                         *self = StoragePage::Cached(cached_page);
                         match self {
                             StoragePage::Cached(cached_page) => Ok(cached_page),
-                            _                                => static_unreachable!(),
+                            _ => static_unreachable!(),
                         }
                     }
                     Err(()) => {
@@ -257,19 +255,18 @@ where V: StorageValue,
                     }
                 }
             }
-            StoragePage::Poisoned => {
-                Err(StorageError::ReadError)
-            }
+            StoragePage::Poisoned => Err(StorageError::ReadError),
             StoragePage::Free => {
                 let lru_entry = cached.push_back(page_index);
                 *self = StoragePage::Cached(Box::new(CachedStoragePage::new(CachedStoragePageDirtyState::Dirty, lru_entry)));
                 match self {
                     StoragePage::Cached(cached_page) => Ok(cached_page),
-                    _                                => static_unreachable!(),
+                    _ => static_unreachable!(),
                 }
             }
         }
     }
+
     fn write(&mut self, data: &mut StorageData, page_index: StoragePageIndex) {
         let cached_page = match self {
             StoragePage::Cached(cached_page) => cached_page,
@@ -277,15 +274,11 @@ where V: StorageValue,
         };
 
         *self = match cached_page.dirty {
-            CachedStoragePageDirtyState::Clean(nonce) => {
-                StoragePage::Uncached(UncachedStoragePage { nonce })
-            }
-            CachedStoragePageDirtyState::Dirty if cached_page.is_empty() => {
-                StoragePage::Free
-            }
+            CachedStoragePageDirtyState::Clean(nonce) => StoragePage::Uncached(UncachedStoragePage { nonce }),
+            CachedStoragePageDirtyState::Dirty if cached_page.is_empty() => StoragePage::Free,
             CachedStoragePageDirtyState::Dirty => {
                 let mut secret_encoded_vec = SecretValue::new(Vec::with_capacity(PAGE_SIZE.into()));
-                let encoded: &mut Vec<u8>  = secret_encoded_vec.get_mut();
+                let encoded: &mut Vec<u8> = secret_encoded_vec.get_mut();
                 for (item_index, item) in cached_page.items.iter().enumerate() {
                     encoded.resize(item_index.saturating_mul(V::encoded_len().to_usize()), 0);
                     V::encode(item.as_ref(), encoded);
@@ -294,9 +287,7 @@ where V: StorageValue,
 
                 let offset_res = usize::from(page_index).checked_mul(PAGE_SIZE.into()).ok_or(());
                 match offset_res.and_then(|offset: usize| data.write(offset, secret_encoded_vec)) {
-                    Ok(nonce) => {
-                        StoragePage::Uncached(UncachedStoragePage { nonce })
-                    }
+                    Ok(nonce) => StoragePage::Uncached(UncachedStoragePage { nonce }),
                     Err(()) => {
                         error!("wrote out of bounds page {}!", page_index);
                         return;
@@ -314,10 +305,10 @@ impl<V> Default for StoragePage<V> {
 }
 
 impl<V> CachedStoragePage<V>
-where V: StorageValue,
+where V: StorageValue
 {
     fn new(dirty: CachedStoragePageDirtyState, lru_entry: Weak<LruEntry<StoragePageIndex>>) -> Self {
-        let size      = V::items_per_page();
+        let size = V::items_per_page();
         let mut items = Vec::with_capacity(size.to_usize());
         items.extend(std::iter::repeat_with(Default::default).take(size.to_usize()));
         Self {
@@ -326,16 +317,19 @@ where V: StorageValue,
             items: items.into(),
         }
     }
+
     fn get_item(&mut self, item_index: &StorageItemIndex<V>) -> Option<&V> {
-        self.items.get(item_index.item_index())
-                  .unwrap_or_else(|| panic!("overflow"))
-                  .as_ref()
+        self.items
+            .get(item_index.item_index())
+            .unwrap_or_else(|| panic!("overflow"))
+            .as_ref()
     }
+
     fn get_item_mut(&mut self, item_index: &StorageItemIndex<V>) -> &mut Option<V> {
         self.dirty = CachedStoragePageDirtyState::Dirty;
-        self.items.get_mut(item_index.item_index())
-                  .unwrap_or_else(|| panic!("overflow"))
+        self.items.get_mut(item_index.item_index()).unwrap_or_else(|| panic!("overflow"))
     }
+
     fn is_empty(&self) -> bool {
         for item_slot in self.items.iter() {
             if item_slot.is_some() {

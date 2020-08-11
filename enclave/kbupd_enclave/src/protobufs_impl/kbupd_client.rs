@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use sgx_ffi::util::{clear};
+use sgx_ffi::util::clear;
 
 use crate::protobufs::kbupd_client::*;
 

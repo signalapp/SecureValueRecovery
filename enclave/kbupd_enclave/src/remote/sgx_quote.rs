@@ -5,14 +5,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use bytes::{Buf};
-use num_traits::{ToPrimitive};
+use bytes::Buf;
+use num_traits::ToPrimitive;
 
-const SGX_FLAGS_INITTED:        u64 = 0x0000_0000_0000_0001;
-const SGX_FLAGS_DEBUG:          u64 = 0x0000_0000_0000_0002;
-const SGX_FLAGS_MODE64BIT:      u64 = 0x0000_0000_0000_0004;
-const SGX_FLAGS_RESERVED:       u64 = 0xFFFF_FFFF_FFFF_FFC8;
-const SGX_XFRM_RESERVED:        u64 = 0xFFFF_FFFF_FFFF_FFF8;
+const SGX_FLAGS_INITTED: u64 = 0x0000_0000_0000_0001;
+const SGX_FLAGS_DEBUG: u64 = 0x0000_0000_0000_0002;
+const SGX_FLAGS_MODE64BIT: u64 = 0x0000_0000_0000_0004;
+const SGX_FLAGS_RESERVED: u64 = 0xFFFF_FFFF_FFFF_FFC8;
+const SGX_XFRM_RESERVED: u64 = 0xFFFF_FFFF_FFFF_FFF8;
 
 #[derive(Default)]
 pub struct SgxQuote {
@@ -60,7 +60,7 @@ impl SgxQuote {
 
         let mut quote: Self = Default::default();
 
-        quote.version   = quote_buf.get_u16_le();
+        quote.version = quote_buf.get_u16_le();
         if !(quote.version >= 1 && quote.version <= 2) {
             return Err(SgxQuoteDecodeError::UnknownVersion(quote.version));
         }
@@ -71,8 +71,8 @@ impl SgxQuote {
         }
 
         quote.is_sig_linkable = sign_type == 1;
-        quote.gid             = quote_buf.get_u32_le();
-        quote.qe_svn          = quote_buf.get_u16_le();
+        quote.gid = quote_buf.get_u32_le();
+        quote.qe_svn = quote_buf.get_u16_le();
 
         if quote.version > 1 {
             quote.pce_svn = quote_buf.get_u16_le();
@@ -93,10 +93,7 @@ impl SgxQuote {
         Self::read_zero(quote_buf, 68, 28)?; // reserved1
 
         quote.flags = quote_buf.get_u64_le();
-        if ((quote.flags & SGX_FLAGS_RESERVED ) != 0 ||
-            (quote.flags & SGX_FLAGS_INITTED  ) == 0 ||
-            (quote.flags & SGX_FLAGS_MODE64BIT) == 0)
-        {
+        if ((quote.flags & SGX_FLAGS_RESERVED) != 0 || (quote.flags & SGX_FLAGS_INITTED) == 0 || (quote.flags & SGX_FLAGS_MODE64BIT) == 0) {
             return Err(SgxQuoteDecodeError::InvalidFlags(quote.flags));
         }
 
@@ -110,7 +107,7 @@ impl SgxQuote {
         quote_buf.copy_to_slice(&mut quote.mrsigner);
         Self::read_zero(quote_buf, 208, 96)?; // reserved3
         quote.isv_prod_id = quote_buf.get_u16_le();
-        quote.isv_svn     = quote_buf.get_u16_le();
+        quote.isv_svn = quote_buf.get_u16_le();
         Self::read_zero(quote_buf, 308, 60)?; // reserved4
         quote_buf.copy_to_slice(&mut quote.report_data.0);
 

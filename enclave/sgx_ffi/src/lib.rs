@@ -6,17 +6,13 @@
 //
 
 #![cfg_attr(not(any(test, feature = "test")), no_std)]
-#![allow(
-    unused_parens,
-    clippy::style,
-    clippy::large_enum_variant,
-)]
+#![allow(unused_parens, clippy::style, clippy::large_enum_variant)]
 #![warn(
     bare_trait_objects,
     elided_lifetimes_in_paths,
     trivial_numeric_casts,
     variant_size_differences,
-    clippy::integer_arithmetic,
+    clippy::integer_arithmetic
 )]
 #![deny(
     clippy::cast_possible_truncation,
@@ -47,15 +43,17 @@
     clippy::use_debug,
     clippy::use_self,
     clippy::use_underscore_binding,
-    clippy::wildcard_enum_match_arm,
+    clippy::wildcard_enum_match_arm
 )]
 
 extern crate alloc;
 
 #[allow(dead_code, non_camel_case_types, non_upper_case_globals, non_snake_case, improper_ctypes, clippy::all, clippy::pedantic, clippy::integer_arithmetic)]
+#[rustfmt::skip]
 mod bindgen_wrapper;
 pub mod sgx;
 pub mod untrusted_slice;
 pub mod util;
 
-#[cfg(any(test, feature = "test"))] pub mod mocks;
+#[cfg(any(test, feature = "test"))]
+pub mod mocks;

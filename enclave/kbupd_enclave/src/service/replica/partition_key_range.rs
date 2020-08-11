@@ -26,11 +26,7 @@ pub struct PartitionKeyRange {
 
 impl PartitionKeyRange {
     pub fn new(first: PartitionKey, last: PartitionKey) -> Result<Self, ()> {
-        if first <= last {
-            Ok(Self { first, last })
-        } else {
-            Err(())
-        }
+        if first <= last { Ok(Self { first, last }) } else { Err(()) }
     }
 
     pub fn new_unbounded() -> Self {
@@ -64,8 +60,7 @@ impl PartitionKeyRange {
     }
 
     pub fn contains(&self, key: &[u8; 32]) -> bool {
-        (key >= &self.first &&
-         key <= &self.last)
+        (key >= &self.first && key <= &self.last)
     }
 
     pub fn contains_id(&self, key: &BackupId) -> bool {
@@ -83,8 +78,7 @@ impl PartitionKeyRange {
     }
 
     pub fn overlaps_range(&self, other: &Self) -> bool {
-        (self.contains(&other.first) || self.contains(&other.last) ||
-         other.contains(&self.first) || other.contains(&self.last))
+        (self.contains(&other.first) || self.contains(&other.last) || other.contains(&self.first) || other.contains(&self.last))
     }
 
     pub fn split_off_inclusive(&mut self, new_last: &PartitionKey) -> Result<Option<Self>, ()> {
@@ -105,6 +99,7 @@ impl RangeBounds<PartitionKey> for &PartitionKeyRange {
     fn start_bound(&self) -> Bound<&PartitionKey> {
         Bound::Included(&self.first)
     }
+
     fn end_bound(&self) -> Bound<&PartitionKey> {
         Bound::Included(&self.last)
     }
@@ -121,7 +116,6 @@ impl fmt::Display for PartitionKeyRange {
         write!(fmt, "{}-{}", first, last)
     }
 }
-
 
 //
 // PartitionKey impls
@@ -143,9 +137,7 @@ impl PartitionKey {
     }
 
     pub fn to_pb(&self) -> BackupId {
-        BackupId {
-            id: self.0.to_vec(),
-        }
+        BackupId { id: self.0.to_vec() }
     }
 
     #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
@@ -157,12 +149,9 @@ impl PartitionKey {
             carry = if new_b.1 { 1 } else { 0 };
             ret[31 - i] = new_b.0;
         }
-        if carry == 0 {
-            Some(Self(ret))
-        } else {
-            None
-        }
+        if carry == 0 { Some(Self(ret)) } else { None }
     }
+
     #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
     pub fn checked_add(&self, rhs: u8) -> Option<Self> {
         let mut ret = [0x00; 32];
@@ -172,16 +161,13 @@ impl PartitionKey {
             carry = if new_b.1 { 1 } else { 0 };
             ret[31 - i] = new_b.0;
         }
-        if carry == 0 {
-            Some(Self(ret))
-        } else {
-            None
-        }
+        if carry == 0 { Some(Self(ret)) } else { None }
     }
 }
 
 impl Deref for PartitionKey {
     type Target = [u8; 32];
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -225,69 +211,55 @@ mod tests {
     #[test]
     fn valid_full_range() {
         PartitionKeyRange::try_from_pb(
-            &PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] },
-                                         &BackupId { id: vec![0xFF; 32] })
+            &PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] }, &BackupId { id: vec![0xFF; 32] })
                 .unwrap()
-                .to_pb()
-        ).unwrap();
+                .to_pb(),
+        )
+        .unwrap();
     }
     #[test]
     fn valid_empty_range() {
         PartitionKeyRange::try_from_pb(
-            &PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] },
-                                         &BackupId { id: vec![0x00; 32] })
+            &PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] }, &BackupId { id: vec![0x00; 32] })
                 .unwrap()
-                .to_pb()
-        ).unwrap();
+                .to_pb(),
+        )
+        .unwrap();
     }
 
     #[test]
     fn invalid_inverted_range() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0xFF; 32] },
-                                    &BackupId { id: vec![0x00; 32] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0xFF; 32] }, &BackupId { id: vec![0x00; 32] }).unwrap_err();
     }
 
     #[test]
     fn invalid_range_empty_first() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 0] },
-                                    &BackupId { id: vec![0xFF; 32] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 0] }, &BackupId { id: vec![0xFF; 32] }).unwrap_err();
     }
 
     #[test]
     fn invalid_range_empty_last() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] },
-                                    &BackupId { id: vec![0xFF; 0] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] }, &BackupId { id: vec![0xFF; 0] }).unwrap_err();
     }
 
     #[test]
     fn invalid_range_short_first() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 31] },
-                                    &BackupId { id: vec![0xFF; 32] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 31] }, &BackupId { id: vec![0xFF; 32] }).unwrap_err();
     }
 
     #[test]
     fn invalid_range_short_last() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 31] },
-                                    &BackupId { id: vec![0xFF; 32] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 31] }, &BackupId { id: vec![0xFF; 32] }).unwrap_err();
     }
 
     #[test]
     fn invalid_range_long_first() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 33] },
-                                    &BackupId { id: vec![0xFF; 32] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 33] }, &BackupId { id: vec![0xFF; 32] }).unwrap_err();
     }
 
     #[test]
     fn invalid_range_long_last() {
-        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] },
-                                    &BackupId { id: vec![0xFF; 33] })
-            .unwrap_err();
+        PartitionKeyRange::from_ids(&BackupId { id: vec![0x00; 32] }, &BackupId { id: vec![0xFF; 33] }).unwrap_err();
     }
 
     #[test]
@@ -323,17 +295,17 @@ mod tests {
     }
 
     macro_rules! key {
-        ([$value:expr] + $addend:expr) => ({
-            PartitionKey::new([$value; 32]).checked_add($addend)
-                                           .unwrap_or_else(|| panic!("test key overflow"))
-        });
-        ([$value:expr] - $subtrahend:expr) => ({
-            PartitionKey::new([$value; 32]).checked_sub($subtrahend)
-                                           .unwrap_or_else(|| panic!("test key underflow"))
-        });
-        ([$value:expr]) => ({
+        ([$value:expr] + $addend:expr) => {{
             PartitionKey::new([$value; 32])
-        });
+                .checked_add($addend)
+                .unwrap_or_else(|| panic!("test key overflow"))
+        }};
+        ([$value:expr] - $subtrahend:expr) => {{
+            PartitionKey::new([$value; 32])
+                .checked_sub($subtrahend)
+                .unwrap_or_else(|| panic!("test key underflow"))
+        }};
+        ([$value:expr]) => {{ PartitionKey::new([$value; 32]) }};
     }
 
     macro_rules! range {
@@ -364,85 +336,85 @@ mod tests {
         assert!(range.overlaps_range(&range!([0xFF], [0xFF])));
 
         let range = range!([0x00], [0xBE]);
-        assert!( range.overlaps_range(&range!()));
-        assert!( range.overlaps_range(&range!([0x00],   [0x00])));
-        assert!( range.overlaps_range(&range!([0x00],   [0xBE]-1)));
-        assert!( range.overlaps_range(&range!([0x00],   [0xBE])));
-        assert!( range.overlaps_range(&range!([0x00],   [0xFF])));
-        assert!( range.overlaps_range(&range!([0xBA],   [0xBA])));
-        assert!( range.overlaps_range(&range!([0xBA],   [0xBE])));
-        assert!( range.overlaps_range(&range!([0xBA],   [0xBE]+1)));
-        assert!( range.overlaps_range(&range!([0xBE],   [0xBE])));
-        assert!( range.overlaps_range(&range!([0xBE],   [0xBE]+1)));
-        assert!(!range.overlaps_range(&range!([0xBE]+1, [0xEF])));
-        assert!(!range.overlaps_range(&range!([0xEF],   [0xFF])));
-        assert!(!range.overlaps_range(&range!([0xFF],   [0xFF])));
+        assert!(range.overlaps_range(&range!()));
+        assert!(range.overlaps_range(&range!([0x00], [0x00])));
+        assert!(range.overlaps_range(&range!([0x00], [0xBE] - 1)));
+        assert!(range.overlaps_range(&range!([0x00], [0xBE])));
+        assert!(range.overlaps_range(&range!([0x00], [0xFF])));
+        assert!(range.overlaps_range(&range!([0xBA], [0xBA])));
+        assert!(range.overlaps_range(&range!([0xBA], [0xBE])));
+        assert!(range.overlaps_range(&range!([0xBA], [0xBE] + 1)));
+        assert!(range.overlaps_range(&range!([0xBE], [0xBE])));
+        assert!(range.overlaps_range(&range!([0xBE], [0xBE] + 1)));
+        assert!(!range.overlaps_range(&range!([0xBE] + 1, [0xEF])));
+        assert!(!range.overlaps_range(&range!([0xEF], [0xFF])));
+        assert!(!range.overlaps_range(&range!([0xFF], [0xFF])));
 
         let range = range!([0xBE], [0xEF]);
-        assert!( range.overlaps_range(&range!()));
-        assert!(!range.overlaps_range(&range!([0x00],   [0x00])));
-        assert!(!range.overlaps_range(&range!([0x00],   [0xBE]-1)));
-        assert!( range.overlaps_range(&range!([0x00],   [0xBE])));
-        assert!( range.overlaps_range(&range!([0x00],   [0xBF])));
-        assert!( range.overlaps_range(&range!([0x00],   [0xEF])));
-        assert!( range.overlaps_range(&range!([0x00],   [0xEF]+1)));
-        assert!( range.overlaps_range(&range!([0x00],   [0xFF])));
-        assert!( range.overlaps_range(&range!([0xBE],   [0xEF])));
-        assert!( range.overlaps_range(&range!([0xBE],   [0xEF]+1)));
-        assert!( range.overlaps_range(&range!([0xBE]+1, [0xEF]-1)));
-        assert!( range.overlaps_range(&range!([0xBE]+1, [0xEF])));
-        assert!( range.overlaps_range(&range!([0xBE]+1, [0xEF]+1)));
-        assert!( range.overlaps_range(&range!([0xEF],   [0xEF])));
-        assert!( range.overlaps_range(&range!([0xEF],   [0xEF]+1)));
-        assert!(!range.overlaps_range(&range!([0xEF]+1, [0xEF]+1)));
-        assert!(!range.overlaps_range(&range!([0xEF]+1, [0xFF])));
+        assert!(range.overlaps_range(&range!()));
+        assert!(!range.overlaps_range(&range!([0x00], [0x00])));
+        assert!(!range.overlaps_range(&range!([0x00], [0xBE] - 1)));
+        assert!(range.overlaps_range(&range!([0x00], [0xBE])));
+        assert!(range.overlaps_range(&range!([0x00], [0xBF])));
+        assert!(range.overlaps_range(&range!([0x00], [0xEF])));
+        assert!(range.overlaps_range(&range!([0x00], [0xEF] + 1)));
+        assert!(range.overlaps_range(&range!([0x00], [0xFF])));
+        assert!(range.overlaps_range(&range!([0xBE], [0xEF])));
+        assert!(range.overlaps_range(&range!([0xBE], [0xEF] + 1)));
+        assert!(range.overlaps_range(&range!([0xBE] + 1, [0xEF] - 1)));
+        assert!(range.overlaps_range(&range!([0xBE] + 1, [0xEF])));
+        assert!(range.overlaps_range(&range!([0xBE] + 1, [0xEF] + 1)));
+        assert!(range.overlaps_range(&range!([0xEF], [0xEF])));
+        assert!(range.overlaps_range(&range!([0xEF], [0xEF] + 1)));
+        assert!(!range.overlaps_range(&range!([0xEF] + 1, [0xEF] + 1)));
+        assert!(!range.overlaps_range(&range!([0xEF] + 1, [0xFF])));
 
         let range = range!([0xEF], [0xFF]);
-        assert!(!range.overlaps_range(&range!([0x00],   [0x00])));
-        assert!(!range.overlaps_range(&range!([0x00],   [0xEF]-1)));
-        assert!( range.overlaps_range(&range!([0x00],   [0xEF])));
-        assert!( range.overlaps_range(&range!([0x00],   [0xEF]+1)));
-        assert!( range.overlaps_range(&range!([0x00],   [0xFF])));
-        assert!( range.overlaps_range(&range!([0xEF],   [0xEF])));
-        assert!( range.overlaps_range(&range!([0xEF],   [0xEF]+1)));
-        assert!( range.overlaps_range(&range!([0xEF],   [0xFF])));
-        assert!( range.overlaps_range(&range!([0xEF]+1, [0xFF]-1)));
-        assert!( range.overlaps_range(&range!([0xEF]+1, [0xFF])));
-        assert!( range.overlaps_range(&range!([0xFF],   [0xFF])));
+        assert!(!range.overlaps_range(&range!([0x00], [0x00])));
+        assert!(!range.overlaps_range(&range!([0x00], [0xEF] - 1)));
+        assert!(range.overlaps_range(&range!([0x00], [0xEF])));
+        assert!(range.overlaps_range(&range!([0x00], [0xEF] + 1)));
+        assert!(range.overlaps_range(&range!([0x00], [0xFF])));
+        assert!(range.overlaps_range(&range!([0xEF], [0xEF])));
+        assert!(range.overlaps_range(&range!([0xEF], [0xEF] + 1)));
+        assert!(range.overlaps_range(&range!([0xEF], [0xFF])));
+        assert!(range.overlaps_range(&range!([0xEF] + 1, [0xFF] - 1)));
+        assert!(range.overlaps_range(&range!([0xEF] + 1, [0xFF])));
+        assert!(range.overlaps_range(&range!([0xFF], [0xFF])));
     }
 
     #[test]
     fn split_off_first() {
         let mut range = PartitionKeyRange::new_unbounded();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0x00; 32])).unwrap().unwrap();
-        assert_eq!(range.first(),     &[0x00; 32]);
-        assert_eq!(range.last(),      &[0x00; 32]);
+        assert_eq!(range.first(), &[0x00; 32]);
+        assert_eq!(range.last(), &[0x00; 32]);
         assert_eq!(split_off.first(), &range.last().checked_add(1).unwrap());
-        assert_eq!(split_off.last(),  &[0xff; 32]);
+        assert_eq!(split_off.last(), &[0xff; 32]);
 
         let mut range = PartitionKeyRange::new(PartitionKey::new([0xbe; 32]), PartitionKey::new([0xef; 32])).unwrap();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0xbe; 32])).unwrap().unwrap();
-        assert_eq!(range.first(),     &[0xbe; 32]);
-        assert_eq!(range.last(),      &[0xbe; 32]);
+        assert_eq!(range.first(), &[0xbe; 32]);
+        assert_eq!(range.last(), &[0xbe; 32]);
         assert_eq!(split_off.first(), &range.last().checked_add(1).unwrap());
-        assert_eq!(split_off.last(),  &[0xef; 32]);
+        assert_eq!(split_off.last(), &[0xef; 32]);
     }
 
     #[test]
     fn split_off_mid() {
         let mut range = PartitionKeyRange::new_unbounded();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0x80; 32])).unwrap().unwrap();
-        assert_eq!(range.first(),     &[0x00; 32]);
-        assert_eq!(range.last(),      &[0x80; 32]);
+        assert_eq!(range.first(), &[0x00; 32]);
+        assert_eq!(range.last(), &[0x80; 32]);
         assert_eq!(split_off.first(), &range.last().checked_add(1).unwrap());
-        assert_eq!(split_off.last(),  &[0xff; 32]);
+        assert_eq!(split_off.last(), &[0xff; 32]);
 
         let mut range = PartitionKeyRange::new(PartitionKey::new([0xbe; 32]), PartitionKey::new([0xef; 32])).unwrap();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0xdd; 32])).unwrap().unwrap();
-        assert_eq!(range.first(),     &[0xbe; 32]);
-        assert_eq!(range.last(),      &[0xdd; 32]);
+        assert_eq!(range.first(), &[0xbe; 32]);
+        assert_eq!(range.last(), &[0xdd; 32]);
         assert_eq!(split_off.first(), &range.last().checked_add(1).unwrap());
-        assert_eq!(split_off.last(),  &[0xef; 32]);
+        assert_eq!(split_off.last(), &[0xef; 32]);
     }
 
     #[test]
@@ -450,13 +422,13 @@ mod tests {
         let mut range = PartitionKeyRange::new_unbounded();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0xff; 32])).unwrap();
         assert_eq!(range.first(), &[0x00; 32]);
-        assert_eq!(range.last(),  &[0xff; 32]);
+        assert_eq!(range.last(), &[0xff; 32]);
         assert!(split_off.is_none());
 
         let mut range = PartitionKeyRange::new(PartitionKey::new([0xbe; 32]), PartitionKey::new([0xef; 32])).unwrap();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0xef; 32])).unwrap();
         assert_eq!(range.first(), &[0xbe; 32]);
-        assert_eq!(range.last(),  &[0xef; 32]);
+        assert_eq!(range.last(), &[0xef; 32]);
         assert!(split_off.is_none());
     }
 
@@ -465,19 +437,19 @@ mod tests {
         let mut range = PartitionKeyRange::new(PartitionKey::new([0x00; 32]), PartitionKey::new([0x00; 32])).unwrap();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0x00; 32])).unwrap();
         assert_eq!(range.first(), &[0x00; 32]);
-        assert_eq!(range.last(),  &[0x00; 32]);
+        assert_eq!(range.last(), &[0x00; 32]);
         assert!(split_off.is_none());
 
         let mut range = PartitionKeyRange::new(PartitionKey::new([0xbe; 32]), PartitionKey::new([0xbe; 32])).unwrap();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0xbe; 32])).unwrap();
         assert_eq!(range.first(), &[0xbe; 32]);
-        assert_eq!(range.last(),  &[0xbe; 32]);
+        assert_eq!(range.last(), &[0xbe; 32]);
         assert!(split_off.is_none());
 
         let mut range = PartitionKeyRange::new(PartitionKey::new([0xff; 32]), PartitionKey::new([0xff; 32])).unwrap();
         let split_off = range.split_off_inclusive(&PartitionKey::new([0xff; 32])).unwrap();
         assert_eq!(range.first(), &[0xff; 32]);
-        assert_eq!(range.last(),  &[0xff; 32]);
+        assert_eq!(range.last(), &[0xff; 32]);
         assert!(split_off.is_none());
     }
 

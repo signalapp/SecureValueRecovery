@@ -66,6 +66,11 @@ unsafe fn realloc_fallback(alloc: &System, ptr: *mut u8, old_layout: Layout, new
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: Layout) -> ! {
     let status = sgx_ffi::util::MemoryStatus::collect();
-    panic!("out of memory allocating {} bytes with {} used of {} bytes in {} chunks",
-           layout.size(), status.used_bytes, status.footprint_bytes, status.free_chunks);
+    panic!(
+        "out of memory allocating {} bytes with {} used of {} bytes in {} chunks",
+        layout.size(),
+        status.used_bytes,
+        status.footprint_bytes,
+        status.free_chunks
+    );
 }

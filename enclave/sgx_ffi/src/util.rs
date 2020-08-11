@@ -5,12 +5,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use core::ffi::{c_void};
+use core::ffi::c_void;
 use core::mem;
 
-use super::bindgen_wrapper::{dlmallinfo};
+use super::bindgen_wrapper::dlmallinfo;
 
-pub use super::bindgen_wrapper::{memset_s, consttime_memequal};
+pub use super::bindgen_wrapper::{consttime_memequal, memset_s};
 
 pub fn clear(buf: &mut [u8]) {
     let res = unsafe { memset_s(buf.as_ptr() as *mut c_void, buf.len(), 0, buf.len()) };
@@ -21,11 +21,7 @@ pub fn consttime_eq(left: impl AsRef<[u8]>, right: impl AsRef<[u8]>) -> bool {
     let left = left.as_ref();
     let right = right.as_ref();
     if left.len() == right.len() {
-        let res = unsafe {
-            consttime_memequal(left.as_ptr() as *const c_void,
-                               right.as_ptr() as *const c_void,
-                               left.len())
-        };
+        let res = unsafe { consttime_memequal(left.as_ptr() as *const c_void, right.as_ptr() as *const c_void, left.len()) };
         res != 0
     } else {
         false

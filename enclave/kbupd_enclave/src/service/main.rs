@@ -11,8 +11,8 @@ use sgx_ffi::sgx::*;
 use sgxsd_ffi::ecalls::*;
 
 use crate::ffi::ecalls::*;
-use crate::protobufs::kbupd::*;
 use crate::protobufs::kbupd::untrusted_message;
+use crate::protobufs::kbupd::*;
 use crate::service::frontend::*;
 use crate::service::replica::*;
 
@@ -27,13 +27,11 @@ pub enum ServiceState {
     Replica(ReplicaState),
 }
 
-pub struct SgxsdState {
-}
+pub struct SgxsdState {}
 
 #[cfg(not(any(test, feature = "test")))]
 pub fn whereis<F, R>(fun: F) -> R
-where F: FnOnce(&RefCell<ServiceState>) -> R
-{
+where F: FnOnce(&RefCell<ServiceState>) -> R {
     #[thread_local]
     static SERVICE: RefCell<ServiceState> = RefCell::new(ServiceState::NotStarted);
 
@@ -42,8 +40,7 @@ where F: FnOnce(&RefCell<ServiceState>) -> R
 
 #[cfg(any(test, feature = "test"))]
 pub fn whereis<F, R>(fun: F) -> R
-where F: FnOnce(&RefCell<ServiceState>) -> R
-{
+where F: FnOnce(&RefCell<ServiceState>) -> R {
     thread_local! {
         static SERVICE: RefCell<ServiceState> = RefCell::new(ServiceState::NotStarted);
     }
@@ -72,39 +69,37 @@ impl KbupdService for ServiceState {
                     warn!("node service already started");
                 }
             }
-            Some(_) => {
-                match self {
-                    ServiceState::Replica(replica) => {
-                        replica.untrusted_message(msg);
-                    }
-                    ServiceState::Frontend(frontend) => {
-                        frontend.untrusted_message(msg);
-                    }
-                    ServiceState::NotStarted => {
-                        warn!("node service not started");
-                    }
+            Some(_) => match self {
+                ServiceState::Replica(replica) => {
+                    replica.untrusted_message(msg);
                 }
-            }
-            None => {
-            }
+                ServiceState::Frontend(frontend) => {
+                    frontend.untrusted_message(msg);
+                }
+                ServiceState::NotStarted => {
+                    warn!("node service not started");
+                }
+            },
+            None => {}
         }
     }
 }
 
 impl SgxsdServer for SgxsdState {
-    type InitArgs       = StartArgs;
     type HandleCallArgs = CallArgs;
-    type TerminateArgs  = StopArgs;
+    type InitArgs = StartArgs;
+    type TerminateArgs = StopArgs;
 
     fn init(_args: Option<&Self::InitArgs>) -> Result<Self, SgxStatus> {
         Ok(Self {})
     }
 
-    fn handle_call(&mut self,
-                   args:         Option<&Self::HandleCallArgs>,
-                   request_data: &[u8],
-                   from:         SgxsdMsgFrom)
-                   -> Result<(), (SgxStatus, SgxsdMsgFrom)>
+    fn handle_call(
+        &mut self,
+        args: Option<&Self::HandleCallArgs>,
+        request_data: &[u8],
+        from: SgxsdMsgFrom,
+    ) -> Result<(), (SgxStatus, SgxsdMsgFrom)>
     {
         let args = match args {
             Some(args) => args,

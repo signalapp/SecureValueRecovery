@@ -8,13 +8,13 @@
 use std::collections::*;
 use std::rc::*;
 
-use hashbrown::{HashMap, hash_map};
-use prost::{Message};
-use rand_core::{RngCore};
-use sgxsd_ffi::{RdRand};
+use hashbrown::{hash_map, HashMap};
+use prost::Message;
+use rand_core::RngCore;
+use sgxsd_ffi::RdRand;
 
-use crate::{kbupd_send};
-use crate::hasher::{DefaultHasher};
+use crate::hasher::DefaultHasher;
+use crate::kbupd_send;
 use crate::protobufs::kbupd::*;
 use crate::protobufs::kbupd_enclave::*;
 use crate::remote::*;
@@ -28,14 +28,14 @@ pub struct PeerManager<T> {
     total_ticks:      u32,
 }
 
-pub struct PeerStarter<'a,T,U> {
+pub struct PeerStarter<'a, T, U> {
     peer_entry:       hash_map::VacantEntry<'a, NodeId, Option<T>, DefaultHasher>,
     connecting_peers: &'a mut BTreeSet<ConnectingPeerState>,
     connecting_peer:  ConnectingPeerState,
     remote:           U,
 }
 
-pub struct PeerAcceptor<'a,T> {
+pub struct PeerAcceptor<'a, T> {
     peer_entry:       hash_map::VacantEntry<'a, NodeId, Option<T>, DefaultHasher>,
     node_params:      Rc<NodeParams>,
     noise_buffers:    SharedNoiseBuffers,
@@ -60,10 +60,7 @@ struct ConnectingPeerState {
 
 enum QeInfoRequestState {
     None,
-    Sent {
-        needs_qe_info: Vec<NodeId>,
-        ticks_elapsed: u32,
-    },
+    Sent { needs_qe_info: Vec<NodeId>, ticks_elapsed: u32 },
 }
 
 impl<T> PeerManager<T>
@@ -121,18 +118,20 @@ where T: Peer
         while let Some(mut connecting_peer) = self.take_connecting_peer() {
             if let Some(peer) = self.peers.get_mut(&connecting_peer.node_id).and_then(Option::as_mut) {
                 let last_interval_ticks = connecting_peer.last_interval_ticks;
-                let half_interval_ticks = last_interval_ticks.min(max_timeout_ticks / 2)
-                                                             .max(min_timeout_ticks);
-                let rand_interval_ticks = RdRand.next_u32().checked_rem(half_interval_ticks)
-                                                           .unwrap_or(0);
-                let next_timeout_ticks  = half_interval_ticks.saturating_add(rand_interval_ticks);
+                let half_interval_ticks = last_interval_ticks.min(max_timeout_ticks / 2).max(min_timeout_ticks);
+                let rand_interval_ticks = RdRand.next_u32().checked_rem(half_interval_ticks).unwrap_or(0);
+                let next_timeout_ticks = half_interval_ticks.saturating_add(rand_interval_ticks);
 
                 connecting_peer.last_interval_ticks = half_interval_ticks.saturating_add(half_interval_ticks);
-                connecting_peer.next_timeout_tick   = next_timeout_ticks.saturating_add(self.total_ticks.wrapping_add(1));
+                connecting_peer.next_timeout_tick = next_timeout_ticks.saturating_add(self.total_ticks.wrapping_add(1));
                 match peer.remote_mut().connect() {
                     Ok(()) => {
-                        info!("connecting to peer {} with retry in {} ticks, next interval {} ticks",
-                              peer.remote_mut().id(), next_timeout_ticks, connecting_peer.last_interval_ticks);
+                        info!(
+                            "connecting to peer {} with retry in {} ticks, next interval {} ticks",
+                            peer.remote_mut().id(),
+                            next_timeout_ticks,
+                            connecting_peer.last_interval_ticks
+                        );
                         Self::get_qe_info(&mut self.qe_info_req, peer.remote_mut().id().clone());
                         new_connecting_peers.insert(connecting_peer);
                     }
@@ -157,20 +156,26 @@ where T: Peer
         }
     }
 
-    pub fn start_peer<'a,M,R>(&'a mut self,
-                              peer_node_id:   NodeId,
-                              peer_node_type: NodeType,
-                              auth_type:      RemoteAuthorizationType)
-                              -> Result<PeerStarter<'a, T, RemoteState<M,R>>, Option<&'a mut T>>
-    where M: prost::Message + 'static,
-          R: prost::Message + Default + 'static,
+    pub fn start_peer<'a, M, R>(
+        &'a mut self,
+        peer_node_id: NodeId,
+        peer_node_type: NodeType,
+        auth_type: RemoteAuthorizationType,
+    ) -> Result<PeerStarter<'a, T, RemoteState<M, R>>, Option<&'a mut T>>
+    where
+        M: prost::Message + 'static,
+        R: prost::Message + Default + 'static,
     {
         match self.peers.entry(peer_node_id) {
-            hash_map::Entry::Occupied(peer_entry) => {
-                Err(peer_entry.into_mut().as_mut())
-            }
+            hash_map::Entry::Occupied(peer_entry) => Err(peer_entry.into_mut().as_mut()),
             hash_map::Entry::Vacant(peer_entry) => {
-                let remote          = RemoteState::new(Rc::clone(&self.node_params), peer_entry.key().clone(), peer_node_type, auth_type, self.noise_buffers.clone());
+                let remote = RemoteState::new(
+                    Rc::clone(&self.node_params),
+                    peer_entry.key().clone(),
+                    peer_node_type,
+                    auth_type,
+                    self.noise_buffers.clone(),
+                );
                 let connecting_peer = ConnectingPeerState {
                     next_timeout_tick:   self.total_ticks.wrapping_add(1),
                     last_interval_ticks: 0,
@@ -213,9 +218,7 @@ where T: Peer
     }
 
     pub fn get_qe_info_reply(&mut self, get_qe_info_reply: GetQeInfoReply) {
-        if let QeInfoRequestState::Sent { needs_qe_info, .. } =
-            std::mem::replace(&mut self.qe_info_req, QeInfoRequestState::None)
-        {
+        if let QeInfoRequestState::Sent { needs_qe_info, .. } = std::mem::replace(&mut self.qe_info_req, QeInfoRequestState::None) {
             info!("generating quotes for {} peers", needs_qe_info.len());
             for peer_node_id in needs_qe_info {
                 if let Some(peer) = self.peers.get_mut(&peer_node_id).and_then(Option::as_mut) {
@@ -244,7 +247,7 @@ where T: Peer
                 Err(Some(enclave_get_quote_reply)) => {
                     let _ignore = peer.send_quote_reply(enclave_get_quote_reply);
                 }
-                Ok(None)  => (),
+                Ok(None) => (),
                 Err(None) => (),
             }
         }
@@ -266,30 +269,30 @@ where T: Peer
         let peer = self.peers.get_mut(&peer_node_id)?.as_mut()?;
         match peer.remote_mut().attestation_reply(get_attestation_reply.ias_report) {
             Ok(Some(attestation)) => Some((peer, attestation)),
-            Ok(None)              => None,
-            Err(())               => None,
+            Ok(None) => None,
+            Err(()) => None,
         }
     }
 
-    pub fn new_message_signal(&mut self, message: NewMessageSignal) -> Result<Option<(&mut T, <T as Peer>::Message)>, PeerAcceptor<'_,T>> {
+    pub fn new_message_signal(&mut self, message: NewMessageSignal) -> Result<Option<(&mut T, <T as Peer>::Message)>, PeerAcceptor<'_, T>> {
         let peer_node_id: NodeId = message.node_id.into();
 
         if message.syn {
             let connect_request = match PeerConnectRequest::decode(&message.data[..]) {
                 Ok(connect_request) => connect_request,
-                Err(decode_error)   => {
+                Err(decode_error) => {
                     warn!("dropping connect request from {}: {}", &peer_node_id, decode_error);
                     return Ok(None);
                 }
             };
             match self.peer_connect_request(connect_request, peer_node_id) {
                 Some(peer_acceptor) => Err(peer_acceptor),
-                None                => Ok(None),
+                None => Ok(None),
             }
         } else {
             match self.peer_message(message.data, peer_node_id) {
                 Ok(result) => Ok(result),
-                Err(())    => Ok(None),
+                Err(()) => Ok(None),
             }
         }
     }
@@ -298,9 +301,7 @@ where T: Peer
         let peer_entry = self.peers.get_mut(&peer_node_id);
         if let Some(Some(peer)) = peer_entry {
             match peer.recv(&message_data) {
-                Ok(message) => {
-                    Ok(Some((peer, message)))
-                }
+                Ok(message) => Ok(Some((peer, message))),
                 Err(RemoteRecvError::NeedsAttestation(get_attestation_request)) => {
                     info!("fetching attestation for peer {}", &peer_node_id);
                     kbupd_send(EnclaveMessage {
@@ -308,10 +309,7 @@ where T: Peer
                     });
                     Ok(None)
                 }
-                Err(RemoteRecvError::DecodeError) |
-                Err(RemoteRecvError::InvalidState) => {
-                    Err(())
-                }
+                Err(RemoteRecvError::DecodeError) | Err(RemoteRecvError::InvalidState) => Err(()),
             }
         } else if let Some(None) = peer_entry {
             warn!("dropping message from evicted peer {}", &peer_node_id);
@@ -322,7 +320,7 @@ where T: Peer
         }
     }
 
-    fn peer_connect_request(&mut self, connect_request: PeerConnectRequest, peer_node_id: NodeId) -> Option<PeerAcceptor<'_,T>> {
+    fn peer_connect_request(&mut self, connect_request: PeerConnectRequest, peer_node_id: NodeId) -> Option<PeerAcceptor<'_, T>> {
         match self.peers.entry(peer_node_id) {
             hash_map::Entry::Occupied(mut peer_entry) => {
                 if let Some(peer) = peer_entry.get_mut().as_mut() {
@@ -341,15 +339,18 @@ where T: Peer
                 if let Some(remote_node_type) = NodeType::from_i32(connect_request.node_type) {
                     Some(PeerAcceptor {
                         peer_entry,
-                        node_params:      Rc::clone(&self.node_params),
-                        noise_buffers:    self.noise_buffers.clone(),
+                        node_params: Rc::clone(&self.node_params),
+                        noise_buffers: self.noise_buffers.clone(),
                         remote_node_type,
-                        qe_info_req:      &mut self.qe_info_req,
+                        qe_info_req: &mut self.qe_info_req,
                         connect_request,
                     })
                 } else {
-                    warn!("dropping connect request from {}: invalid node type {}",
-                          peer_entry.key(), connect_request.node_type);
+                    warn!(
+                        "dropping connect request from {}: invalid node type {}",
+                        peer_entry.key(),
+                        connect_request.node_type
+                    );
                     None
                 }
             }
@@ -361,31 +362,32 @@ where T: Peer
 // PeerStarter impls
 //
 
-impl<'a,T,U> PeerStarter<'a,T,U>
-where T: Peer,
-      U: Remote
+impl<'a, T, U> PeerStarter<'a, T, U>
+where
+    T: Peer,
+    U: Remote,
 {
     pub fn remote(&self) -> &U {
         &self.remote
     }
+
     pub fn connect<F>(mut self, mapper: F) -> Result<&'a mut T, (Self, F)>
-    where F: FnOnce(U) -> T,
-    {
+    where F: FnOnce(U) -> T {
         match self.remote.connect() {
             Ok(()) => {
                 self.connecting_peers.insert(self.connecting_peer);
                 let peer = self.peer_entry.insert(Some(mapper(self.remote)));
                 Ok(peer.as_mut().unwrap_or_else(|| unreachable!()))
             }
-            Err(()) => {
-                Err((self, mapper))
-            }
+            Err(()) => Err((self, mapper)),
         }
     }
+
     pub fn insert(self, mapper: impl FnOnce(U) -> T) -> &'a mut T {
-        self.peer_entry.insert(Some(mapper(self.remote)))
-                       .as_mut()
-                       .unwrap_or_else(|| unreachable!())
+        self.peer_entry
+            .insert(Some(mapper(self.remote)))
+            .as_mut()
+            .unwrap_or_else(|| unreachable!())
     }
 }
 
@@ -393,20 +395,29 @@ where T: Peer,
 // PeerAcceptor impls
 //
 
-impl<'a,T> PeerAcceptor<'a,T>
+impl<'a, T> PeerAcceptor<'a, T>
 where T: Peer
 {
     pub fn node_id(&self) -> &NodeId {
         self.peer_entry.key()
     }
+
     pub fn connect_request(&self) -> &PeerConnectRequest {
         &self.connect_request
     }
-    pub fn accept<M,R>(self, mapper: impl FnOnce(RemoteState<M,R>) -> T, auth_type: RemoteAuthorizationType) -> Result<&'a mut T, ()>
-    where M: prost::Message + 'static,
-          R: prost::Message + Default + 'static,
+
+    pub fn accept<M, R>(self, mapper: impl FnOnce(RemoteState<M, R>) -> T, auth_type: RemoteAuthorizationType) -> Result<&'a mut T, ()>
+    where
+        M: prost::Message + 'static,
+        R: prost::Message + Default + 'static,
     {
-        let mut remote = RemoteState::new(Rc::clone(&self.node_params), self.peer_entry.key().clone(), self.remote_node_type, auth_type, self.noise_buffers);
+        let mut remote = RemoteState::new(
+            Rc::clone(&self.node_params),
+            self.peer_entry.key().clone(),
+            self.remote_node_type,
+            auth_type,
+            self.noise_buffers,
+        );
         remote.accept(self.connect_request)?;
         PeerManager::<T>::get_qe_info(self.qe_info_req, self.peer_entry.key().clone());
         let peer = self.peer_entry.insert(Some(mapper(remote)));

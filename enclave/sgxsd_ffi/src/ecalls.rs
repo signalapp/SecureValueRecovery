@@ -7,22 +7,16 @@
 
 #![allow(clippy::all, clippy::option_unwrap_used, clippy::cast_sign_loss)]
 
-use alloc::boxed::{Box};
+use alloc::boxed::Box;
 use core::ptr;
 use core::slice;
 
-use num_traits::{ToPrimitive};
+use num_traits::ToPrimitive;
 
-pub use super::bindgen_wrapper::{
-    sgxsd_msg_buf_t,
-    sgxsd_msg_from_t,
-};
-use super::bindgen_wrapper::{
-    sgxsd_enclave_server_noreply,
-    sgxsd_enclave_server_reply,
-};
+use super::bindgen_wrapper::{sgxsd_enclave_server_noreply, sgxsd_enclave_server_reply};
+pub use super::bindgen_wrapper::{sgxsd_msg_buf_t, sgxsd_msg_from_t};
 use sgx_ffi::sgx::*;
-use sgx_ffi::util::{clear};
+use sgx_ffi::util::clear;
 
 pub trait SgxsdServer: Send + Sized {
     type InitArgs;
@@ -30,7 +24,12 @@ pub trait SgxsdServer: Send + Sized {
     type TerminateArgs;
 
     fn init(_args: Option<&Self::InitArgs>) -> Result<Self, SgxStatus>;
-    fn handle_call(&mut self, args: Option<&Self::HandleCallArgs>, request_data: &[u8], from: SgxsdMsgFrom) -> Result<(), (SgxStatus, SgxsdMsgFrom)>;
+    fn handle_call(
+        &mut self,
+        args: Option<&Self::HandleCallArgs>,
+        request_data: &[u8],
+        from: SgxsdMsgFrom,
+    ) -> Result<(), (SgxStatus, SgxsdMsgFrom)>;
     fn terminate(self, _args: Option<&Self::TerminateArgs>) -> Result<(), SgxStatus>;
 }
 
@@ -50,18 +49,27 @@ impl SgxsdMsgFrom {
         clear(&mut from.server_key.data[..]);
         res
     }
+
     #[cfg(any(test, feature = "test"))]
     pub fn mock() -> Self {
-        Self::new(&mut sgxsd_msg_from_t { tag: Default::default(), valid: true, server_key: Default::default() })
+        Self::new(&mut sgxsd_msg_from_t {
+            tag:        Default::default(),
+            valid:      true,
+            server_key: Default::default(),
+        })
     }
+
     pub fn reply(mut self, msg: &mut [u8]) -> Result<(), SgxStatus> {
         if let Some(size) = msg.len().to_u32() {
-            let msg_buf = sgxsd_msg_buf_t { data: msg.as_mut_ptr(), size };
+            let msg_buf = sgxsd_msg_buf_t {
+                data: msg.as_mut_ptr(),
+                size,
+            };
             if let Some(mut msg_from) = self.0.take() {
                 let msg_from_ref = &mut *msg_from;
                 match unsafe { sgxsd_enclave_server_reply(msg_buf, msg_from_ref) } {
                     0 => Ok(()),
-                    err => Err(err)
+                    err => Err(err),
                 }
             } else {
                 Err(SGX_ERROR_INVALID_STATE)
@@ -70,6 +78,7 @@ impl SgxsdMsgFrom {
             Err(SGX_ERROR_UNEXPECTED)
         }
     }
+
     fn forget(mut self) {
         if let Some(mut from) = self.0.take() {
             from.valid = false;
@@ -86,31 +95,30 @@ impl Drop for SgxsdMsgFrom {
     }
 }
 
-pub fn sgxsd_enclave_server_init<S>(p_args:   *const S::InitArgs,
-                                    pp_state: *mut *mut S)
-                                    -> SgxStatus
-where S: SgxsdServer,
-{
+pub fn sgxsd_enclave_server_init<S>(p_args: *const S::InitArgs, pp_state: *mut *mut S) -> SgxStatus
+where S: SgxsdServer {
     let args = unsafe { p_args.as_ref() };
     match S::init(args) {
         Ok(new_state) => {
             unsafe { *pp_state = Box::into_raw(Box::new(new_state)) };
             0
         }
-        Err(err) => err
+        Err(err) => err,
     }
 }
 
-pub fn sgxsd_enclave_server_handle_call<S>(p_args:   *const S::HandleCallArgs,
-                                           msg_buf:  sgxsd_msg_buf_t,
-                                           from:     &mut sgxsd_msg_from_t,
-                                           pp_state: *mut *mut S)
-                                           -> SgxStatus
-where S: SgxsdServer,
+pub fn sgxsd_enclave_server_handle_call<S>(
+    p_args: *const S::HandleCallArgs,
+    msg_buf: sgxsd_msg_buf_t,
+    from: &mut sgxsd_msg_from_t,
+    pp_state: *mut *mut S,
+) -> SgxStatus
+where
+    S: SgxsdServer,
 {
-    let args      = unsafe { p_args.as_ref() };
+    let args = unsafe { p_args.as_ref() };
     let mut state = unsafe { Box::from_raw(*pp_state) };
-    let msg       = ECallSlice(ptr::NonNull::new(msg_buf.data as *mut _), msg_buf.size as usize);
+    let msg = ECallSlice(ptr::NonNull::new(msg_buf.data as *mut _), msg_buf.size as usize);
     match state.handle_call(args, msg.as_ref(), SgxsdMsgFrom::new(from)) {
         Ok(()) => {
             unsafe { *pp_state = Box::into_raw(state) };
@@ -124,16 +132,13 @@ where S: SgxsdServer,
     }
 }
 
-pub fn sgxsd_enclave_server_terminate<S>(p_args:  *const S::TerminateArgs,
-                                         p_state: *mut S)
-                                         -> SgxStatus
-where S: SgxsdServer,
-{
+pub fn sgxsd_enclave_server_terminate<S>(p_args: *const S::TerminateArgs, p_state: *mut S) -> SgxStatus
+where S: SgxsdServer {
     let args = unsafe { p_args.as_ref() };
     let state = unsafe { Box::from_raw(p_state) };
     match state.terminate(args) {
         Ok(()) => 0,
-        Err(err) => err
+        Err(err) => err,
     }
 }
 
@@ -154,15 +159,11 @@ impl AsRef<[u8]> for ECallSlice {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::mocks;
-    use mockers::{*, matchers::*};
+    use super::*;
+    use mockers::{matchers::*, *};
 
-    use super::super::bindgen_wrapper::{
-        sgxsd_server_init_args_t,
-        sgxsd_server_handle_call_args_t,
-        sgxsd_server_terminate_args_t,
-    };
+    use super::super::bindgen_wrapper::{sgxsd_server_handle_call_args_t, sgxsd_server_init_args_t, sgxsd_server_terminate_args_t};
 
     fn expect_msg_from_drop(scenario: &Scenario, msg_from: &sgxsd_msg_from_t) {
         let msg_from = *msg_from;
@@ -213,15 +214,24 @@ mod tests {
 
     struct MockSgxsdServer {}
     impl SgxsdServer for MockSgxsdServer {
-        type InitArgs       = sgxsd_server_init_args_t;
         type HandleCallArgs = sgxsd_server_handle_call_args_t;
-        type TerminateArgs  = sgxsd_server_terminate_args_t;
+        type InitArgs = sgxsd_server_init_args_t;
+        type TerminateArgs = sgxsd_server_terminate_args_t;
+
         fn init(_args: Option<&Self::InitArgs>) -> Result<Self, SgxStatus> {
             Ok(Self {})
         }
-        fn handle_call(&mut self, _args: Option<&Self::HandleCallArgs>, _request_data: &[u8], _from: SgxsdMsgFrom) -> Result<(), (SgxStatus, SgxsdMsgFrom)> {
+
+        fn handle_call(
+            &mut self,
+            _args: Option<&Self::HandleCallArgs>,
+            _request_data: &[u8],
+            _from: SgxsdMsgFrom,
+        ) -> Result<(), (SgxStatus, SgxsdMsgFrom)>
+        {
             Ok(())
         }
+
         fn terminate(self, _args: Option<&Self::TerminateArgs>) -> Result<(), SgxStatus> {
             Ok(())
         }
@@ -246,11 +256,7 @@ mod tests {
         let mut pp_state = mock_sgxsd_server();
 
         expect_msg_from_drop(&scenario, &msg_from);
-        sgxsd_enclave_server_handle_call(
-            std::ptr::null(),
-            mocks::valid_msg_buf(),
-            &mut msg_from, &mut *pp_state
-        );
+        sgxsd_enclave_server_handle_call(std::ptr::null(), mocks::valid_msg_buf(), &mut msg_from, &mut *pp_state);
 
         unsafe { Box::from_raw(*pp_state) };
 
@@ -266,11 +272,18 @@ mod tests {
         let mut pp_state = mock_sgxsd_server();
 
         expect_msg_from_drop(&scenario, &msg_from);
-        assert_eq!(sgxsd_enclave_server_handle_call(
-            std::ptr::null(),
-            sgxsd_msg_buf_t { data: std::ptr::null_mut(), size: 0 },
-            &mut msg_from, &mut *pp_state
-        ), 0);
+        assert_eq!(
+            sgxsd_enclave_server_handle_call(
+                std::ptr::null(),
+                sgxsd_msg_buf_t {
+                    data: std::ptr::null_mut(),
+                    size: 0,
+                },
+                &mut msg_from,
+                &mut *pp_state
+            ),
+            0
+        );
 
         unsafe { Box::from_raw(*pp_state) };
 
@@ -286,11 +299,10 @@ mod tests {
         let mut pp_state = mock_sgxsd_server();
 
         expect_msg_from_drop(&scenario, &msg_from);
-        assert_eq!(sgxsd_enclave_server_handle_call(
-            std::ptr::null(),
-            mocks::valid_msg_buf(),
-            &mut msg_from, &mut *pp_state
-        ), 0);
+        assert_eq!(
+            sgxsd_enclave_server_handle_call(std::ptr::null(), mocks::valid_msg_buf(), &mut msg_from, &mut *pp_state),
+            0
+        );
 
         unsafe { Box::from_raw(*pp_state) };
 

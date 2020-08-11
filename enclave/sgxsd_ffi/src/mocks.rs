@@ -7,29 +7,18 @@
 
 #![allow(clippy::all, clippy::option_unwrap_used, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 
-use std::cell::{RefCell};
+use std::cell::RefCell;
 
 use mockers_derive::mocked;
-use rand::*;
 use rand::distributions::*;
+use rand::*;
 use test_ffi::*;
 
-pub use super::bindgen_wrapper::{
-    sgxsd_aes_gcm_key_t,
-    sgxsd_msg_buf_t,
-    sgxsd_msg_from_t,
-};
+pub use super::bindgen_wrapper::{sgxsd_aes_gcm_key_t, sgxsd_msg_buf_t, sgxsd_msg_from_t};
 
 use super::bindgen_wrapper::{
-    br_sha224_context,
-    br_sha256_context,
-    SGXSD_SHA256_HASH_SIZE,
-    sgxsd_aes_gcm_iv_t,
-    sgxsd_aes_gcm_mac_t,
-    sgxsd_msg_tag_t,
-    sgxsd_msg_tag__bindgen_ty_1,
-    sgxsd_rand_buf_t,
-    sgx_status_t,
+    br_sha224_context, br_sha256_context, sgx_status_t, sgxsd_aes_gcm_iv_t, sgxsd_aes_gcm_mac_t, sgxsd_msg_tag__bindgen_ty_1,
+    sgxsd_msg_tag_t, sgxsd_rand_buf_t, SGXSD_SHA256_HASH_SIZE,
 };
 
 //
@@ -81,7 +70,9 @@ pub trait SgxsdEnclaveReadRand {
 
 impl Distribution<sgxsd_msg_tag_t> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> sgxsd_msg_tag_t {
-        sgxsd_msg_tag_t { __bindgen_anon_1: sgxsd_msg_tag__bindgen_ty_1 { tag: rng.sample(self) } }
+        sgxsd_msg_tag_t {
+            __bindgen_anon_1: sgxsd_msg_tag__bindgen_ty_1 { tag: rng.sample(self) },
+        }
     }
 }
 impl Distribution<sgxsd_aes_gcm_key_t> for Standard {
@@ -92,8 +83,8 @@ impl Distribution<sgxsd_aes_gcm_key_t> for Standard {
 impl Distribution<sgxsd_msg_from_t> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> sgxsd_msg_from_t {
         sgxsd_msg_from_t {
-            tag: rng.sample(self),
-            valid: true,
+            tag:        rng.sample(self),
+            valid:      true,
             server_key: rng.sample(self),
         }
     }
@@ -109,7 +100,10 @@ lazy_static::lazy_static! {
 
 pub fn valid_msg_buf() -> sgxsd_msg_buf_t {
     let msg = &VALID_MSG_BUF;
-    sgxsd_msg_buf_t { data: msg.as_ptr() as *mut _, size: msg.len() as u32 }
+    sgxsd_msg_buf_t {
+        data: msg.as_ptr() as *mut _,
+        size: msg.len() as u32,
+    }
 }
 
 //
@@ -122,7 +116,9 @@ pub mod impls {
     #[no_mangle]
     pub extern "C" fn sgxsd_enclave_server_noreply(from: *mut sgxsd_msg_from_t) -> sgx_status_t {
         SGXSD_ENCLAVE_SERVER_NOREPLY.with(|mock| {
-            mock.borrow().as_ref().expect("no mock for sgxsd_enclave_server_noreply")
+            mock.borrow()
+                .as_ref()
+                .expect("no mock for sgxsd_enclave_server_noreply")
                 .sgxsd_enclave_server_noreply(unsafe { *from })
         })
     }
@@ -133,11 +129,12 @@ pub mod impls {
         assert_ne!(reply_buf.size, 0);
         let reply_buf = unsafe { std::slice::from_raw_parts_mut(reply_buf.data, reply_buf.size as usize) };
         SGXSD_ENCLAVE_SERVER_REPLY.with(|mock| {
-            mock.borrow().as_ref().expect("no mock for sgxsd_enclave_server_reply")
+            mock.borrow()
+                .as_ref()
+                .expect("no mock for sgxsd_enclave_server_reply")
                 .sgxsd_enclave_server_reply(reply_buf, unsafe { *from })
         })
     }
-
 
     #[no_mangle]
     pub extern "C" fn sgxsd_aes_gcm_encrypt(
@@ -149,7 +146,8 @@ pub mod impls {
         p_aad: *const ::std::os::raw::c_void,
         aad_len: u32,
         p_out_mac: *mut sgxsd_aes_gcm_mac_t,
-    ) -> sgx_status_t {
+    ) -> sgx_status_t
+    {
         let key = unsafe { std::ptr::read_volatile(p_key) };
         assert_ne!(&key.data[..], &vec![0; key.data.len()][..]);
         assert!(!p_iv.is_null());
@@ -160,12 +158,16 @@ pub mod impls {
             assert!(!p_src.is_null());
             assert!(!p_dst.is_null());
             let src = unsafe { std::slice::from_raw_parts(p_src as *const u8, src_len as usize) };
-            src.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
+            src.iter().for_each(|p| unsafe {
+                std::ptr::read_volatile(p);
+            });
         }
         let aad = if aad_len != 0 {
             assert!(!p_aad.is_null());
             let aad = unsafe { std::slice::from_raw_parts(p_aad as *const u8, aad_len as usize) };
-            aad.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
+            aad.iter().for_each(|p| unsafe {
+                std::ptr::read_volatile(p);
+            });
             aad
         } else {
             &[]
@@ -208,7 +210,8 @@ pub mod impls {
         p_aad: *const ::std::os::raw::c_void,
         aad_len: u32,
         p_in_mac: *const sgxsd_aes_gcm_mac_t,
-    ) -> sgx_status_t {
+    ) -> sgx_status_t
+    {
         let key = unsafe { std::ptr::read_volatile(p_key) };
         assert_ne!(&key.data[..], &vec![0; key.data.len()][..]);
         assert!(!p_iv.is_null());
@@ -219,12 +222,16 @@ pub mod impls {
             assert!(!p_src.is_null());
             assert!(!p_dst.is_null());
             let src = unsafe { std::slice::from_raw_parts(p_src as *const u8, src_len as usize) };
-            src.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
+            src.iter().for_each(|p| unsafe {
+                std::ptr::read_volatile(p);
+            });
         }
         let aad = if aad_len != 0 {
             assert!(!p_aad.is_null());
             let aad = unsafe { std::slice::from_raw_parts(p_aad as *const u8, aad_len as usize) };
-            aad.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
+            aad.iter().for_each(|p| unsafe {
+                std::ptr::read_volatile(p);
+            });
             aad
         } else {
             &[]
@@ -278,7 +285,9 @@ pub mod impls {
         if len != 0 {
             assert!(!data.is_null());
             let data = unsafe { std::slice::from_raw_parts(data as *const u8, len) };
-            data.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
+            data.iter().for_each(|p| unsafe {
+                std::ptr::read_volatile(p);
+            });
         }
     }
 

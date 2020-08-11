@@ -16,12 +16,13 @@ pub struct StorageArray<V> {
 //
 
 impl<V> StorageArray<V>
-where V: StorageValue,
+where V: StorageValue
 {
     pub fn new(length: u32, cache_size: usize) -> Result<Self, ()> {
-        let page_count = length.saturating_add(V::items_per_page() - 1)
-                               .checked_div(V::items_per_page())
-                               .unwrap_or_else(|| static_unreachable!());
+        let page_count = length
+            .saturating_add(V::items_per_page() - 1)
+            .checked_div(V::items_per_page())
+            .unwrap_or_else(|| static_unreachable!());
         Ok(Self {
             cache: StoragePageCache::with_page_count(page_count, cache_size)?,
         })

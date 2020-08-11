@@ -10,11 +10,11 @@ use crate::prelude::*;
 use std::fmt;
 
 use base64;
+use serde::de::Error;
 use serde::{Deserialize, Deserializer};
-use serde::de::{Error};
 
-pub use sgx_ffi::util::*;
 pub use crate::protobufs::kbupd::*;
+pub use sgx_ffi::util::*;
 
 pub struct ToHex<'a>(pub &'a [u8]);
 
@@ -36,19 +36,19 @@ impl<'a> fmt::Debug for ToHex<'a> {
 pub struct OptionDisplay<T>(pub Option<T>);
 
 impl<T> fmt::Display for OptionDisplay<T>
-where T: fmt::Display,
+where T: fmt::Display
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let Self(inner) = self;
         match inner {
             Some(inner) => fmt::Display::fmt(inner, fmt),
-            None        => write!(fmt, "<none>"),
+            None => write!(fmt, "<none>"),
         }
     }
 }
 
 impl<T> fmt::Debug for OptionDisplay<T>
-where T: fmt::Display,
+where T: fmt::Display
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         fmt::Display::fmt(self, fmt)
@@ -58,20 +58,20 @@ where T: fmt::Display,
 pub struct ListDisplay<T>(pub T);
 
 impl<T> fmt::Display for ListDisplay<T>
-where T: IntoIterator + Clone,
-      T::Item: fmt::Display,
+where
+    T: IntoIterator + Clone,
+    T::Item: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let Self(inner) = self;
-        fmt.debug_list()
-           .entries(inner.clone().into_iter().map(DisplayAsDebug))
-           .finish()
+        fmt.debug_list().entries(inner.clone().into_iter().map(DisplayAsDebug)).finish()
     }
 }
 
 impl<T> fmt::Debug for ListDisplay<T>
-where T: IntoIterator + Clone,
-      T::Item: fmt::Display,
+where
+    T: IntoIterator + Clone,
+    T::Item: fmt::Display,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         fmt::Display::fmt(self, fmt)
@@ -81,7 +81,7 @@ where T: IntoIterator + Clone,
 pub struct DisplayAsDebug<T>(pub T);
 
 impl<T> fmt::Debug for DisplayAsDebug<T>
-where T: fmt::Display,
+where T: fmt::Display
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let Self(inner) = self;
@@ -91,14 +91,11 @@ where T: fmt::Display,
 
 pub fn deserialize_base64<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
     Deserialize::deserialize(deserializer)
-        .and_then(|base64: &[u8]| {
-            base64::decode(base64).map_err(|error| D::Error::custom(error.to_string()))
-        })
+        .and_then(|base64: &[u8]| base64::decode(base64).map_err(|error| D::Error::custom(error.to_string())))
 }
 
 pub fn copy_exact<T>(src: &[u8]) -> Result<T, ()>
-where T: AsMut<[u8]> + Default
-{
+where T: AsMut<[u8]> + Default {
     let mut dst = T::default();
     if src.len() == dst.as_mut().len() {
         dst.as_mut().copy_from_slice(src);

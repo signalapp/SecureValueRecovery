@@ -11,25 +11,25 @@ mod replica_group;
 
 use crate::prelude::*;
 
-use std::convert::{TryInto};
 use std::collections::*;
-use std::time::*;
+use std::convert::TryInto;
 use std::rc::*;
+use std::time::*;
 
-use prost::{Message};
-use sgx_ffi::util::{SecretValue};
-use sgxsd_ffi::{RdRand};
+use prost::Message;
+use sgx_ffi::util::SecretValue;
+use sgxsd_ffi::RdRand;
 
-use crate::ffi::ecalls::{kbupd_send};
+use crate::ffi::ecalls::kbupd_send;
 use crate::lru::*;
 use crate::protobufs::kbupd::*;
-use crate::protobufs::kbupd_enclave::*;
 use crate::protobufs::kbupd_client;
+use crate::protobufs::kbupd_enclave::*;
 use crate::protobufs::raft::*;
-use crate::storage::*;
 use crate::raft::*;
 use crate::remote::*;
 use crate::remote_group::*;
+use crate::storage::*;
 use crate::util;
 use crate::util::*;
 
@@ -66,7 +66,7 @@ enum PeerState {
     Replica {
         remote:     RemoteState<ReplicaToReplicaMessage, ReplicaToReplicaMessage>,
         authorized: bool,
-    }
+    },
 }
 
 enum PeerMessage {
@@ -106,45 +106,32 @@ impl ReplicaState {
 
     pub fn untrusted_message(&mut self, untrusted_message: UntrustedMessage) {
         match untrusted_message.inner {
-            Some(untrusted_message::Inner::StartFrontendRequest(_)) |
-            Some(untrusted_message::Inner::StartReplicaRequest(_)) =>
-                (),
+            Some(untrusted_message::Inner::StartFrontendRequest(_)) | Some(untrusted_message::Inner::StartReplicaRequest(_)) => (),
 
-            Some(untrusted_message::Inner::StartReplicaGroupRequest(request)) =>
-                self.handle_start_replica_group_request(request),
-            Some(untrusted_message::Inner::UntrustedTransactionRequest(request)) =>
-                warn!("received untrusted transaction request: {}", request),
-            Some(untrusted_message::Inner::UntrustedXferRequest(request)) =>
-                self.handle_untrusted_xfer_request(request),
-            Some(untrusted_message::Inner::GetEnclaveStatusRequest(request)) =>
-                self.handle_get_enclave_status_request(request),
+            Some(untrusted_message::Inner::StartReplicaGroupRequest(request)) => self.handle_start_replica_group_request(request),
+            Some(untrusted_message::Inner::UntrustedTransactionRequest(request)) => {
+                warn!("received untrusted transaction request: {}", request)
+            }
+            Some(untrusted_message::Inner::UntrustedXferRequest(request)) => self.handle_untrusted_xfer_request(request),
+            Some(untrusted_message::Inner::GetEnclaveStatusRequest(request)) => self.handle_get_enclave_status_request(request),
 
-            Some(untrusted_message::Inner::GetQeInfoReply(reply)) =>
-                self.handle_get_qe_info_reply(reply),
-            Some(untrusted_message::Inner::GetQuoteReply(reply)) =>
-                self.handle_get_quote_reply(reply),
-            Some(untrusted_message::Inner::GetAttestationReply(reply)) =>
-                self.handle_get_attestation_reply(reply),
+            Some(untrusted_message::Inner::GetQeInfoReply(reply)) => self.handle_get_qe_info_reply(reply),
+            Some(untrusted_message::Inner::GetQuoteReply(reply)) => self.handle_get_quote_reply(reply),
+            Some(untrusted_message::Inner::GetAttestationReply(reply)) => self.handle_get_attestation_reply(reply),
 
-            Some(untrusted_message::Inner::NewMessageSignal(signal)) =>
-                self.handle_new_message_signal(signal),
-            Some(untrusted_message::Inner::TimerTickSignal(signal)) =>
-                self.handle_timer_tick_signal(signal),
-            Some(untrusted_message::Inner::SetFrontendConfigSignal(_)) =>
-                (),
-            Some(untrusted_message::Inner::SetReplicaConfigSignal(signal)) =>
-                self.handle_set_replica_config_signal(signal),
-            Some(untrusted_message::Inner::ResetPeerSignal(signal)) =>
-                self.handle_reset_peer_signal(signal),
-            Some(untrusted_message::Inner::SetVerboseLoggingSignal(signal)) =>
-                self.handle_set_verbose_logging_signal(signal),
+            Some(untrusted_message::Inner::NewMessageSignal(signal)) => self.handle_new_message_signal(signal),
+            Some(untrusted_message::Inner::TimerTickSignal(signal)) => self.handle_timer_tick_signal(signal),
+            Some(untrusted_message::Inner::SetFrontendConfigSignal(_)) => (),
+            Some(untrusted_message::Inner::SetReplicaConfigSignal(signal)) => self.handle_set_replica_config_signal(signal),
+            Some(untrusted_message::Inner::ResetPeerSignal(signal)) => self.handle_reset_peer_signal(signal),
+            Some(untrusted_message::Inner::SetVerboseLoggingSignal(signal)) => self.handle_set_verbose_logging_signal(signal),
 
             None => (),
         }
     }
 
     fn handle_start_replica_group_request(&mut self, request: StartReplicaGroupRequest) {
-        let group_id   = generate_group_id();
+        let group_id = generate_group_id();
         let service_id = if request.source_partition.is_some() {
             None
         } else {
@@ -160,7 +147,7 @@ impl ReplicaState {
             service_id,
             group_id,
             node_ids,
-            config:           request.config,
+            config: request.config,
             source_partition: request.source_partition,
         };
         let _ignore = self.create_raft_group(create_group_request);
@@ -196,16 +183,12 @@ impl ReplicaState {
             Some(XferControlCommand::Pause) => {
                 info!("requesting pause of partitioning process");
                 let pause_xfer_txn = TransactionData {
-                    inner: Some(transaction_data::Inner::PauseXfer(PauseXferTransaction {
-                        request_id,
-                    })),
+                    inner: Some(transaction_data::Inner::PauseXfer(PauseXferTransaction { request_id })),
                 };
                 self.request_transaction(pause_xfer_txn);
                 None
             }
-            Some(XferControlCommand::Resume) => {
-                self.resume_partitioning(request_id).err()
-            }
+            Some(XferControlCommand::Resume) => self.resume_partitioning(request_id).err(),
             Some(XferControlCommand::Finish) => {
                 info!("requesting finish of partitioning process");
                 let finish_xfer_txn = TransactionData {
@@ -253,10 +236,8 @@ impl ReplicaState {
                 warn!("Tried to start partitioning as a non-destination replica!");
                 return Err(UntrustedXferReplyStatus::InvalidState);
             }
-        }
-;
-        let node_ids: Vec<_> =
-            (partition.group.raft.peers().iter())
+        };
+        let node_ids: Vec<_> = (partition.group.raft.peers().iter())
             .map(|node_id| node_id.to_vec())
             .chain(std::iter::once(self.peers.our_node_id().to_vec()))
             .collect();
@@ -265,10 +246,10 @@ impl ReplicaState {
         info!("requesting xfer of range {} chunk size {}", xfer_source.desired_range(), chunk_size);
 
         let request = PendingXferRequest {
-            id:      PendingXferRequestId::XferRequest,
-            message: Rc::new(ReplicaToReplicaMessage {
+            id:              PendingXferRequestId::XferRequest,
+            message:         Rc::new(ReplicaToReplicaMessage {
                 inner: Some(replica_to_replica_message::Inner::XferRequest(XferRequest {
-                    group_id:   partition.group.id().clone(),
+                    group_id: partition.group.id().clone(),
                     chunk_size,
                     full_range: xfer_source.desired_range().to_pb(),
                     node_ids,
@@ -315,49 +296,47 @@ impl ReplicaState {
         let partition = if let Some(partition) = &self.partition {
             let mut peers = Vec::new();
             for node_id in partition.group.raft.peers() {
-                let attestation        = partition.group.get(node_id).and_then(|peer| peer.attestation());
-                let replication_status = partition.group.raft.replication_state(node_id).map(|replication: &ReplicationState| {
-                    EnclavePeerReplicationStatus {
+                let attestation = partition.group.get(node_id).and_then(|peer| peer.attestation());
+                let replication_status = partition
+                    .group
+                    .raft
+                    .replication_state(node_id)
+                    .map(|replication: &ReplicationState| EnclavePeerReplicationStatus {
                         next_index:     replication.next_idx.id,
                         match_index:    replication.match_idx.id,
                         inflight_index: replication.inflight.map(|inflight_log_idx: LogIdx| inflight_log_idx.id),
                         probing:        replication.send_probe,
-                    }
-                });
+                    });
                 peers.push(EnclavePeerStatus {
-                    node_id:           node_id.to_vec(),
+                    node_id: node_id.to_vec(),
                     attestation,
                     replication_status,
-                    is_leader:         partition.group.raft.leader().0 == Some(node_id),
-                    unsent_requests:   Default::default(),
+                    is_leader: partition.group.raft.leader().0 == Some(node_id),
+                    unsent_requests: Default::default(),
                     inflight_requests: Default::default(),
                 });
             }
             Some(EnclaveReplicaPartitionStatus {
-                group_id:           partition.group.id().id.clone(),
-                service_id:         partition.data.service_id().map(|service_id| service_id.id.clone()),
-                range:              partition.data.range().map(PartitionKeyRange::to_pb),
+                group_id: partition.group.id().id.clone(),
+                service_id: partition.data.service_id().map(|service_id| service_id.id.clone()),
+                range: partition.data.range().map(PartitionKeyRange::to_pb),
                 peers,
-                min_attestation:    partition.group.attestation(),
-                is_leader:          partition.group.raft.is_leader(),
-                current_term:       partition.group.raft.leader().1.id,
-                prev_log_index:     partition.group.raft.log().prev_idx().id,
+                min_attestation: partition.group.attestation(),
+                is_leader: partition.group.raft.is_leader(),
+                current_term: partition.group.raft.leader().1.id,
+                prev_log_index: partition.group.raft.log().prev_idx().id,
                 last_applied_index: partition.group.raft.last_applied().id,
-                commit_index:       partition.group.raft.commit_idx().id,
-                last_log_index:     partition.group.raft.log().last_idx().id,
-                last_log_term:      partition.group.raft.log().last_term().id,
-                log_data_length:    partition.group.raft.log().data_len().to_u64(),
-                backup_count:       partition.data.storage_len().to_u64(),
-                xfer_status:        partition.data.xfer_status(),
+                commit_index: partition.group.raft.commit_idx().id,
+                last_log_index: partition.group.raft.log().last_idx().id,
+                last_log_term: partition.group.raft.log().last_term().id,
+                log_data_length: partition.group.raft.log().data_len().to_u64(),
+                backup_count: partition.data.storage_len().to_u64(),
+                xfer_status: partition.data.xfer_status(),
             })
         } else {
             None
         };
-        let memory_status = if request.memory_status {
-            Some(memory_status())
-        } else {
-            None
-        };
+        let memory_status = if request.memory_status { Some(memory_status()) } else { None };
         kbupd_send(EnclaveMessage {
             inner: Some(enclave_message::Inner::GetEnclaveStatusReply(GetEnclaveStatusReply {
                 inner: Some(get_enclave_status_reply::Inner::ReplicaStatus(EnclaveReplicaStatus {
@@ -380,7 +359,7 @@ impl ReplicaState {
         match self.peers.get_attestation_reply(reply) {
             Some((peer @ PeerState::Replica { .. }, attestation)) => {
                 let peer_node_id = peer.remote_mut().id().clone();
-                let _ignore      = peer.authorize();
+                let _ignore = peer.authorize();
                 self.replica_authorized(attestation, peer_node_id);
             }
             Some((PeerState::Frontend { .. }, _attestation)) => {
@@ -399,10 +378,12 @@ impl ReplicaState {
             if let Some(replica) = partition.group.get(&node_id) {
                 if partition.group.raft.peers().contains(&node_id) {
                     let create_raft_group_req = Rc::new(ReplicaToReplicaMessage {
-                        inner: Some(replica_to_replica_message::Inner::CreateRaftGroupRequest(partition.create_group_request.clone())),
+                        inner: Some(replica_to_replica_message::Inner::CreateRaftGroupRequest(
+                            partition.create_group_request.clone(),
+                        )),
                     });
                     match replica.sender.send(create_raft_group_req) {
-                        Ok(())  => (),
+                        Ok(()) => (),
                         Err(()) => {
                             error!("error sending raft group to {}", &node_id);
                         }
@@ -421,7 +402,8 @@ impl ReplicaState {
     fn handle_timer_tick_signal(&mut self, signal: TimerTickSignal) {
         let now = Duration::from_secs(signal.now_secs);
 
-        self.peers.timer_tick(self.config.min_connect_timeout_ticks, self.config.max_connect_timeout_ticks);
+        self.peers
+            .timer_tick(self.config.min_connect_timeout_ticks, self.config.max_connect_timeout_ticks);
 
         let remote_group_timeout_ticks = self.config.election_timeout_ticks.saturating_mul(2);
 
@@ -430,7 +412,10 @@ impl ReplicaState {
                 remote_group.timer_tick(remote_group_timeout_ticks, self.config.request_quote_ticks);
             }
 
-            if let Some(txn_data) = partition.group.timer_tick(self.config.attestation_expiry_ticks, self.config.request_quote_ticks, now) {
+            if let Some(txn_data) = partition
+                .group
+                .timer_tick(self.config.attestation_expiry_ticks, self.config.request_quote_ticks, now)
+            {
                 let mut encoded_txn_data = Vec::with_capacity(txn_data.encoded_len());
                 if let Ok(()) = txn_data.encode(&mut encoded_txn_data) {
                     let _ignore = partition.group.raft.client_request(encoded_txn_data);
@@ -463,31 +448,33 @@ impl ReplicaState {
                 self.replica_message(message, from_node_id);
             }
             Ok(None) => (),
-            Err(peer_entry) => {
-                match NodeType::from_i32(peer_entry.connect_request().node_type) {
-                    Some(NodeType::Frontend) => {
-                        info!("accepted frontend connection from {}", &peer_entry.node_id());
-                        let frontends = &mut self.frontends;
-                        let _ignore   = peer_entry.accept(|remote| {
-                            PeerState::Frontend {
-                                lru_entry: frontends.push_back(remote.id().clone()),
-                                remote,
-                            }
-                        }, RemoteAuthorizationType::SelfOnly);
-                        if self.frontends.len() > self.config.max_frontend_count.to_usize() {
-                            self.pop_frontend();
-                        }
-                    }
-                    Some(NodeType::Replica) => {
-                        info!("accepting replica connection from {}", peer_entry.node_id());
-                        let _ignore = peer_entry.accept(PeerState::new_replica, RemoteAuthorizationType::Mutual);
-                    }
-                    None | Some(NodeType::None) => {
-                        warn!("bad node type in connect request from {}: {}",
-                              peer_entry.node_id(), peer_entry.connect_request().node_type);
+            Err(peer_entry) => match NodeType::from_i32(peer_entry.connect_request().node_type) {
+                Some(NodeType::Frontend) => {
+                    info!("accepted frontend connection from {}", &peer_entry.node_id());
+                    let frontends = &mut self.frontends;
+                    let _ignore = peer_entry.accept(
+                        |remote| PeerState::Frontend {
+                            lru_entry: frontends.push_back(remote.id().clone()),
+                            remote,
+                        },
+                        RemoteAuthorizationType::SelfOnly,
+                    );
+                    if self.frontends.len() > self.config.max_frontend_count.to_usize() {
+                        self.pop_frontend();
                     }
                 }
-            }
+                Some(NodeType::Replica) => {
+                    info!("accepting replica connection from {}", peer_entry.node_id());
+                    let _ignore = peer_entry.accept(PeerState::new_replica, RemoteAuthorizationType::Mutual);
+                }
+                None | Some(NodeType::None) => {
+                    warn!(
+                        "bad node type in connect request from {}: {}",
+                        peer_entry.node_id(),
+                        peer_entry.connect_request().node_type
+                    );
+                }
+            },
         }
     }
 
@@ -537,25 +524,20 @@ impl ReplicaState {
 
     fn replica_message(&mut self, replica_msg: ReplicaToReplicaMessage, from: NodeId) {
         match replica_msg.inner {
-            Some(replica_to_replica_message::Inner::RaftMessage(raft_msg)) =>
-                self.handle_raft_message(raft_msg, from),
-            Some(replica_to_replica_message::Inner::CreateRaftGroupRequest(request)) =>
-                self.handle_create_raft_group_request(request, from),
-            Some(replica_to_replica_message::Inner::EnclaveGetQuoteRequest(request)) =>
-                self.handle_enclave_get_quote_request(request, from),
-            Some(replica_to_replica_message::Inner::EnclaveGetQuoteReply(reply)) =>
-                self.handle_enclave_get_quote_reply(reply, from),
+            Some(replica_to_replica_message::Inner::RaftMessage(raft_msg)) => self.handle_raft_message(raft_msg, from),
+            Some(replica_to_replica_message::Inner::CreateRaftGroupRequest(request)) => {
+                self.handle_create_raft_group_request(request, from)
+            }
+            Some(replica_to_replica_message::Inner::EnclaveGetQuoteRequest(request)) => {
+                self.handle_enclave_get_quote_request(request, from)
+            }
+            Some(replica_to_replica_message::Inner::EnclaveGetQuoteReply(reply)) => self.handle_enclave_get_quote_reply(reply, from),
 
-            Some(replica_to_replica_message::Inner::XferRequest(request)) =>
-                self.handle_xfer_request(request, from),
-            Some(replica_to_replica_message::Inner::XferReply(reply)) =>
-                self.handle_xfer_reply(reply, from),
-            Some(replica_to_replica_message::Inner::XferChunkRequest(request)) =>
-                self.handle_xfer_chunk_request(request, from),
-            Some(replica_to_replica_message::Inner::XferChunkReply(reply)) =>
-                self.handle_xfer_chunk_reply(reply, from),
-            Some(replica_to_replica_message::Inner::XferErrorNotLeader(xfer_error)) =>
-                self.handle_xfer_error_not_leader(xfer_error, from),
+            Some(replica_to_replica_message::Inner::XferRequest(request)) => self.handle_xfer_request(request, from),
+            Some(replica_to_replica_message::Inner::XferReply(reply)) => self.handle_xfer_reply(reply, from),
+            Some(replica_to_replica_message::Inner::XferChunkRequest(request)) => self.handle_xfer_chunk_request(request, from),
+            Some(replica_to_replica_message::Inner::XferChunkReply(reply)) => self.handle_xfer_chunk_reply(reply, from),
+            Some(replica_to_replica_message::Inner::XferErrorNotLeader(xfer_error)) => self.handle_xfer_error_not_leader(xfer_error, from),
             None => (),
         }
     }
@@ -579,13 +561,22 @@ impl ReplicaState {
     }
 
     fn create_raft_group(&mut self, create_group_request: CreateRaftGroupRequest) -> Result<(), ()> {
-        let CreateRaftGroupRequest { group_id, service_id, node_ids, config, source_partition } = create_group_request.clone();
+        let CreateRaftGroupRequest {
+            group_id,
+            service_id,
+            node_ids,
+            config,
+            source_partition,
+        } = create_group_request.clone();
         let node_ids: BTreeSet<NodeId> = node_ids.into_iter().map(|node_id| node_id.into()).collect();
         if node_ids.contains(self.node_id()) {
             if let Some(partition) = &self.partition {
                 if partition.group.id() != &group_id {
-                    warn!("tried to start raft group {} on replica already containing partition {}",
-                          &group_id, partition.group.id());
+                    warn!(
+                        "tried to start raft group {} on replica already containing partition {}",
+                        &group_id,
+                        partition.group.id()
+                    );
                 }
                 Err(())
             } else {
@@ -595,12 +586,29 @@ impl ReplicaState {
                     Some(PartitionKeyRange::new_unbounded())
                 };
 
-                info!("creating replica group {} service {} with range {} and nodes {}",
-                      &group_id, OptionDisplay(service_id.as_ref()), OptionDisplay(range.as_ref()),
-                      ListDisplay(node_ids.iter()));
+                info!(
+                    "creating replica group {} service {} with range {} and nodes {}",
+                    &group_id,
+                    OptionDisplay(service_id.as_ref()),
+                    OptionDisplay(range.as_ref()),
+                    ListDisplay(node_ids.iter())
+                );
 
-                let raft_log      = RaftLogStorage::new(config.raft_log_data_size.to_usize(), config.raft_log_index_size, self.config.raft_log_index_page_cache_size.to_usize())?;
-                let raft          = RaftState::new(group_id, self.node_id().clone(), node_ids, raft_log, RdRand, self.config.election_timeout_ticks, self.config.heartbeat_timeout_ticks, self.config.replication_chunk_size.to_usize());
+                let raft_log = RaftLogStorage::new(
+                    config.raft_log_data_size.to_usize(),
+                    config.raft_log_index_size,
+                    self.config.raft_log_index_page_cache_size.to_usize(),
+                )?;
+                let raft = RaftState::new(
+                    group_id,
+                    self.node_id().clone(),
+                    node_ids,
+                    raft_log,
+                    RdRand,
+                    self.config.election_timeout_ticks,
+                    self.config.heartbeat_timeout_ticks,
+                    self.config.replication_chunk_size.to_usize(),
+                );
                 let replica_group = self.connect_to_peers(raft)?;
 
                 let xfer_state = if let Some(source_partition) = source_partition {
@@ -616,7 +624,7 @@ impl ReplicaState {
 
                 self.partition = Some(Partition {
                     group: replica_group,
-                    data:  PartitionData::new(partition_data_config, service_id, range, xfer_state),
+                    data: PartitionData::new(partition_data_config, service_id, range, xfer_state),
                     create_group_request,
                 });
 
@@ -629,12 +637,14 @@ impl ReplicaState {
         }
     }
 
-    fn connect_to_peers(&mut self, raft: RaftState<RaftLogStorage, RdRand, NodeId>)
-                        -> Result<ReplicaGroupState, ()> {
+    fn connect_to_peers(&mut self, raft: RaftState<RaftLogStorage, RdRand, NodeId>) -> Result<ReplicaGroupState, ()> {
         let mut remotes = Vec::new();
         let our_node_id = self.peers.our_node_id().clone();
         for peer_node_id in raft.peers().iter() {
-            match self.peers.start_peer(peer_node_id.clone(), NodeType::Replica, RemoteAuthorizationType::Mutual) {
+            match self
+                .peers
+                .start_peer(peer_node_id.clone(), NodeType::Replica, RemoteAuthorizationType::Mutual)
+            {
                 Ok(peer_entry) => {
                     let sender = peer_entry.remote().sender().clone();
                     if *peer_node_id < our_node_id {
@@ -642,25 +652,21 @@ impl ReplicaState {
                         match peer_entry.connect(PeerState::new_replica) {
                             Ok(_peer) => (),
                             Err((peer_entry, _mapper)) => {
-                                error!("aborting starting group due to error connecting to {}",
-                                       peer_entry.remote().id());
+                                error!("aborting starting group due to error connecting to {}", peer_entry.remote().id());
                                 return Err(());
                             }
                         }
                     } else {
                         peer_entry.insert(PeerState::new_replica);
                     }
-                    remotes.push(RemoteReplicaState {
-                        sender,
-                    });
+                    remotes.push(RemoteReplicaState { sender });
                 }
                 Err(Some(PeerState::Replica { remote, .. })) => {
                     remotes.push(RemoteReplicaState {
                         sender: remote.sender().clone(),
                     });
                 }
-                Err(Some(PeerState::Frontend { .. })) |
-                Err(None) => {
+                Err(Some(PeerState::Frontend { .. })) | Err(None) => {
                     error!("started group with {} when it's already connected as a frontend!", peer_node_id);
                     return Err(());
                 }
@@ -673,7 +679,10 @@ impl ReplicaState {
         let desired_range = match PartitionKeyRange::try_from_pb(&source_partition.range) {
             Ok(desired_range) => desired_range,
             Err(()) => {
-                error!("started replica group with source partition config containing invalid range: {}", &source_partition);
+                error!(
+                    "started replica group with source partition config containing invalid range: {}",
+                    &source_partition
+                );
                 return Err(());
             }
         };
@@ -682,7 +691,10 @@ impl ReplicaState {
             let source_node_id: NodeId = source_node_id_vec[..].into();
             info!("connecting to source replica {}", &source_node_id);
 
-            let sender = match self.peers.start_peer(source_node_id.clone(), NodeType::Replica, RemoteAuthorizationType::Mutual) {
+            let sender = match self
+                .peers
+                .start_peer(source_node_id.clone(), NodeType::Replica, RemoteAuthorizationType::Mutual)
+            {
                 Ok(peer_entry) => {
                     let sender = peer_entry.remote().sender().clone();
                     match peer_entry.connect(PeerState::new_replica) {
@@ -694,12 +706,12 @@ impl ReplicaState {
                     }
                     sender
                 }
-                Err(Some(PeerState::Replica { remote, .. })) => {
-                    remote.sender().clone()
-                }
-                Err(Some(PeerState::Frontend { .. })) |
-                Err(None) => {
-                    error!("source replica {} was already connected as a frontend!", NodeId::from(source_node_id_vec));
+                Err(Some(PeerState::Replica { remote, .. })) => remote.sender().clone(),
+                Err(Some(PeerState::Frontend { .. })) | Err(None) => {
+                    error!(
+                        "source replica {} was already connected as a frontend!",
+                        NodeId::from(source_node_id_vec)
+                    );
                     return Err(());
                 }
             };
@@ -725,13 +737,13 @@ impl ReplicaState {
     fn handle_xfer_request(&mut self, xfer_request: XferRequest, from: NodeId) {
         match &mut self.partition {
             Some(_) => (),
-            None    => {
+            None => {
                 warn!("received XferRequest from {} without having a partition: {}", &from, &xfer_request);
                 return;
             }
         }
         match PartitionKeyRange::try_from_pb(&xfer_request.full_range) {
-            Ok(_)   => (),
+            Ok(_) => (),
             Err(()) => {
                 warn!("received XferRequest from {} with invalid range: {}", &from, &xfer_request);
                 return;
@@ -844,7 +856,7 @@ impl ReplicaState {
     }
 
     fn handle_xfer_error_not_leader(&mut self, xfer_error_not_leader: XferErrorNotLeader, from: NodeId) {
-        let term:   TermId         = xfer_error_not_leader.term;
+        let term: TermId = xfer_error_not_leader.term;
         let leader: Option<NodeId> = xfer_error_not_leader.leader_node_id.map(NodeId::from);
         if let Some(partition) = &mut self.partition {
             if let Some(remote_group) = partition.data.xfer_state_mut().remote_group_mut() {
@@ -859,10 +871,10 @@ impl ReplicaState {
 
     fn frontend_message(&mut self, msg: FrontendToReplicaMessage, from: NodeId) {
         match msg.inner {
-            Some(frontend_to_replica_message::Inner::TransactionRequest(req)) =>
-                self.handle_transaction_request(req, from),
-            Some(frontend_to_replica_message::Inner::EnclaveGetQuoteRequest(request)) =>
-                self.handle_enclave_get_quote_request(request, from),
+            Some(frontend_to_replica_message::Inner::TransactionRequest(req)) => self.handle_transaction_request(req, from),
+            Some(frontend_to_replica_message::Inner::EnclaveGetQuoteRequest(request)) => {
+                self.handle_enclave_get_quote_request(request, from)
+            }
             None => (),
         }
     }
@@ -898,14 +910,17 @@ impl ReplicaState {
         }
     }
 
-    fn accept_transaction_request(&mut self, request_data: transaction_request::Data)
-                                  -> Result<frontend_request_transaction::Transaction, transaction_reply::Data> {
+    fn accept_transaction_request(
+        &mut self,
+        request_data: transaction_request::Data,
+    ) -> Result<frontend_request_transaction::Transaction, transaction_reply::Data>
+    {
         let partition = match &mut self.partition {
             Some(partition) => partition,
-            None            => {
+            None => {
                 return Err(transaction_reply::Data::NotLeader(TransactionErrorNotLeader {
-                        leader_node_id: None,
-                        term:           Default::default(),
+                    leader_node_id: None,
+                    term:           Default::default(),
                 }));
             }
         };
@@ -938,18 +953,16 @@ impl ReplicaState {
                 }
             }
             transaction_request::Data::Backup(backup_request) => {
-                let min_attestation    = AttestationParameters::new(Duration::from_secs(backup_request.valid_from));
-                let our_service_id     = partition.data.service_id_bytes();
+                let min_attestation = AttestationParameters::new(Duration::from_secs(backup_request.valid_from));
+                let our_service_id = partition.data.service_id_bytes();
                 let request_service_id = backup_request.service_id.as_ref().map(|service_id: &Vec<u8>| &service_id[..]);
-                let request_nonce      = Self::decode_transaction_request_nonce(backup_request.nonce)?;
+                let request_nonce = Self::decode_transaction_request_nonce(backup_request.nonce)?;
 
-                if (our_service_id.is_none() ||
-                    (request_service_id.is_some() && request_service_id != our_service_id))
-                {
+                if (our_service_id.is_none() || (request_service_id.is_some() && request_service_id != our_service_id)) {
                     Err(transaction_reply::Data::ServiceIdMismatch(TransactionErrorServiceIdMismatch {}))
                 } else if min_attestation > partition.group.attestation() {
                     Err(transaction_reply::Data::ClientResponse(kbupd_client::Response {
-                        backup: Some(kbupd_client::BackupResponse {
+                        backup:  Some(kbupd_client::BackupResponse {
                             status: Some(kbupd_client::backup_response::Status::NotYetValid.into()),
                             nonce:  None,
                         }),
@@ -969,14 +982,12 @@ impl ReplicaState {
                 }
             }
             transaction_request::Data::Restore(restore_request) => {
-                let min_attestation    = AttestationParameters::new(Duration::from_secs(restore_request.valid_from));
-                let our_service_id     = partition.data.service_id_bytes();
+                let min_attestation = AttestationParameters::new(Duration::from_secs(restore_request.valid_from));
+                let our_service_id = partition.data.service_id_bytes();
                 let request_service_id = restore_request.service_id.as_ref().map(|service_id: &Vec<u8>| &service_id[..]);
-                let request_nonce      = Self::decode_transaction_request_nonce(restore_request.nonce)?;
+                let request_nonce = Self::decode_transaction_request_nonce(restore_request.nonce)?;
 
-                if (our_service_id.is_none() ||
-                    (request_service_id.is_some() && request_service_id != our_service_id))
-                {
+                if (our_service_id.is_none() || (request_service_id.is_some() && request_service_id != our_service_id)) {
                     Err(transaction_reply::Data::ServiceIdMismatch(TransactionErrorServiceIdMismatch {}))
                 } else if min_attestation > partition.group.attestation() {
                     Err(transaction_reply::Data::ClientResponse(kbupd_client::Response {
@@ -1000,11 +1011,12 @@ impl ReplicaState {
                 }
             }
             transaction_request::Data::Delete(delete_backup_request) => {
-                let our_service_id     = partition.data.service_id_bytes();
-                let request_service_id = delete_backup_request.service_id.as_ref().map(|service_id: &Vec<u8>| &service_id[..]);
-                if (our_service_id.is_none() ||
-                    (request_service_id.is_some() && request_service_id != our_service_id))
-                {
+                let our_service_id = partition.data.service_id_bytes();
+                let request_service_id = delete_backup_request
+                    .service_id
+                    .as_ref()
+                    .map(|service_id: &Vec<u8>| &service_id[..]);
+                if (our_service_id.is_none() || (request_service_id.is_some() && request_service_id != our_service_id)) {
                     Err(transaction_reply::Data::ServiceIdMismatch(TransactionErrorServiceIdMismatch {}))
                 } else {
                     Ok(frontend_request_transaction::Transaction::Delete(DeleteBackupTransaction {
@@ -1016,8 +1028,8 @@ impl ReplicaState {
     }
 
     fn decode_transaction_request_nonce(combined_nonce: Vec<u8>) -> Result<RequestNonce, transaction_reply::Data> {
-        let combined_nonce: &[u8; 32] = (&combined_nonce[..].try_into())
-            .map_err(|_| transaction_reply::Data::InvalidRequest(TransactionErrorInvalidRequest {}))?;
+        let combined_nonce: &[u8; 32] =
+            (&combined_nonce[..].try_into()).map_err(|_| transaction_reply::Data::InvalidRequest(TransactionErrorInvalidRequest {}))?;
         Ok(RequestNonce::from_combined(*combined_nonce))
     }
 
@@ -1034,10 +1046,14 @@ impl ReplicaState {
 
                 let txn = match TransactionData::decode(&encoded_transaction.data[..]) {
                     Ok(transaction) => transaction,
-                    Err(_)          => panic!("error decoding committed raft transaction"),
+                    Err(_) => panic!("error decoding committed raft transaction"),
                 };
                 let txn_info = if let Some(txn_inner) = txn.inner {
-                    Some(partition.data.perform_transaction(txn_inner, &mut self.peers, &mut partition.group, is_leader))
+                    Some(
+                        partition
+                            .data
+                            .perform_transaction(txn_inner, &mut self.peers, &mut partition.group, is_leader),
+                    )
                 } else {
                     None
                 };
@@ -1090,7 +1106,7 @@ impl ReplicaState {
 
     fn request_transaction(&mut self, transaction: TransactionData) {
         if let Some(partition) = &mut self.partition {
-            let mut encoded_transaction    = SecretValue::new(Vec::with_capacity(transaction.encoded_len()));
+            let mut encoded_transaction = SecretValue::new(Vec::with_capacity(transaction.encoded_len()));
             let request_transaction_result = if let Ok(()) = transaction.encode(encoded_transaction.get_mut()) {
                 partition.group.raft.client_request(encoded_transaction.into_inner())
             } else {
@@ -1119,7 +1135,7 @@ impl ReplicaState {
                 if let Some(from) = self.peers.get_frontend(&from_node_id) {
                     let transaction_error = match transaction_error {
                         Some(transaction_error) => transaction_error,
-                        None                    => transaction_reply::Data::NotLeader(TransactionErrorNotLeader {
+                        None => transaction_reply::Data::NotLeader(TransactionErrorNotLeader {
                             leader_node_id: leader.and_then(|leader| leader.0).map(|leader| leader.to_vec()),
                             term:           leader.map(|leader| leader.1).cloned().unwrap_or_default(),
                         }),
@@ -1155,10 +1171,8 @@ impl ReplicaState {
                 info!("cannot finish partitioning process on non-leader");
                 send_untrusted_xfer_reply(request.request_id, UntrustedXferReplyStatus::NotLeader);
             }
-            Some(transaction_data::Inner::SetTime(_request)) => {
-            }
-            None => {
-            }
+            Some(transaction_data::Inner::SetTime(_request)) => {}
+            None => {}
         }
     }
 
@@ -1181,7 +1195,9 @@ impl ReplicaState {
 //
 
 fn generate_group_id() -> RaftGroupId {
-    RaftGroupId { id: RdRand.rand_bytes(vec![0; 32]) }
+    RaftGroupId {
+        id: RdRand.rand_bytes(vec![0; 32]),
+    }
 }
 
 //
@@ -1189,7 +1205,9 @@ fn generate_group_id() -> RaftGroupId {
 //
 
 fn generate_service_id() -> ServiceId {
-    ServiceId { id: RdRand.rand_bytes(vec![0; 32]) }
+    ServiceId {
+        id: RdRand.rand_bytes(vec![0; 32]),
+    }
 }
 
 //
@@ -1199,18 +1217,14 @@ fn generate_service_id() -> ServiceId {
 impl PeerState {
     fn new_replica(remote: RemoteState<ReplicaToReplicaMessage, ReplicaToReplicaMessage>) -> Self {
         let authorized = remote.attestation().is_some();
-        PeerState::Replica {
-            remote,
-            authorized,
-        }
+        PeerState::Replica { remote, authorized }
     }
+
     #[must_use]
     fn authorize(&mut self) -> Option<AttestationParameters> {
         match self {
-            PeerState::Frontend { .. } => {
-                None
-            }
-            PeerState::Replica { remote, authorized }  => {
+            PeerState::Frontend { .. } => None,
+            PeerState::Replica { remote, authorized } => {
                 if !*authorized {
                     let maybe_attestation = remote.attestation();
                     if maybe_attestation.is_some() {
@@ -1227,34 +1241,29 @@ impl PeerState {
 
 impl Peer for PeerState {
     type Message = PeerMessage;
+
     fn remote_mut(&mut self) -> &mut dyn Remote {
         match self {
             PeerState::Frontend { remote, .. } => remote,
-            PeerState::Replica { remote, .. }  => remote,
+            PeerState::Replica { remote, .. } => remote,
         }
     }
+
     fn recv(&mut self, msg_data: &[u8]) -> Result<PeerMessage, RemoteRecvError> {
         match self {
-            PeerState::Frontend { remote, .. } => {
-                remote.recv(msg_data).map(PeerMessage::Frontend)
-            }
-            PeerState::Replica { remote, .. } => {
-                remote.recv(msg_data).map(PeerMessage::Replica)
-            }
+            PeerState::Frontend { remote, .. } => remote.recv(msg_data).map(PeerMessage::Frontend),
+            PeerState::Replica { remote, .. } => remote.recv(msg_data).map(PeerMessage::Replica),
         }
     }
+
     fn send_quote_reply(&mut self, reply: EnclaveGetQuoteReply) -> Result<(), ()> {
         match self {
-            PeerState::Frontend { remote, .. } => {
-                remote.send(Rc::new(ReplicaToFrontendMessage {
-                    inner: Some(replica_to_frontend_message::Inner::EnclaveGetQuoteReply(reply))
-                }))
-            }
-            PeerState::Replica { remote, .. } => {
-                remote.send(Rc::new(ReplicaToReplicaMessage {
-                    inner: Some(replica_to_replica_message::Inner::EnclaveGetQuoteReply(reply))
-                }))
-            }
+            PeerState::Frontend { remote, .. } => remote.send(Rc::new(ReplicaToFrontendMessage {
+                inner: Some(replica_to_frontend_message::Inner::EnclaveGetQuoteReply(reply)),
+            })),
+            PeerState::Replica { remote, .. } => remote.send(Rc::new(ReplicaToReplicaMessage {
+                inner: Some(replica_to_replica_message::Inner::EnclaveGetQuoteReply(reply)),
+            })),
         }
     }
 }
@@ -1288,10 +1297,11 @@ fn generate_nonce_16() -> Vec<u8> {
     RdRand.rand_bytes(vec![0; 16])
 }
 
-
-fn send_transaction_reply(from:       &mut dyn RemoteMessageSender<Message = ReplicaToFrontendMessage>,
-                          request_id: u64,
-                          data:       transaction_reply::Data)
+fn send_transaction_reply(
+    from: &mut dyn RemoteMessageSender<Message = ReplicaToFrontendMessage>,
+    request_id: u64,
+    data: transaction_reply::Data,
+)
 {
     let _ignore = from.send(Rc::new(ReplicaToFrontendMessage {
         inner: Some(replica_to_frontend_message::Inner::TransactionReply(TransactionReply {
@@ -1317,8 +1327,8 @@ fn send_untrusted_xfer_reply(request_id: u64, status: UntrustedXferReplyStatus) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ffi::mocks;
     use crate::ffi::ecalls;
+    use crate::ffi::mocks;
     use mockers::*;
 
     fn init(start_replica_req: StartReplicaRequest) -> ReplicaState {
@@ -1327,19 +1337,16 @@ mod tests {
 
     fn valid_range() -> PartitionKeyRangePb {
         PartitionKeyRangePb {
-                first: BackupId { id: vec![0x00; 32] },
-                last:  BackupId { id: vec![0xFF; 32] },
+            first: BackupId { id: vec![0x00; 32] },
+            last:  BackupId { id: vec![0xFF; 32] },
         }
     }
 
     #[test]
     fn init_test() {
         let scenario = Scenario::new();
-        let expected_enclave_messages: Vec<Box<dyn MatchArg<_>>> = vec![
-            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply {
-                ..
-            })))
-        ];
+        let expected_enclave_messages: Vec<Box<dyn MatchArg<_>>> =
+            vec![Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply { .. })))];
         mocks::expect_enclave_messages(&scenario, expected_enclave_messages);
         init(StartReplicaRequest {
             config: Default::default(),
@@ -1351,14 +1358,14 @@ mod tests {
     fn start_new_group_no_peers() {
         let scenario = Scenario::new();
         let expected_enclave_messages: Vec<Box<dyn MatchArg<_>>> = vec![
-            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply {
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
-                service_id: Some(_),
-                group_id:   Some(_),
-                ..
-            })))
+            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply { .. }))),
+            Box::new(arg!(
+                enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
+                    service_id: Some(_),
+                    group_id: Some(_),
+                    ..
+                })
+            )),
         ];
         mocks::expect_enclave_messages(&scenario, expected_enclave_messages);
         let mut state = init(StartReplicaRequest {
@@ -1376,17 +1383,15 @@ mod tests {
     fn start_new_group_with_peer() {
         let scenario = Scenario::new();
         let expected_enclave_messages: Vec<Box<dyn MatchArg<_>>> = vec![
-            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply {
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
-                service_id: Some(_),
-                group_id:   Some(_),
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::GetQeInfoRequest(GetQeInfoRequest {
-                ..
-            }))),
+            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply { .. }))),
+            Box::new(arg!(
+                enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
+                    service_id: Some(_),
+                    group_id: Some(_),
+                    ..
+                })
+            )),
+            Box::new(arg!(enclave_message::Inner::GetQeInfoRequest(GetQeInfoRequest { .. }))),
         ];
         mocks::expect_enclave_messages(&scenario, expected_enclave_messages);
         let mut state = init(StartReplicaRequest {
@@ -1405,17 +1410,15 @@ mod tests {
     fn start_new_xfer_group_no_peers() {
         let scenario = Scenario::new();
         let expected_enclave_messages: Vec<Box<dyn MatchArg<_>>> = vec![
-            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply {
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
-                service_id: None,
-                group_id:   Some(_),
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::GetQeInfoRequest(GetQeInfoRequest {
-                ..
-            }))),
+            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply { .. }))),
+            Box::new(arg!(
+                enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
+                    service_id: None,
+                    group_id: Some(_),
+                    ..
+                })
+            )),
+            Box::new(arg!(enclave_message::Inner::GetQeInfoRequest(GetQeInfoRequest { .. }))),
         ];
         mocks::expect_enclave_messages(&scenario, expected_enclave_messages);
         let mut state = init(StartReplicaRequest {
@@ -1424,7 +1427,7 @@ mod tests {
         state.handle_start_replica_group_request(StartReplicaGroupRequest {
             peer_node_ids:    vec![vec![0; 32]],
             source_partition: Some(SourcePartitionConfig {
-                range: valid_range(),
+                range:    valid_range(),
                 node_ids: vec![],
             }),
             config:           Default::default(),
@@ -1437,17 +1440,15 @@ mod tests {
     fn start_new_xfer_group_with_peer() {
         let scenario = Scenario::new();
         let expected_enclave_messages: Vec<Box<dyn MatchArg<_>>> = vec![
-            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply {
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::GetQeInfoRequest(GetQeInfoRequest {
-                ..
-            }))),
-            Box::new(arg!(enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
-                service_id: None,
-                group_id:   Some(_),
-                ..
-            })))
+            Box::new(arg!(enclave_message::Inner::StartReplicaReply(StartReplicaReply { .. }))),
+            Box::new(arg!(enclave_message::Inner::GetQeInfoRequest(GetQeInfoRequest { .. }))),
+            Box::new(arg!(
+                enclave_message::Inner::StartReplicaGroupReply(StartReplicaGroupReply {
+                    service_id: None,
+                    group_id: Some(_),
+                    ..
+                })
+            )),
         ];
         mocks::expect_enclave_messages(&scenario, expected_enclave_messages);
         let mut state = init(StartReplicaRequest {
@@ -1456,7 +1457,7 @@ mod tests {
         state.handle_start_replica_group_request(StartReplicaGroupRequest {
             peer_node_ids:    vec![vec![0; 32]],
             source_partition: Some(SourcePartitionConfig {
-                range: valid_range(),
+                range:    valid_range(),
                 node_ids: vec![vec![0; 32]],
             }),
             config:           Default::default(),

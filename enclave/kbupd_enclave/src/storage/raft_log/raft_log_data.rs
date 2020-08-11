@@ -7,8 +7,8 @@
 
 use crate::prelude::*;
 
-use num_traits::{ToPrimitive};
-use sgx_ffi::util::{SecretValue};
+use num_traits::ToPrimitive;
+use sgx_ffi::util::SecretValue;
 
 use crate::protobufs::raft::LogEntry;
 use crate::raft::*;
@@ -42,8 +42,7 @@ impl RaftLogData {
         if let Some(len) = self.head.checked_sub(self.tail) {
             len
         } else {
-            self.storage.len().saturating_sub(self.tail)
-                              .saturating_add(self.head)
+            self.storage.len().saturating_sub(self.tail).saturating_add(self.head)
         }
     }
 
@@ -52,11 +51,15 @@ impl RaftLogData {
         let append_len = match append_len.to_u32() {
             Some(append_len) if append_len.to_usize() < self.storage.len() => append_len,
             Some(_) | None => {
-                error!("transaction too large at {} bytes (have {} bytes of storage)", log_entry.data.len(), self.storage.len());
+                error!(
+                    "transaction too large at {} bytes (have {} bytes of storage)",
+                    log_entry.data.len(),
+                    self.storage.len()
+                );
                 return Err(RaftLogAppendError::TooLarge { size: append_len });
             }
         };
-        let mut offset   = self.head;
+        let mut offset = self.head;
         let mut new_head = offset.saturating_add(append_len.to_usize());
         if new_head >= self.storage.len() {
             if self.tail > 0 {
@@ -73,9 +76,11 @@ impl RaftLogData {
             self.head = new_head;
 
             match self.storage.write(offset, log_entry.into_data()) {
-                Ok(nonce) => {
-                    Ok(RaftLogDataEntry { nonce, offset, length: append_len })
-                }
+                Ok(nonce) => Ok(RaftLogDataEntry {
+                    nonce,
+                    offset,
+                    length: append_len,
+                }),
                 Err(()) => {
                     error!("wrote out of bounds to raft log at {} len {}", offset, append_len);
                     Err(RaftLogAppendError::InternalError)
@@ -111,7 +116,10 @@ impl RaftLogData {
         if let Ok(data) = self.storage.read(data_entry.offset, data_entry.length.to_usize(), data_entry.nonce) {
             Some(data)
         } else {
-            error!("error reading raft log entry at offset {} length {}", data_entry.offset, data_entry.length);
+            error!(
+                "error reading raft log entry at offset {} length {}",
+                data_entry.offset, data_entry.length
+            );
             None
         }
     }

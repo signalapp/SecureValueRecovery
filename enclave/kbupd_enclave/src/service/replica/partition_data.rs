@@ -9,26 +9,26 @@ mod backup_entry;
 
 use crate::prelude::*;
 
-use std::convert::{TryInto};
-use std::collections::*;
 use std::cmp::*;
+use std::collections::*;
+use std::convert::TryInto;
 use std::mem;
 use std::num::*;
-use std::time::*;
 use std::rc::*;
+use std::time::*;
 
 use bytes::*;
-use num_traits::{ToPrimitive};
+use num_traits::ToPrimitive;
 
+use self::backup_entry::BackupEntrySecrets;
+use super::*;
 use crate::protobufs::kbupd::*;
-use crate::protobufs::kbupd_enclave::*;
 use crate::protobufs::kbupd_client;
+use crate::protobufs::kbupd_enclave::*;
 use crate::protobufs::raft::*;
 use crate::remote::*;
 use crate::remote_group::*;
 use crate::util::*;
-use self::backup_entry::BackupEntrySecrets;
-use super::*;
 
 pub(super) struct PartitionData {
     storage:    BTreeMap<PartitionKey, BackupEntry>,
@@ -51,20 +51,20 @@ pub(super) enum XferState {
 }
 
 pub(super) struct XferSource {
-    remote_group:         RemoteGroupState<ReplicaRemoteSender, PendingXferRequest>,
-    desired_range:        PartitionKeyRange,
+    remote_group:  RemoteGroupState<ReplicaRemoteSender, PendingXferRequest>,
+    desired_range: PartitionKeyRange,
 
     cur_xfer_chunk_reply: Option<PendingXferRequest>,
 }
 
 pub(super) struct XferDestination {
-    remote_group_id:        RaftGroupId,
-    remote_group:           RemoteGroupState<ReplicaRemoteSender, PendingXferRequest>,
-    full_range:             PartitionKeyRange,
-    chunk_size:             u32,
+    remote_group_id: RaftGroupId,
+    remote_group:    RemoteGroupState<ReplicaRemoteSender, PendingXferRequest>,
+    full_range:      PartitionKeyRange,
+    chunk_size:      u32,
 
-    paused:                 bool,
-    inflight:               Option<PartitionKeyRange>,
+    paused:   bool,
+    inflight: Option<PartitionKeyRange>,
 
     cur_xfer_reply:         Option<PendingXferRequest>,
     cur_xfer_chunk_request: Option<PendingXferRequest>,
@@ -74,12 +74,8 @@ pub(super) struct XferDestination {
 pub(super) enum PendingXferRequestId {
     XferRequest,
     XferReply,
-    XferChunkRequest {
-        new_last: BackupId,
-    },
-    XferChunkReply {
-        new_last: BackupId,
-    },
+    XferChunkRequest { new_last: BackupId },
+    XferChunkReply { new_last: BackupId },
 }
 
 #[derive(Clone)]
@@ -110,11 +106,12 @@ pub(super) enum FrontendRequestError {
 }
 
 impl PartitionData {
-    pub fn new(config:     PartitionDataConfig,
-               service_id: Option<ServiceId>,
-               range:      Option<PartitionKeyRange>,
-               xfer_state: XferState)
-               -> Self
+    pub fn new(
+        config: PartitionDataConfig,
+        service_id: Option<ServiceId>,
+        range: Option<PartitionKeyRange>,
+        xfer_state: XferState,
+    ) -> Self
     {
         Self {
             storage: Default::default(),
@@ -151,22 +148,25 @@ impl PartitionData {
 
     pub fn xfer_status(&self) -> Option<enclave_replica_partition_status::XferStatus> {
         match &self.xfer_state {
-            XferState::SourcePartition(xfer_destination) => {
-                Some(enclave_replica_partition_status::XferStatus::OutgoingXferStatus(EnclaveOutgoingXferStatus {
+            XferState::SourcePartition(xfer_destination) => Some(enclave_replica_partition_status::XferStatus::OutgoingXferStatus(
+                EnclaveOutgoingXferStatus {
                     group_id:            xfer_destination.remote_group_id.id.clone(),
                     full_xfer_range:     xfer_destination.full_range.to_pb(),
                     current_chunk_range: xfer_destination.inflight.as_ref().map(PartitionKeyRange::to_pb),
                     paused:              xfer_destination.paused,
-                    min_attestation:     xfer_destination.cur_xfer_chunk_request.as_ref().and_then(PendingXferRequest::min_attestation),
+                    min_attestation:     xfer_destination
+                        .cur_xfer_chunk_request
+                        .as_ref()
+                        .and_then(PendingXferRequest::min_attestation),
                     nodes:               xfer_destination.remote_group.status(),
-                }))
-            }
-            XferState::DestinationPartition(xfer_source) => {
-                Some(enclave_replica_partition_status::XferStatus::IncomingXferStatus(EnclaveIncomingXferStatus {
+                },
+            )),
+            XferState::DestinationPartition(xfer_source) => Some(enclave_replica_partition_status::XferStatus::IncomingXferStatus(
+                EnclaveIncomingXferStatus {
                     desired_range: xfer_source.desired_range.to_pb(),
                     nodes:         xfer_source.remote_group.status(),
-                }))
-            }
+                },
+            )),
             XferState::None => None,
         }
     }
@@ -198,60 +198,51 @@ impl PartitionData {
         }
     }
 
-    pub fn perform_transaction(&mut self,
-                               txn:       transaction_data::Inner,
-                               peers:     &mut PeerManager<PeerState>,
-                               group:     &mut ReplicaGroupState,
-                               is_leader: bool)
-                               -> enclave_transaction_signal::Transaction
+    pub fn perform_transaction(
+        &mut self,
+        txn: transaction_data::Inner,
+        peers: &mut PeerManager<PeerState>,
+        group: &mut ReplicaGroupState,
+        is_leader: bool,
+    ) -> enclave_transaction_signal::Transaction
     {
         match txn {
-            transaction_data::Inner::FrontendRequest(txn) =>
-                enclave_transaction_signal::Transaction::FrontendRequest(
-                    self.perform_client_transaction(txn, peers, is_leader)
-                ),
-            transaction_data::Inner::StartXfer(txn) =>
-                enclave_transaction_signal::Transaction::StartXfer(
-                    self.perform_start_xfer_transaction(txn, peers)
-                ),
-            transaction_data::Inner::SetSid(txn) =>
-                enclave_transaction_signal::Transaction::SetSid(
-                    self.perform_set_sid_transaction(txn)
-                ),
-            transaction_data::Inner::RemoveChunk(txn) =>
-                enclave_transaction_signal::Transaction::RemoveChunk(
-                    self.perform_remove_chunk_transaction(txn, group)
-                ),
-            transaction_data::Inner::ApplyChunk(txn) =>
-                enclave_transaction_signal::Transaction::ApplyChunk(
-                    self.perform_apply_chunk_transaction(txn, group)
-                ),
-            transaction_data::Inner::PauseXfer(txn) =>
-                enclave_transaction_signal::Transaction::PauseXfer(
-                    self.perform_pause_xfer_transaction(txn)
-                ),
-            transaction_data::Inner::ResumeXfer(txn) =>
-                enclave_transaction_signal::Transaction::ResumeXfer(
-                    self.perform_resume_xfer_transaction(txn, group)
-                ),
-            transaction_data::Inner::FinishXfer(txn) =>
-                enclave_transaction_signal::Transaction::FinishXfer(
-                    self.perform_finish_xfer_transaction(txn)
-                ),
-            transaction_data::Inner::SetTime(txn) =>
-                enclave_transaction_signal::Transaction::SetTime(
-                    self.perform_set_time_transaction(txn, group)
-                ),
+            transaction_data::Inner::FrontendRequest(txn) => {
+                enclave_transaction_signal::Transaction::FrontendRequest(self.perform_client_transaction(txn, peers, is_leader))
+            }
+            transaction_data::Inner::StartXfer(txn) => {
+                enclave_transaction_signal::Transaction::StartXfer(self.perform_start_xfer_transaction(txn, peers))
+            }
+            transaction_data::Inner::SetSid(txn) => enclave_transaction_signal::Transaction::SetSid(self.perform_set_sid_transaction(txn)),
+            transaction_data::Inner::RemoveChunk(txn) => {
+                enclave_transaction_signal::Transaction::RemoveChunk(self.perform_remove_chunk_transaction(txn, group))
+            }
+            transaction_data::Inner::ApplyChunk(txn) => {
+                enclave_transaction_signal::Transaction::ApplyChunk(self.perform_apply_chunk_transaction(txn, group))
+            }
+            transaction_data::Inner::PauseXfer(txn) => {
+                enclave_transaction_signal::Transaction::PauseXfer(self.perform_pause_xfer_transaction(txn))
+            }
+            transaction_data::Inner::ResumeXfer(txn) => {
+                enclave_transaction_signal::Transaction::ResumeXfer(self.perform_resume_xfer_transaction(txn, group))
+            }
+            transaction_data::Inner::FinishXfer(txn) => {
+                enclave_transaction_signal::Transaction::FinishXfer(self.perform_finish_xfer_transaction(txn))
+            }
+            transaction_data::Inner::SetTime(txn) => {
+                enclave_transaction_signal::Transaction::SetTime(self.perform_set_time_transaction(txn, group))
+            }
         }
     }
 
-    fn perform_client_transaction(&mut self,
-                                  txn:       FrontendRequestTransaction,
-                                  peers:     &mut PeerManager<PeerState>,
-                                  is_leader: bool)
-                                  -> EnclaveFrontendRequestTransaction
+    fn perform_client_transaction(
+        &mut self,
+        txn: FrontendRequestTransaction,
+        peers: &mut PeerManager<PeerState>,
+        is_leader: bool,
+    ) -> EnclaveFrontendRequestTransaction
     {
-        let backup_id      = txn.backup_id().cloned();
+        let backup_id = txn.backup_id().cloned();
         let txn_reply_data = if let Some(backup_id) = txn.backup_id() {
             if self.check_xfer_in_progress(backup_id) {
                 transaction_reply::Data::XferInProgress(TransactionErrorXferInProgress {})
@@ -260,8 +251,11 @@ impl PartitionData {
                     if let (Some(our_authoritative_range), Some(inflight)) = (&self.range, &xfer_destination.inflight) {
                         match PartitionKeyRange::new(*inflight.first(), *our_authoritative_range.last()) {
                             Ok(our_range) => Some(our_range),
-                            Err(())       => {
-                                error!("our authoritative range {} is less than inflight range {}!", our_authoritative_range, inflight);
+                            Err(()) => {
+                                error!(
+                                    "our authoritative range {} is less than inflight range {}!",
+                                    our_authoritative_range, inflight
+                                );
                                 None
                             }
                         }
@@ -281,7 +275,7 @@ impl PartitionData {
                         if let Some(other_last) = our_range.first().checked_sub(1) {
                             match PartitionKeyRange::new(*xfer_destination.full_range.first(), other_last) {
                                 Ok(other_range) => Some(other_range.to_pb()),
-                                Err(())         => None,
+                                Err(()) => None,
                             }
                         } else {
                             None
@@ -292,7 +286,12 @@ impl PartitionData {
                     Some(PartitionConfig {
                         group_id: xfer_destination.remote_group_id.id.clone(),
                         range:    other_range,
-                        node_ids: xfer_destination.remote_group.get_remotes().into_iter().map(|r| r.to_vec()).collect(),
+                        node_ids: xfer_destination
+                            .remote_group
+                            .get_remotes()
+                            .into_iter()
+                            .map(|r| r.to_vec())
+                            .collect(),
                     })
                 } else {
                     info!("Wrong partition for {}, but we don't know the right one!", backup_id);
@@ -300,16 +299,14 @@ impl PartitionData {
                 };
 
                 transaction_reply::Data::WrongPartition(TransactionErrorWrongPartition {
-                    range:         maybe_our_range.map(|r| r.to_pb()),
+                    range: maybe_our_range.map(|r| r.to_pb()),
                     new_partition,
                 })
             } else if let Some(txn_data) = txn.transaction {
                 match self.perform_frontend_request(txn_data) {
                     Ok(response_data) => response_data,
-                    Err(FrontendRequestError::InvalidRequest) =>
-                        transaction_reply::Data::InvalidRequest(TransactionErrorInvalidRequest {}),
-                    Err(FrontendRequestError::StorageFull) =>
-                        transaction_reply::Data::InternalError(TransactionErrorInternalError {}),
+                    Err(FrontendRequestError::InvalidRequest) => transaction_reply::Data::InvalidRequest(TransactionErrorInvalidRequest {}),
+                    Err(FrontendRequestError::StorageFull) => transaction_reply::Data::InternalError(TransactionErrorInternalError {}),
                 }
             } else {
                 transaction_reply::Data::InvalidRequest(TransactionErrorInvalidRequest {})
@@ -360,28 +357,29 @@ impl PartitionData {
     }
 
     fn frontend_request_field_to_array<T>(src: &[u8]) -> Result<T, FrontendRequestError>
-    where T: AsMut<[u8]> + Default
-    {
+    where T: AsMut<[u8]> + Default {
         match util::copy_exact(src) {
             Ok(array) => Ok(array),
-            Err(())   => Err(FrontendRequestError::InvalidRequest),
+            Err(()) => Err(FrontendRequestError::InvalidRequest),
         }
     }
 
     fn frontend_request_backup_id(backup_id: &BackupId) -> Result<PartitionKey, FrontendRequestError> {
         match PartitionKey::try_from_pb(backup_id) {
             Ok(backup_id) => Ok(backup_id),
-            Err(())       => Err(FrontendRequestError::InvalidRequest),
+            Err(()) => Err(FrontendRequestError::InvalidRequest),
         }
     }
 
-    fn get_or_insert_backup_with(&mut self, backup_id: PartitionKey, create_fun: impl FnOnce() -> BackupEntry)
-                                 -> Result<&mut BackupEntry, FrontendRequestError> {
+    fn get_or_insert_backup_with(
+        &mut self,
+        backup_id: PartitionKey,
+        create_fun: impl FnOnce() -> BackupEntry,
+    ) -> Result<&mut BackupEntry, FrontendRequestError>
+    {
         let storage_len = self.storage.len();
         match self.storage.entry(backup_id) {
-            btree_map::Entry::Occupied(backup_entry) => {
-                Ok(backup_entry.into_mut())
-            }
+            btree_map::Entry::Occupied(backup_entry) => Ok(backup_entry.into_mut()),
             btree_map::Entry::Vacant(backup_entry) => {
                 if storage_len < self.config.capacity {
                     Ok(backup_entry.insert(create_fun()))
@@ -392,16 +390,18 @@ impl PartitionData {
         }
     }
 
-    fn perform_frontend_request(&mut self, txn_data: frontend_request_transaction::Transaction)
-                                -> Result<transaction_reply::Data, FrontendRequestError>
+    fn perform_frontend_request(
+        &mut self,
+        txn_data: frontend_request_transaction::Transaction,
+    ) -> Result<transaction_reply::Data, FrontendRequestError>
     {
         match txn_data {
             frontend_request_transaction::Transaction::Create(create_request) => {
-                let backup_id          = Self::frontend_request_backup_id(&create_request.backup_id)?;
+                let backup_id = Self::frontend_request_backup_id(&create_request.backup_id)?;
                 let new_creation_nonce = Self::frontend_request_field_to_array(&create_request.new_creation_nonce)?;
-                let new_nonce          = Self::frontend_request_field_to_array(&create_request.new_nonce)?;
+                let new_nonce = Self::frontend_request_field_to_array(&create_request.new_nonce)?;
                 let backup = self.get_or_insert_backup_with(backup_id, || BackupEntry {
-                    nonce: RequestNonce {
+                    nonce:   RequestNonce {
                         creation_nonce: new_creation_nonce,
                         current_nonce:  new_nonce,
                     },
@@ -414,15 +414,19 @@ impl PartitionData {
                 }))
             }
             frontend_request_transaction::Transaction::Backup(backup_request) => {
-                let backup_id          = Self::frontend_request_backup_id(&backup_request.backup_id)?;
+                let backup_id = Self::frontend_request_backup_id(&backup_request.backup_id)?;
                 let new_creation_nonce = Self::frontend_request_field_to_array(&backup_request.new_creation_nonce)?;
-                let new_nonce          = Self::frontend_request_field_to_array(&backup_request.new_nonce)?;
-                let tries              = backup_request.tries.to_u16().and_then(NonZeroU16::new).ok_or(FrontendRequestError::InvalidRequest)?;
+                let new_nonce = Self::frontend_request_field_to_array(&backup_request.new_nonce)?;
+                let tries = backup_request
+                    .tries
+                    .to_u16()
+                    .and_then(NonZeroU16::new)
+                    .ok_or(FrontendRequestError::InvalidRequest)?;
 
                 let max_backup_data_length = self.config.max_backup_data_length;
 
                 let backup = self.get_or_insert_backup_with(backup_id, || BackupEntry {
-                    nonce: RequestNonce {
+                    nonce:   RequestNonce {
                         creation_nonce: new_creation_nonce,
                         current_nonce:  new_nonce,
                     },
@@ -442,14 +446,14 @@ impl PartitionData {
                 } else {
                     let backup_request_pin: &[u8; BackupEntry::PIN_LENGTH] = match backup_request.pin.data[..].try_into() {
                         Ok(backup_request_pin) => backup_request_pin,
-                        Err(_)                 => return Err(FrontendRequestError::InvalidRequest),
+                        Err(_) => return Err(FrontendRequestError::InvalidRequest),
                     };
                     if backup_request.data.data.len() > max_backup_data_length.to_usize() {
                         return Err(FrontendRequestError::InvalidRequest);
                     }
                     backup.nonce.creation_nonce = backup.nonce.current_nonce;
-                    backup.nonce.current_nonce  = new_nonce;
-                    backup.secrets              = Some(BackupEntrySecrets::new(tries, backup_request_pin, &backup_request.data.data));
+                    backup.nonce.current_nonce = new_nonce;
+                    backup.secrets = Some(BackupEntrySecrets::new(tries, backup_request_pin, &backup_request.data.data));
 
                     kbupd_client::BackupResponse {
                         status: Some(kbupd_client::backup_response::Status::Ok.into()),
@@ -463,9 +467,9 @@ impl PartitionData {
                 }))
             }
             frontend_request_transaction::Transaction::Restore(restore_request) => {
-                let backup_id        = Self::frontend_request_backup_id(&restore_request.backup_id)?;
+                let backup_id = Self::frontend_request_backup_id(&restore_request.backup_id)?;
                 let restore_response = if let btree_map::Entry::Occupied(mut storage_entry) = self.storage.entry(backup_id) {
-                    let entry     = storage_entry.get_mut();
+                    let entry = storage_entry.get_mut();
                     let new_nonce = Self::frontend_request_field_to_array(&restore_request.new_nonce)?;
 
                     if restore_request.creation_nonce != entry.nonce.creation_nonce {
@@ -495,9 +499,10 @@ impl PartitionData {
                                 }
                             } else if let Some(tries_minus_one) = entry_secrets.tries.get().checked_sub(2) {
                                 // decrement tries
-                                entry_secrets.tries = tries_minus_one.checked_add(1)
-                                                                     .and_then(NonZeroU16::new)
-                                                                     .unwrap_or_else(|| unreachable!());
+                                entry_secrets.tries = tries_minus_one
+                                    .checked_add(1)
+                                    .and_then(NonZeroU16::new)
+                                    .unwrap_or_else(|| unreachable!());
                                 kbupd_client::RestoreResponse {
                                     status: Some(kbupd_client::restore_response::Status::PinMismatch.into()),
                                     tries:  Some(u32::from(entry_secrets.tries.get())),
@@ -546,25 +551,31 @@ impl PartitionData {
         }
     }
 
-    fn perform_start_xfer_transaction(&mut self,
-                                      txn:   StartXferTransaction,
-                                      peers: &mut PeerManager<PeerState>)
-                                      -> EnclaveStartXferTransaction
+    fn perform_start_xfer_transaction(
+        &mut self,
+        txn: StartXferTransaction,
+        peers: &mut PeerManager<PeerState>,
+    ) -> EnclaveStartXferTransaction
     {
         let from = NodeId::from(&txn.from_node_id);
 
         match &self.xfer_state {
             XferState::SourcePartition(xfer_destination) => {
                 if txn.xfer_request.group_id != xfer_destination.remote_group_id {
-                    warn!("received XferRequest from {} while having xfer destination {}: {}",
-                          &from, &xfer_destination.remote_group_id, &txn.xfer_request);
+                    warn!(
+                        "received XferRequest from {} while having xfer destination {}: {}",
+                        &from, &xfer_destination.remote_group_id, &txn.xfer_request
+                    );
                 } else {
                     verbose!("received duplicate XferRequest from {}", &from);
                 }
                 return Default::default();
             }
             XferState::DestinationPartition(_xfer_source) => {
-                warn!("received XferRequest from {} while having xfer source: {}", &from, &txn.xfer_request);
+                warn!(
+                    "received XferRequest from {} while having xfer source: {}",
+                    &from, &txn.xfer_request
+                );
                 return Default::default();
             }
             XferState::None => (),
@@ -584,23 +595,27 @@ impl PartitionData {
                 return Default::default();
             }
         };
-        if (our_range.first() != full_range.first() ||
-            !our_range.contains_range(&full_range)) {
-            warn!("received XferRequest from {} with requested range outside our range {}: {}",
-                  &from, &our_range, &txn.xfer_request);
+        if (our_range.first() != full_range.first() || !our_range.contains_range(&full_range)) {
+            warn!(
+                "received XferRequest from {} with requested range outside our range {}: {}",
+                &from, &our_range, &txn.xfer_request
+            );
             return Default::default();
         }
 
         let service_id = match &self.service_id {
             Some(service_id) => service_id,
             None => {
-                warn!("received XferRequest from {} while having no service id: {}", &from, &txn.xfer_request);
+                warn!(
+                    "received XferRequest from {} while having no service id: {}",
+                    &from, &txn.xfer_request
+                );
                 return Default::default();
             }
         };
 
         let mut attestations: Vec<(NodeId, AttestationParameters)> = Vec::new();
-        let mut senders:      Vec<ReplicaRemoteSender>             = Vec::new();
+        let mut senders: Vec<ReplicaRemoteSender> = Vec::new();
         for node_id in &txn.xfer_request.node_ids {
             match peers.start_peer(node_id.into(), NodeType::Replica, RemoteAuthorizationType::Mutual) {
                 Ok(peer_entry) => {
@@ -613,24 +628,26 @@ impl PartitionData {
                     }
                     senders.push(remote.sender().clone());
                 }
-                Err(Some(PeerState::Frontend { .. })) |
-                Err(None) => {
-                    error!("started xfer to {} when it's already connected as a frontend!", NodeId::from(node_id));
+                Err(Some(PeerState::Frontend { .. })) | Err(None) => {
+                    error!(
+                        "started xfer to {} when it's already connected as a frontend!",
+                        NodeId::from(node_id)
+                    );
                 }
             }
         }
 
         let cur_xfer_reply = PendingXferRequest {
-            id:      PendingXferRequestId::XferReply,
-            message: Rc::new(ReplicaToReplicaMessage {
+            id:              PendingXferRequestId::XferReply,
+            message:         Rc::new(ReplicaToReplicaMessage {
                 inner: Some(replica_to_replica_message::Inner::XferReply(XferReply {
                     service: service_id.clone(),
                 })),
             }),
             min_attestation: None,
         };
-        let remote_group_id  = txn.xfer_request.group_id.clone();
-        let group_name       = format!("{}", &remote_group_id);
+        let remote_group_id = txn.xfer_request.group_id.clone();
+        let group_name = format!("{}", &remote_group_id);
         let mut remote_group = RemoteGroupState::new(group_name, senders);
         for (replica_node_id, _attestation) in &attestations {
             remote_group.remote_authorized(replica_node_id);
@@ -638,18 +655,23 @@ impl PartitionData {
         let chunk_size = txn.xfer_request.chunk_size;
 
         let display_nodes = txn.xfer_request.node_ids.iter().map(|node| util::ToHex(node));
-        info!("starting xfer of range {} chunk size {} to group {} with nodes {}",
-              &full_range, &chunk_size, &remote_group_id, ListDisplay(display_nodes));
+        info!(
+            "starting xfer of range {} chunk size {} to group {} with nodes {}",
+            &full_range,
+            &chunk_size,
+            &remote_group_id,
+            ListDisplay(display_nodes)
+        );
 
         self.xfer_state = XferState::SourcePartition(XferDestination {
             remote_group_id,
             remote_group,
             full_range,
             chunk_size,
-            paused:   true,
+            paused: true,
             inflight: None,
 
-            cur_xfer_reply:         Some(cur_xfer_reply),
+            cur_xfer_reply: Some(cur_xfer_reply),
             cur_xfer_chunk_request: None,
         });
 
@@ -662,8 +684,10 @@ impl PartitionData {
         }
         if let Some(service_id) = &self.service_id {
             if service_id != &txn.service_id {
-                error!("tried to set service id {} on partition already having service id {}",
-                       &txn.service_id, &service_id);
+                error!(
+                    "tried to set service id {} on partition already having service id {}",
+                    &txn.service_id, &service_id
+                );
             }
             Default::default()
         } else {
@@ -675,7 +699,12 @@ impl PartitionData {
         }
     }
 
-    fn perform_remove_chunk_transaction(&mut self, txn: RemoveChunkTransaction, group: &mut ReplicaGroupState) -> EnclaveRemoveChunkTransaction {
+    fn perform_remove_chunk_transaction(
+        &mut self,
+        txn: RemoveChunkTransaction,
+        group: &mut ReplicaGroupState,
+    ) -> EnclaveRemoveChunkTransaction
+    {
         if let XferState::SourcePartition(xfer_destination) = &mut self.xfer_state {
             xfer_destination.received_reply(&PendingXferRequestId::XferReply);
             xfer_destination.received_reply(&PendingXferRequestId::XferChunkRequest {
@@ -686,8 +715,10 @@ impl PartitionData {
                 if inflight.last() == &txn.xfer_chunk_reply.new_last {
                     xfer_destination.inflight = None;
                 } else {
-                    warn!("dropping out of order RemoveChunkTransaction {} expecting {}",
-                          &txn.xfer_chunk_reply.new_last, &inflight);
+                    warn!(
+                        "dropping out of order RemoveChunkTransaction {} expecting {}",
+                        &txn.xfer_chunk_reply.new_last, &inflight
+                    );
                 }
             }
 
@@ -761,11 +792,7 @@ impl PartitionData {
             }
         };
 
-        let maybe_our_new_first = if let Some(range) = &self.range {
-            Some(range.first())
-        } else {
-            None
-        };
+        let maybe_our_new_first = if let Some(range) = &self.range { Some(range.first()) } else { None };
 
         let entries = Self::storage_split_to(&mut self.storage, maybe_our_new_first);
 
@@ -784,10 +811,10 @@ impl PartitionData {
 
         let min_attestation = group.attestation_expiration_window();
         xfer_destination.cur_xfer_chunk_request = Some(PendingXferRequest {
-            id: PendingXferRequestId::XferChunkRequest {
+            id:              PendingXferRequestId::XferChunkRequest {
                 new_last: chunk_last.to_pb(),
             },
-            message: Rc::new(ReplicaToReplicaMessage {
+            message:         Rc::new(ReplicaToReplicaMessage {
                 inner: Some(replica_to_replica_message::Inner::XferChunkRequest(XferChunkRequest {
                     data,
                     chunk_range: chunk_range.to_pb(),
@@ -799,8 +826,11 @@ impl PartitionData {
         Some(chunk_range)
     }
 
-    fn storage_split_to(storage: &mut BTreeMap<PartitionKey, BackupEntry>, maybe_split_key: Option<&PartitionKey>)
-                        -> impl DoubleEndedIterator<Item = (PartitionKey, BackupEntry)> + ExactSizeIterator {
+    fn storage_split_to(
+        storage: &mut BTreeMap<PartitionKey, BackupEntry>,
+        maybe_split_key: Option<&PartitionKey>,
+    ) -> impl DoubleEndedIterator<Item = (PartitionKey, BackupEntry)> + ExactSizeIterator
+    {
         let new_map = if let Some(split_key) = maybe_split_key {
             storage.split_off(split_key)
         } else {
@@ -809,7 +839,12 @@ impl PartitionData {
         std::mem::replace(storage, new_map).into_iter()
     }
 
-    fn perform_apply_chunk_transaction(&mut self, txn: ApplyChunkTransaction, group: &mut ReplicaGroupState) -> EnclaveApplyChunkTransaction {
+    fn perform_apply_chunk_transaction(
+        &mut self,
+        txn: ApplyChunkTransaction,
+        group: &mut ReplicaGroupState,
+    ) -> EnclaveApplyChunkTransaction
+    {
         if let XferState::DestinationPartition(xfer_source) = &mut self.xfer_state {
             let request = &txn.xfer_chunk_request;
             info!("received xfer chunk {} length {}", &request.chunk_range, request.data.data.len());
@@ -826,13 +861,18 @@ impl PartitionData {
                         if !self.range.map(|range| range.overlaps_range(&chunk_range)).unwrap_or(false) {
                             chunk_range
                         } else {
-                            warn!("dropping old xfer chunk {} current range {}",
-                                  &chunk_range, OptionDisplay(self.range));
+                            warn!(
+                                "dropping old xfer chunk {} current range {}",
+                                &chunk_range,
+                                OptionDisplay(self.range)
+                            );
                             return Default::default();
                         }
                     } else {
-                        error!("dropping xfer chunk {} not in desired range {}",
-                               &chunk_range, &xfer_source.desired_range);
+                        error!(
+                            "dropping xfer chunk {} not in desired range {}",
+                            &chunk_range, &xfer_source.desired_range
+                        );
                         return Default::default();
                     }
                 }
@@ -852,11 +892,11 @@ impl PartitionData {
             let old_range = std::mem::replace(&mut self.range, Some(new_range));
 
             let xfer_chunk_reply = PendingXferRequest {
-                id: PendingXferRequestId::XferChunkReply {
+                id:              PendingXferRequestId::XferChunkReply {
                     new_last: txn.xfer_chunk_reply.new_last.clone(),
                 },
-                message: Rc::new(ReplicaToReplicaMessage {
-                    inner: Some(replica_to_replica_message::Inner::XferChunkReply(txn.xfer_chunk_reply.clone()))
+                message:         Rc::new(ReplicaToReplicaMessage {
+                    inner: Some(replica_to_replica_message::Inner::XferChunkReply(txn.xfer_chunk_reply.clone())),
                 }),
                 min_attestation: None,
             };
@@ -879,8 +919,11 @@ impl PartitionData {
                     self.storage.insert(entry.id, entry.entry);
                     entry_count += 1;
                 } else {
-                    error!("dropping transferred backup id {} within current range {}",
-                           &entry.id, OptionDisplay(self.range));
+                    error!(
+                        "dropping transferred backup id {} within current range {}",
+                        &entry.id,
+                        OptionDisplay(self.range)
+                    );
                 }
             }
 
@@ -914,7 +957,10 @@ impl PartitionData {
             }
         };
         if !xfer_destination.paused {
-            info!("Pausing partitioning process at {}", OptionDisplay(self.range.as_ref().map(PartitionKeyRange::first)));
+            info!(
+                "Pausing partitioning process at {}",
+                OptionDisplay(self.range.as_ref().map(PartitionKeyRange::first))
+            );
         }
         xfer_destination.paused = true;
 
@@ -923,7 +969,12 @@ impl PartitionData {
         EnclavePauseXferTransaction {}
     }
 
-    fn perform_resume_xfer_transaction(&mut self, txn: ResumeXferTransaction, group: &mut ReplicaGroupState) -> EnclaveResumeXferTransaction {
+    fn perform_resume_xfer_transaction(
+        &mut self,
+        txn: ResumeXferTransaction,
+        group: &mut ReplicaGroupState,
+    ) -> EnclaveResumeXferTransaction
+    {
         let xfer_destination = match &mut self.xfer_state {
             XferState::SourcePartition(xfer_destination) => xfer_destination,
             _ => {
@@ -985,8 +1036,11 @@ impl PartitionData {
 
     fn perform_set_time_transaction(&mut self, txn: SetTimeTransaction, group: &mut ReplicaGroupState) -> EnclaveSetTimeTransaction {
         if !group.set_attestation_time_now(Duration::from_secs(txn.now_secs)) {
-            warn!("tried to set attestation time backward from {} to {}",
-                  group.get_attestation_time_now().as_secs(), txn.now_secs);
+            warn!(
+                "tried to set attestation time backward from {} to {}",
+                group.get_attestation_time_now().as_secs(),
+                txn.now_secs
+            );
             Default::default()
         } else {
             EnclaveSetTimeTransaction {
@@ -1005,7 +1059,7 @@ impl XferState {
         match self {
             XferState::DestinationPartition(xfer_source) => Some(&mut xfer_source.remote_group),
             XferState::SourcePartition(xfer_destination) => Some(&mut xfer_destination.remote_group),
-            XferState::None                              => None,
+            XferState::None => None,
         }
     }
 }
@@ -1015,10 +1069,7 @@ impl XferState {
 //
 
 impl XferSource {
-    pub fn new(remote_group:  RemoteGroupState<ReplicaRemoteSender, PendingXferRequest>,
-               desired_range: PartitionKeyRange)
-               -> Self
-    {
+    pub fn new(remote_group: RemoteGroupState<ReplicaRemoteSender, PendingXferRequest>, desired_range: PartitionKeyRange) -> Self {
         Self {
             remote_group,
             desired_range,
@@ -1102,14 +1153,17 @@ impl XferDestination {
 //
 
 impl RemoteGroupPendingRequest for PendingXferRequest {
+    type Message = ReplicaToReplicaMessage;
     type RequestId = PendingXferRequestId;
-    type Message   = ReplicaToReplicaMessage;
+
     fn request_id(&self) -> &Self::RequestId {
         &self.id
     }
+
     fn message(&self) -> Rc<Self::Message> {
         Rc::clone(&self.message)
     }
+
     fn min_attestation(&self) -> Option<AttestationParameters> {
         self.min_attestation
     }
@@ -1127,13 +1181,14 @@ impl RequestNonce {
             current_nonce:  *current_nonce,
         }
     }
+
     pub fn to_combined(&self) -> [u8; 32] {
         let mut combined = [0; 32];
 
         let (combined_creation_nonce, combined_current_nonce) = Self::split_mut(&mut combined);
 
         *combined_creation_nonce = self.creation_nonce;
-        *combined_current_nonce  = self.current_nonce;
+        *combined_current_nonce = self.current_nonce;
 
         combined
     }
@@ -1159,8 +1214,8 @@ impl RequestNonce {
 
     fn split_mut(combined: &mut [u8; 32]) -> (&mut [u8; 16], &mut [u8; 16]) {
         let (creation_nonce, current_nonce) = combined.split_at_mut(16);
-        let creation_nonce: &mut [u8; 16]   = creation_nonce.try_into().unwrap_or_else(|_| static_unreachable!());
-        let current_nonce:  &mut [u8; 16]   = current_nonce.try_into().unwrap_or_else(|_| static_unreachable!());
+        let creation_nonce: &mut [u8; 16] = creation_nonce.try_into().unwrap_or_else(|_| static_unreachable!());
+        let current_nonce: &mut [u8; 16] = current_nonce.try_into().unwrap_or_else(|_| static_unreachable!());
         (creation_nonce, current_nonce)
     }
 }
@@ -1175,10 +1230,12 @@ impl BackupEntry {
     const fn encoded_len(data_len: u32) -> u32 {
         RequestNonce::encoded_len() + BackupEntrySecrets::encoded_len(data_len)
     }
+
     fn encode<B: BufMut>(&self, buf: &mut B) {
         self.nonce.encode(buf);
         BackupEntrySecrets::encode_opt(self.secrets.as_ref(), buf);
     }
+
     fn decode<B: Buf>(buf: &mut B) -> Self {
         let nonce = RequestNonce::decode(buf);
         let secrets = BackupEntrySecrets::decode(buf);
@@ -1205,15 +1262,20 @@ impl XferBackupEntry {
     fn encoded_len(data_len: u32) -> u32 {
         BackupId::valid_len() + BackupEntry::encoded_len(data_len)
     }
+
     fn encode<B: BufMut>(&self, buf: &mut B) {
         self.entry.encode(buf);
         buf.put_slice(&self.id[..]);
     }
+
     fn decode<B: Buf>(buf: &mut B) -> Self {
         let entry = BackupEntry::decode(buf);
         let mut id = [0; 32];
         buf.copy_to_slice(&mut id);
-        Self { id: PartitionKey::new(id), entry }
+        Self {
+            id: PartitionKey::new(id),
+            entry,
+        }
     }
 }
 

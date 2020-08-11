@@ -6,17 +6,13 @@
 //
 
 #![cfg_attr(not(any(test, feature = "test")), no_std)]
-#![allow(
-    unused_parens,
-    clippy::style,
-    clippy::large_enum_variant,
-)]
+#![allow(unused_parens, clippy::style, clippy::large_enum_variant)]
 #![warn(
     bare_trait_objects,
     elided_lifetimes_in_paths,
     trivial_numeric_casts,
     variant_size_differences,
-    clippy::integer_arithmetic,
+    clippy::integer_arithmetic
 )]
 #![deny(
     clippy::cast_possible_truncation,
@@ -47,40 +43,31 @@
     clippy::use_debug,
     clippy::use_self,
     clippy::use_underscore_binding,
-    clippy::wildcard_enum_match_arm,
+    clippy::wildcard_enum_match_arm
 )]
 
 extern crate alloc;
 
 #[allow(dead_code, non_camel_case_types, non_upper_case_globals, non_snake_case, improper_ctypes, clippy::all, clippy::pedantic, clippy::integer_arithmetic)]
+#[rustfmt::skip]
 mod bindgen_wrapper;
 pub mod ecalls;
 
-#[cfg(any(test, feature = "test"))] pub mod mocks;
+#[cfg(any(test, feature = "test"))]
+pub mod mocks;
 
-use core::ffi::{c_void};
+use core::ffi::c_void;
 use core::num;
 use core::ptr;
 use core::sync;
 
-use num_traits::{ToPrimitive};
+use num_traits::ToPrimitive;
 use rand_core::{CryptoRng, RngCore};
 use sgx_ffi::util::{clear, SecretValue};
 
 use bindgen_wrapper::{
-    br_sha256_context,
-    br_sha256_out,
-    br_sha256_init,
-    br_sha224_update,
-    br_sha256_SIZE,
-    curve25519_donna,
-    sgxsd_aes_gcm_decrypt,
-    sgxsd_aes_gcm_encrypt,
-    sgxsd_enclave_read_rand,
-    sgxsd_rand_buf,
-    sgx_status_t as SgxStatus,
-    SGX_SUCCESS,
-    SGX_ERROR_INVALID_PARAMETER,
+    br_sha224_update, br_sha256_SIZE, br_sha256_context, br_sha256_init, br_sha256_out, curve25519_donna, sgx_status_t as SgxStatus,
+    sgxsd_aes_gcm_decrypt, sgxsd_aes_gcm_encrypt, sgxsd_enclave_read_rand, sgxsd_rand_buf, SGX_ERROR_INVALID_PARAMETER, SGX_SUCCESS,
 };
 
 //
@@ -120,26 +107,29 @@ impl RngCore for RdRand {
         let random_bytes = self.rand_bytes([0; 4]);
         u32::from_ne_bytes(random_bytes)
     }
+
     fn next_u64(&mut self) -> u64 {
         let random_bytes = self.rand_bytes([0; 8]);
         u64::from_ne_bytes(random_bytes)
     }
+
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         while let Err(_) = self.try_fill_bytes(dest) {
             sync::atomic::spin_loop_hint();
         }
     }
+
     fn try_fill_bytes(&mut self, mut dest: &mut [u8]) -> Result<(), rand_core::Error> {
         let mut rand_buf = sgxsd_rand_buf::default();
         while !dest.is_empty() {
             match num::NonZeroU32::new(unsafe { sgxsd_enclave_read_rand(&mut rand_buf) }) {
-                None        => (),
+                None => (),
                 Some(error) => {
                     clear(&mut rand_buf.x);
                     return Err(error.into());
                 }
             }
-            let dest_part_len          = rand_buf.x.len().min(dest.len());
+            let dest_part_len = rand_buf.x.len().min(dest.len());
             let (dest_part, dest_rest) = dest.split_at_mut(dest_part_len);
             dest_part.copy_from_slice(rand_buf.x.get(..dest_part_len).unwrap_or_else(|| unreachable!()));
             dest = dest_rest;
@@ -149,7 +139,8 @@ impl RngCore for RdRand {
     }
 }
 impl RdRand {
-    pub fn rand_bytes<T>(&mut self, mut buf: T) -> T where T: AsMut<[u8]> {
+    pub fn rand_bytes<T>(&mut self, mut buf: T) -> T
+    where T: AsMut<[u8]> {
         self.fill_bytes(buf.as_mut());
         buf
     }
@@ -197,49 +188,45 @@ impl AesGcmKey {
         self.key.get_mut().data = *data;
     }
 
-    pub fn decrypt(
-        &self,
-        data: &mut [u8],
-        aad:  &[u8],
-        iv:   &AesGcmIv,
-        mac:  &AesGcmMac,
-    ) -> Result<(), SgxStatus>
-    {
+    pub fn decrypt(&self, data: &mut [u8], aad: &[u8], iv: &AesGcmIv, mac: &AesGcmMac) -> Result<(), SgxStatus> {
         let data_len = data.len().to_u32().ok_or(SGX_ERROR_INVALID_PARAMETER)?;
-        let aad_len  = aad.len().to_u32().ok_or(SGX_ERROR_INVALID_PARAMETER)?;
+        let aad_len = aad.len().to_u32().ok_or(SGX_ERROR_INVALID_PARAMETER)?;
 
         match unsafe {
-            sgxsd_aes_gcm_decrypt(self.key.get(), data.as_ptr() as *const c_void, data_len,
-                                  data.as_mut_ptr() as *mut c_void,
-                                  iv,
-                                  aad.as_ptr() as *const c_void, aad_len,
-                                  mac)
+            sgxsd_aes_gcm_decrypt(
+                self.key.get(),
+                data.as_ptr() as *const c_void,
+                data_len,
+                data.as_mut_ptr() as *mut c_void,
+                iv,
+                aad.as_ptr() as *const c_void,
+                aad_len,
+                mac,
+            )
         } {
             SGX_SUCCESS => Ok(()),
-            error       => Err(error),
+            error => Err(error),
         }
     }
 
-    pub fn encrypt(
-        &self,
-        data: &mut [u8],
-        aad:  &[u8],
-        iv:   &AesGcmIv,
-        mac:  &mut AesGcmMac,
-    ) -> Result<(), SgxStatus>
-    {
+    pub fn encrypt(&self, data: &mut [u8], aad: &[u8], iv: &AesGcmIv, mac: &mut AesGcmMac) -> Result<(), SgxStatus> {
         let data_len = data.len().to_u32().ok_or(SGX_ERROR_INVALID_PARAMETER)?;
-        let aad_len  = aad.len().to_u32().ok_or(SGX_ERROR_INVALID_PARAMETER)?;
+        let aad_len = aad.len().to_u32().ok_or(SGX_ERROR_INVALID_PARAMETER)?;
 
         match unsafe {
-            sgxsd_aes_gcm_encrypt(self.key.get(), data.as_ptr() as *const c_void, data_len,
-                                  data.as_mut_ptr() as *mut c_void,
-                                  iv,
-                                  aad.as_ptr() as *const c_void, aad_len,
-                                  mac)
+            sgxsd_aes_gcm_encrypt(
+                self.key.get(),
+                data.as_ptr() as *const c_void,
+                data_len,
+                data.as_mut_ptr() as *mut c_void,
+                iv,
+                aad.as_ptr() as *const c_void,
+                aad_len,
+                mac,
+            )
         } {
             SGX_SUCCESS => Ok(()),
-            error       => Err(error),
+            error => Err(error),
         }
     }
 
@@ -257,12 +244,15 @@ impl SHA256Context {
     pub const fn hash_len() -> usize {
         br_sha256_SIZE as usize
     }
+
     pub fn reset(&mut self) {
         unsafe { br_sha256_init(&mut self.context) };
     }
+
     pub fn update(&mut self, data: &[u8]) {
         unsafe { br_sha224_update(&mut self.context, data.as_ptr() as *const c_void, data.len()) };
     }
+
     pub fn result(&mut self, out: &mut [u8; Self::hash_len()]) {
         unsafe { br_sha256_out(&self.context, out.as_mut_ptr() as *mut c_void) }
     }
@@ -294,21 +284,25 @@ impl Curve25519Key {
         *self.privkey.get_mut() = *privkey;
         curve25519_base(&mut self.pubkey, self.privkey.get());
     }
+
     #[allow(clippy::indexing_slicing)]
     pub fn generate(&mut self, mut rng: impl RngCore) {
         let privkey = self.privkey.get_mut();
         rng.fill_bytes(privkey);
-        privkey[0]  &= 248;
+        privkey[0] &= 248;
         privkey[31] &= 127;
         privkey[31] |= 64;
         curve25519_base(&mut self.pubkey, self.privkey.get());
     }
+
     pub const fn pubkey(&self) -> &[u8; 32] {
         &self.pubkey
     }
+
     pub fn privkey(&self) -> &[u8; 32] {
         self.privkey.get()
     }
+
     pub fn dh(&self, pubkey: &[u8; 32], out: &mut [u8; 32]) {
         curve25519(out, self.privkey.get(), pubkey);
     }
@@ -337,14 +331,12 @@ fn curve25519(mypublic: &mut [u8; 32], mysecret: &[u8; 32], basepoint: &[u8; 32]
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use super::mocks;
+    use super::*;
 
-    use crate::bindgen_wrapper::{
-        SGX_ERROR_UNEXPECTED,
-    };
+    use crate::bindgen_wrapper::SGX_ERROR_UNEXPECTED;
 
-    use mockers::{Scenario};
+    use mockers::Scenario;
 
     const ASSERT_RANDOM_WINDOW_SIZE: usize = 2;
 
@@ -359,7 +351,7 @@ pub mod tests {
     #[test]
     #[should_panic]
     fn test_assert_random() {
-        let src      = test_ffi::rand_bytes(vec![0; 100]);
+        let src = test_ffi::rand_bytes(vec![0; 100]);
         let mut data = src.clone();
         RdRand.fill_bytes(&mut data[..(src.len() - ASSERT_RANDOM_WINDOW_SIZE)]);
         assert_random(&src, &data);
@@ -367,7 +359,7 @@ pub mod tests {
 
     #[test]
     fn fill_bytes_ok() {
-        let src      = test_ffi::rand_bytes(vec![0; 100]);
+        let src = test_ffi::rand_bytes(vec![0; 100]);
         let mut data = src.clone();
         RdRand.fill_bytes(&mut data[..0]);
         assert_eq!(data[..], src[..]);
@@ -421,7 +413,7 @@ pub mod tests {
         let read_rand_mock = test_ffi::mock_for(&mocks::SGXSD_ENCLAVE_READ_RAND, &scenario);
         scenario.expect(read_rand_mock.sgxsd_enclave_read_rand().and_return_clone(SGX_SUCCESS).times(1));
 
-        let src      = test_ffi::rand_bytes(vec![0; std::mem::size_of::<sgxsd_rand_buf>()]);
+        let src = test_ffi::rand_bytes(vec![0; std::mem::size_of::<sgxsd_rand_buf>()]);
         let mut data = src.clone();
         assert!(RdRand.try_fill_bytes(&mut data).is_ok());
         assert_random(&src, &data);
@@ -436,7 +428,7 @@ pub mod tests {
         let read_rand_mock = test_ffi::mock_for(&mocks::SGXSD_ENCLAVE_READ_RAND, &scenario);
         scenario.expect(read_rand_mock.sgxsd_enclave_read_rand().and_return_clone(SGX_SUCCESS).times(4));
 
-        let src      = test_ffi::rand_bytes(vec![0; std::mem::size_of::<sgxsd_rand_buf>() * 4 - 1]);
+        let src = test_ffi::rand_bytes(vec![0; std::mem::size_of::<sgxsd_rand_buf>() * 4 - 1]);
         let mut data = src.clone();
         assert!(RdRand.try_fill_bytes(&mut data).is_ok());
         assert_random(&src, &data);
@@ -460,7 +452,7 @@ pub mod tests {
 
     #[test]
     fn rand_bytes_valid() {
-        let src  = test_ffi::rand_bytes(vec![0; 100]);
+        let src = test_ffi::rand_bytes(vec![0; 100]);
         let data = RdRand.rand_bytes(src.clone());
         assert_eq!(data.len(), src.len());
         assert_random(&src, &data);

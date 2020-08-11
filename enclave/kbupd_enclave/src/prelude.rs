@@ -5,8 +5,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-pub use alloc::{format, vec};
-pub use alloc::borrow::{ToOwned};
-pub use alloc::boxed::{Box};
+pub use alloc::borrow::ToOwned;
+pub use alloc::boxed::Box;
 pub use alloc::string::{String, ToString};
-pub use alloc::vec::{Vec};
+pub use alloc::vec::Vec;
+pub use alloc::{format, vec};

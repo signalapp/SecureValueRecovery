@@ -14,7 +14,7 @@ use std::num::NonZeroU16;
 use bytes::{Buf, BufMut};
 use sgx_ffi::util::{SecretValue, ToUsize};
 
-use super::{BackupEntry};
+use super::BackupEntry;
 
 pub struct BackupEntrySecrets {
     pub tries: NonZeroU16,

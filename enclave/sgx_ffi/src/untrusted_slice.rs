@@ -5,14 +5,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use alloc::vec::{Vec};
+use alloc::vec::Vec;
 use core::marker::*;
 use core::num::*;
 use core::ptr::*;
 
-use super::bindgen_wrapper::{
-    sgx_is_outside_enclave,
-};
+use super::bindgen_wrapper::sgx_is_outside_enclave;
 
 pub enum UntrustedSlice<'a> {
     NonEmpty {
@@ -46,7 +44,11 @@ impl<'a> UntrustedSlice<'a> {
             if data.as_ptr().wrapping_add(size.get()) < data.as_ptr() {
                 return Err(());
             }
-            Ok(UntrustedSlice::NonEmpty { data, size, _phantom: &PhantomData })
+            Ok(UntrustedSlice::NonEmpty {
+                data,
+                size,
+                _phantom: &PhantomData,
+            })
         } else {
             Ok(UntrustedSlice::Empty)
         }
@@ -62,7 +64,7 @@ impl<'a> UntrustedSlice<'a> {
     pub fn as_ptr(&self) -> *const u8 {
         match self {
             Self::NonEmpty { data, .. } => data.as_ptr(),
-            Self::Empty                 => null(),
+            Self::Empty => null(),
         }
     }
 
@@ -72,7 +74,11 @@ impl<'a> UntrustedSlice<'a> {
                 if let Some(size) = size.get().checked_sub(offset) {
                     if let Some(size) = NonZeroUsize::new(size) {
                         let data = unsafe { NonNull::new_unchecked(data.as_ptr().add(offset)) };
-                        UntrustedSlice::NonEmpty { data, size, _phantom: &PhantomData }
+                        UntrustedSlice::NonEmpty {
+                            data,
+                            size,
+                            _phantom: &PhantomData,
+                        }
                     } else {
                         UntrustedSlice::Empty
                     }
@@ -140,10 +146,10 @@ impl<'a> Default for UntrustedSlice<'a> {
 #[cfg(test)]
 mod test {
     use mockers::*;
-    use test_ffi::{rand_bytes};
+    use test_ffi::rand_bytes;
 
-    use super::*;
     use super::super::mocks;
+    use super::*;
 
     struct TestVec {
         ptr:  *mut u8,
@@ -152,8 +158,8 @@ mod test {
     impl TestVec {
         fn new(size: usize) -> Self {
             let mut data_vec: Vec<u8> = rand_bytes(vec![0; size]);
-            let ptr:          *mut u8 = data_vec.as_mut_ptr();
-            let size:         usize   = data_vec.capacity();
+            let ptr: *mut u8 = data_vec.as_mut_ptr();
+            let size: usize = data_vec.capacity();
             std::mem::forget(data_vec);
             Self { ptr, size }
         }

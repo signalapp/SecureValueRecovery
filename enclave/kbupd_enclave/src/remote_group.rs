@@ -11,8 +11,8 @@ use std::collections::*;
 use std::fmt;
 use std::rc::*;
 
-use rand_core::{RngCore};
-use sgxsd_ffi::{RdRand};
+use rand_core::RngCore;
+use sgxsd_ffi::RdRand;
 
 use crate::protobufs::kbupd::*;
 use crate::protobufs::kbupd_enclave::*;
@@ -22,7 +22,7 @@ use crate::util::*;
 
 pub trait RemoteGroupPendingRequest {
     type RequestId: Clone + Ord + Eq;
-    type Message:   prost::Message;
+    type Message: prost::Message;
     fn request_id(&self) -> &Self::RequestId;
     fn message(&self) -> Rc<Self::Message>;
     fn min_attestation(&self) -> Option<AttestationParameters>;
@@ -32,8 +32,8 @@ pub trait RemoteGroupNode {
     fn request_quote(&mut self, request: EnclaveGetQuoteRequest) -> Result<(), ()>;
 }
 
-pub struct RemoteGroupState<T,R>
-where R: RemoteGroupPendingRequest,
+pub struct RemoteGroupState<T, R>
+where R: RemoteGroupPendingRequest
 {
     name:    String,
     nodes:   Box<[RemoteGroupNodeState<T, R::RequestId>]>,
@@ -65,10 +65,11 @@ struct RemoteGroupNodeState<T, RequestId> {
     last_sent: Option<RequestId>,
 }
 
-impl<T,R> RemoteGroupState<T,R>
-where T: RemoteMessageSender<Message = R::Message> + 'static,
-      T: RemoteGroupNode,
-      R: RemoteGroupPendingRequest + 'static,
+impl<T, R> RemoteGroupState<T, R>
+where
+    T: RemoteMessageSender<Message = R::Message> + 'static,
+    T: RemoteGroupNode,
+    R: RemoteGroupPendingRequest + 'static,
 {
     pub fn new(name: String, remotes: Vec<T>) -> Self {
         let nodes = remotes.into_iter().map(|remote: T| RemoteGroupNodeState {
@@ -77,14 +78,14 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
         });
         Self {
             name,
-            nodes:   nodes.collect::<Vec<_>>().into(),
-            leader:  Default::default(),
-            term:    Default::default(),
+            nodes: nodes.collect::<Vec<_>>().into(),
+            leader: Default::default(),
+            term: Default::default(),
             pending: Default::default(),
 
-            timeout_ticks:       Default::default(),
+            timeout_ticks: Default::default(),
             request_quote_ticks: Default::default(),
-            total_ticks:         Default::default(),
+            total_ticks: Default::default(),
         }
     }
 
@@ -118,10 +119,9 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
             BTreeMap::new()
         };
 
-        trimmed.into_iter()
-               .map(|(_, pending_request_state): (_, PendingRequestState<R>)| {
-                   pending_request_state.request
-               })
+        trimmed
+            .into_iter()
+            .map(|(_, pending_request_state): (_, PendingRequestState<R>)| pending_request_state.request)
     }
 
     pub fn reset_peer(&mut self, node_id: &NodeId) {
@@ -132,9 +132,10 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
             None => return,
         }
         warn!("resetting group {} peer {}", &self.name, node_id);
-        let maybe_old_leader =
-            self.leader.and_then(|leader: usize| self.nodes.get(leader))
-                       .map(|leader: &RemoteGroupNodeState<T, _>| leader.remote.id());
+        let maybe_old_leader = self
+            .leader
+            .and_then(|leader: usize| self.nodes.get(leader))
+            .map(|leader: &RemoteGroupNodeState<T, _>| leader.remote.id());
 
         if maybe_old_leader == Some(node_id) {
             self.leader = None;
@@ -173,23 +174,19 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
     }
 
     fn get_node_mut(&mut self, node_id: &NodeId) -> Option<&mut RemoteGroupNodeState<T, R::RequestId>> {
-        self.nodes.iter_mut().find_map(|node: &mut RemoteGroupNodeState<T, _>| {
-            if node.remote.id() == node_id {
-                Some(node)
-            } else {
-                None
-            }
-        })
+        self.nodes.iter_mut().find_map(
+            |node: &mut RemoteGroupNodeState<T, _>| {
+                if node.remote.id() == node_id { Some(node) } else { None }
+            },
+        )
     }
 
     fn get_node(&self, node_id: &NodeId) -> Option<&RemoteGroupNodeState<T, R::RequestId>> {
-        self.nodes.iter().find_map(|node: &RemoteGroupNodeState<T, _>| {
-            if node.remote.id() == node_id {
-                Some(node)
-            } else {
-                None
-            }
-        })
+        self.nodes.iter().find_map(
+            |node: &RemoteGroupNodeState<T, _>| {
+                if node.remote.id() == node_id { Some(node) } else { None }
+            },
+        )
     }
 
     fn get_leader_node(&self) -> Option<&RemoteGroupNodeState<T, R::RequestId>> {
@@ -201,9 +198,9 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
     }
 
     pub fn timer_tick(&mut self, max_timeout_ticks: u32, max_request_quote_ticks: u32) {
-        self.timeout_ticks       = self.timeout_ticks.saturating_add(1);
+        self.timeout_ticks = self.timeout_ticks.saturating_add(1);
         self.request_quote_ticks = self.request_quote_ticks.saturating_add(1);
-        self.total_ticks         = self.total_ticks.wrapping_add(1);
+        self.total_ticks = self.total_ticks.wrapping_add(1);
         if self.timeout_ticks >= max_timeout_ticks {
             self.timeout_ticks = Default::default();
 
@@ -239,16 +236,19 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
         }
         let nodes = &self.nodes[..];
 
-        let maybe_old_leader =
-            self.leader.and_then(|leader: usize| nodes.get(leader))
-                       .map(|leader: &RemoteGroupNodeState<T, _>| leader.remote.id());
+        let maybe_old_leader = self
+            .leader
+            .and_then(|leader: usize| nodes.get(leader))
+            .map(|leader: &RemoteGroupNodeState<T, _>| leader.remote.id());
         if term >= self.term {
             self.term = term;
             // prevent re-send storm from a node responding NotLeader while contradictorily asserting itself as leader
             if let Some(new_leader) = maybe_new_leader.filter(|new_leader: &&NodeId| new_leader != &from_node_id) {
                 if Some(new_leader) != maybe_old_leader {
                     info!("group {} changed leader to {} at term {}", &self.name, new_leader, &self.term.id);
-                    self.leader = nodes.iter().position(|node: &RemoteGroupNodeState<T, _>| node.remote.id() == new_leader);
+                    self.leader = nodes
+                        .iter()
+                        .position(|node: &RemoteGroupNodeState<T, _>| node.remote.id() == new_leader);
                 }
             } else if let Some(old_leader) = maybe_old_leader {
                 info!("group {} lost leader {} at term {}", &self.name, old_leader, &self.term.id);
@@ -265,16 +265,17 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
 
     pub fn send(&mut self, request: R) -> Result<(), RemoteGroupSendError<R>> {
         let request_id = request.request_id().clone();
-        let message    = request.message();
+        let message = request.message();
 
         if Some(&request_id) < self.pending.keys().last() {
             return Err(RemoteGroupSendError::AlreadySent(request));
         }
 
         let nodes = &mut self.nodes[..];
-        let maybe_authorized_leader =
-            self.leader.and_then(|leader: usize| nodes.get_mut(leader))
-                       .filter(|leader: &&mut RemoteGroupNodeState<T, _>| leader.remote.attestation().is_some());
+        let maybe_authorized_leader = self
+            .leader
+            .and_then(|leader: usize| nodes.get_mut(leader))
+            .filter(|leader: &&mut RemoteGroupNodeState<T, _>| leader.remote.attestation().is_some());
         if let btree_map::Entry::Vacant(pending_request_entry) = self.pending.entry(request_id) {
             let sent_at_tick = self.total_ticks;
             if let Some(authorized_leader) = maybe_authorized_leader {
@@ -297,12 +298,16 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
 
     pub fn handle_reply(&mut self, request_id: &R::RequestId) -> Option<R> {
         self.timeout_ticks = Default::default();
-        self.pending.remove(request_id)
-                    .map(|request_state: PendingRequestState<R>| request_state.request)
+        self.pending
+            .remove(request_id)
+            .map(|request_state: PendingRequestState<R>| request_state.request)
     }
 
     pub fn get_remotes(&self) -> Vec<NodeId> {
-        self.nodes[..].iter().map(|node: &RemoteGroupNodeState<T, _>| node.remote.id().clone()).collect()
+        self.nodes[..]
+            .iter()
+            .map(|node: &RemoteGroupNodeState<T, _>| node.remote.id().clone())
+            .collect()
     }
 
     #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
@@ -314,11 +319,9 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
                 nodes.swap(nodes_idx, nodes_idx.wrapping_add(rand));
 
                 let node_idx = nodes[nodes_idx];
-                let node     = &self.nodes[node_idx];
-                if (node.remote.attestation().is_some() &&
-                    self.has_unsent_to(node))
-                {
-                    self.leader        = Some(node_idx);
+                let node = &self.nodes[node_idx];
+                if (node.remote.attestation().is_some() && self.has_unsent_to(node)) {
+                    self.leader = Some(node_idx);
                     self.timeout_ticks = Default::default();
                     info!("group {} chose random leader {}", &self.name, node.remote.id());
                     break;
@@ -330,9 +333,10 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
 
     fn flush_requests(&mut self) {
         let nodes = &mut self.nodes[..];
-        let maybe_authorized_leader =
-            self.leader.and_then(|leader: usize| nodes.get_mut(leader))
-                       .filter(|leader: &&mut RemoteGroupNodeState<T, _>| leader.remote.attestation().is_some());
+        let maybe_authorized_leader = self
+            .leader
+            .and_then(|leader: usize| nodes.get_mut(leader))
+            .filter(|leader: &&mut RemoteGroupNodeState<T, _>| leader.remote.attestation().is_some());
         if let Some(authorized_leader) = maybe_authorized_leader {
             let mut queue = Vec::new();
             let mut not_yet_valid_count: u64 = 0;
@@ -348,13 +352,21 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
                 }
             }
             if not_yet_valid_count > 0 {
-                info!("group {} not sending {} messages to new leader {} due to attestation timestamp {}",
-                      &self.name, not_yet_valid_count, authorized_leader.remote.id(),
-                      OptionDisplay(authorized_leader.remote.attestation().as_ref()));
+                info!(
+                    "group {} not sending {} messages to new leader {} due to attestation timestamp {}",
+                    &self.name,
+                    not_yet_valid_count,
+                    authorized_leader.remote.id(),
+                    OptionDisplay(authorized_leader.remote.attestation().as_ref())
+                );
             }
             if !queue.is_empty() {
-                info!("group {} resending {} messages to new leader {}",
-                      &self.name, queue.len(), authorized_leader.remote.id());
+                info!(
+                    "group {} resending {} messages to new leader {}",
+                    &self.name,
+                    queue.len(),
+                    authorized_leader.remote.id()
+                );
                 for message in queue {
                     authorized_leader.send(message);
                 }
@@ -373,35 +385,38 @@ where T: RemoteMessageSender<Message = R::Message> + 'static,
 }
 
 impl<T, RequestId> RemoteGroupNodeState<T, RequestId>
-where T: RemoteMessageSender + 'static,
-      RequestId: Clone + Ord + Eq,
+where
+    T: RemoteMessageSender + 'static,
+    RequestId: Clone + Ord + Eq,
 {
     fn send(&self, request: Rc<T::Message>) {
         let _ignore = self.remote.send(request);
     }
+
     fn mark_sent(&mut self, sent_request_id: Option<&RequestId>) {
         if sent_request_id > self.last_sent.as_ref() {
             self.last_sent = sent_request_id.cloned();
         }
     }
+
     fn has_sent<R>(&self, request: &R) -> bool
-    where R: RemoteGroupPendingRequest<RequestId = RequestId> + 'static,
-    {
+    where R: RemoteGroupPendingRequest<RequestId = RequestId> + 'static {
         Some(request.request_id()) <= self.last_sent.as_ref()
     }
 }
 
-impl<T,R> fmt::Display for RemoteGroupState<T,R>
-where T: RemoteMessageSender<Message = R::Message> + RemoteGroupNode + 'static,
-      R: RemoteGroupPendingRequest + 'static,
+impl<T, R> fmt::Display for RemoteGroupState<T, R>
+where
+    T: RemoteMessageSender<Message = R::Message> + RemoteGroupNode + 'static,
+    R: RemoteGroupPendingRequest + 'static,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("RemoteGroupState")
-           .field("name",   &self.name)
-           .field("nodes",  &ListDisplay(self.nodes.iter().map(|node| node.remote.id())))
-           .field("leader", &OptionDisplay(self.get_leader_node().map(|node| node.remote.id())))
-           .field("term",   &DisplayAsDebug(self.term))
-           .finish()
+            .field("name", &self.name)
+            .field("nodes", &ListDisplay(self.nodes.iter().map(|node| node.remote.id())))
+            .field("leader", &OptionDisplay(self.get_leader_node().map(|node| node.remote.id())))
+            .field("term", &DisplayAsDebug(self.term))
+            .finish()
     }
 }
 

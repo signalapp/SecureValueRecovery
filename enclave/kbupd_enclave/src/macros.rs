@@ -77,7 +77,7 @@ macro_rules! assert_match {
 }
 
 macro_rules! static_unreachable {
-    () => ({
+    () => {{
         #[cfg(not(debug_assertions))]
         {
             extern "C" {
@@ -87,5 +87,5 @@ macro_rules! static_unreachable {
         }
         #[cfg(debug_assertions)]
         unreachable!()
-    })
+    }};
 }

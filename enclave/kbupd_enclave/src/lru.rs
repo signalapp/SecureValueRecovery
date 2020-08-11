@@ -5,8 +5,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
+use intrusive_collections::LinkedList;
 use intrusive_collections::*;
-use intrusive_collections::{LinkedList};
 
 use std::rc::*;
 
@@ -34,14 +34,16 @@ impl<T> Lru<T> {
             length: Default::default(),
         }
     }
+
     pub fn len(&self) -> usize {
         self.length
     }
+
     pub fn push_back(&mut self, item: T) -> Weak<LruEntry<T>> {
         let lru_entry = Rc::new(LruEntry {
             item,
             token: Rc::downgrade(&self.token),
-            link:  Default::default()
+            link: Default::default(),
         });
         let lru_entry_weak = Rc::downgrade(&lru_entry);
 
@@ -49,6 +51,7 @@ impl<T> Lru<T> {
         self.length = self.length.saturating_add(1);
         lru_entry_weak
     }
+
     pub fn bump(&mut self, lru_entry_weak: &Weak<LruEntry<T>>) -> bool {
         if let Some(lru_entry) = lru_entry_weak.upgrade() {
             // check that lru_entry is a member of self.list
@@ -64,9 +67,7 @@ impl<T> Lru<T> {
             }
 
             // safety: lru_entry must be a member of self.list
-            let mut lru_cursor = unsafe {
-                self.list.cursor_mut_from_ptr(lru_entry.as_ref())
-            };
+            let mut lru_cursor = unsafe { self.list.cursor_mut_from_ptr(lru_entry.as_ref()) };
             if let Some(lru_entry_rc) = lru_cursor.remove() {
                 self.list.push_back(lru_entry_rc);
             } else {
@@ -77,6 +78,7 @@ impl<T> Lru<T> {
             false
         }
     }
+
     pub fn pop_front(&mut self) -> Option<Rc<LruEntry<T>>> {
         if let Some(lru_entry) = self.list.pop_front() {
             self.length = self.length.saturating_sub(1);
@@ -99,10 +101,9 @@ impl<T> LruEntry<T> {
     }
 }
 
-
 impl<'a, T> IntoIterator for &'a Lru<T> {
-    type Item = &'a LruEntry<T>;
     type IntoIter = linked_list::Iter<'a, LruAdapter<T>>;
+    type Item = &'a LruEntry<T>;
 
     fn into_iter(self) -> linked_list::Iter<'a, LruAdapter<T>> {
         self.list.iter()

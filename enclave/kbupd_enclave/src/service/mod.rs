@@ -5,6 +5,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-pub mod main;
 pub mod frontend;
+pub mod main;
 pub mod replica;

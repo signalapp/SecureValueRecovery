@@ -5,19 +5,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::cell::{RefCell};
 use std;
+use std::cell::RefCell;
 
-use mockers::*;
 use mockers::matchers::*;
+use mockers::*;
 use mockers_derive::mocked;
-use prost::{Message};
+use prost::Message;
 
 use crate::protobufs;
 
-use super::bindgen_wrapper::{
-    sgx_status_t,
-};
+use super::bindgen_wrapper::sgx_status_t;
 
 //
 // mock extern "C" functions
@@ -40,10 +38,19 @@ pub trait KbupdEnclaveOcallAlloc {
 }
 
 impl MatchArg<protobufs::kbupd::enclave_message::Inner> for Box<dyn MatchArg<protobufs::kbupd::enclave_message::Inner>> {
-    fn matches(&self, arg: &protobufs::kbupd::enclave_message::Inner) -> Result<(), String> { (**self).matches(arg) }
-    fn describe(&self) -> String { (**self).describe() }
+    fn matches(&self, arg: &protobufs::kbupd::enclave_message::Inner) -> Result<(), String> {
+        (**self).matches(arg)
+    }
+
+    fn describe(&self) -> String {
+        (**self).describe()
+    }
 }
-pub fn expect_enclave_messages(scenario: &Scenario, matchers: impl IntoIterator<Item = Box<dyn MatchArg<protobufs::kbupd::enclave_message::Inner>>>) {
+pub fn expect_enclave_messages(
+    scenario: &Scenario,
+    matchers: impl IntoIterator<Item = Box<dyn MatchArg<protobufs::kbupd::enclave_message::Inner>>>,
+)
+{
     let mock = test_ffi::mock_for(&KBUPD_ENCLAVE_OCALL_RECV_ENCLAVE_MSG, &scenario);
     for matcher in matchers {
         scenario.expect(mock.enclave_message(matcher).and_return(()));
@@ -51,15 +58,13 @@ pub fn expect_enclave_messages(scenario: &Scenario, matchers: impl IntoIterator<
     scenario.expect(mock.kbupd_enclave_ocall_recv_enclave_msg().and_return_clone(0).times(..));
 }
 
-pub fn expect_kbupd_enclave_ocall_alloc(scenario:      &Scenario,
-                                        request_size:  usize,
-                                        returned_ptr:  *mut libc::c_void,
-                                        returned_size: usize) {
+pub fn expect_kbupd_enclave_ocall_alloc(scenario: &Scenario, request_size: usize, returned_ptr: *mut libc::c_void, returned_size: usize) {
     assert_ne!(request_size, 0);
     let mock = test_ffi::mock_for(&KBUPD_ENCLAVE_OCALL_ALLOC, &scenario);
-    scenario.expect(mock.kbupd_enclave_ocall_alloc(
-        eq(request_size)
-    ).and_return(Ok((returned_ptr, returned_size))));
+    scenario.expect(
+        mock.kbupd_enclave_ocall_alloc(eq(request_size))
+            .and_return(Ok((returned_ptr, returned_size))),
+    );
 
     sgx_ffi::mocks::expect_sgx_is_outside_enclave(scenario, returned_ptr as *const libc::c_void, returned_size, true);
 }
@@ -110,14 +115,12 @@ pub mod impls {
         assert!(!p_size_in_out.is_null());
         let size = unsafe { *p_size_in_out };
         assert_ne!(size, 0);
-        let res = KBUPD_ENCLAVE_OCALL_ALLOC.with(|mock| {
-            (mock.borrow().as_ref().expect("no mock for kbupd_enclave_ocall_alloc"))
-                .kbupd_enclave_ocall_alloc(size)
-        });
+        let res = KBUPD_ENCLAVE_OCALL_ALLOC
+            .with(|mock| (mock.borrow().as_ref().expect("no mock for kbupd_enclave_ocall_alloc")).kbupd_enclave_ocall_alloc(size));
         match res {
             Ok((ptr, size)) => {
                 unsafe {
-                    *p_ptr_out     = ptr;
+                    *p_ptr_out = ptr;
                     *p_size_in_out = size;
                 }
                 0
@@ -131,13 +134,18 @@ pub mod impls {
         arg1: *mut ::std::os::raw::c_uchar,
         arg2: *const ::std::os::raw::c_uchar,
         arg3: *const ::std::os::raw::c_uchar,
-    ) -> ::std::os::raw::c_int {
+    ) -> ::std::os::raw::c_int
+    {
         let arg1 = unsafe { std::slice::from_raw_parts_mut(arg1, 32) };
         let arg2 = unsafe { std::slice::from_raw_parts(arg2, 32) };
         let arg3 = unsafe { std::slice::from_raw_parts(arg3, 32) };
         test_ffi::read_rand(arg1);
-        arg2.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
-        arg3.iter().for_each(|p| unsafe { std::ptr::read_volatile(p); });
+        arg2.iter().for_each(|p| unsafe {
+            std::ptr::read_volatile(p);
+        });
+        arg3.iter().for_each(|p| unsafe {
+            std::ptr::read_volatile(p);
+        });
         0
     }
 }
