@@ -778,6 +778,13 @@ enum AttestationVerificationError {
     AttestationError(String),
 }
 
+fn parse_ias_timestamp(timestamp: &str) -> Result<u64, AttestationVerificationError> {
+    (NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%dT%H:%M:%S%.f").ok())
+        .map(|naive_datetime: NaiveDateTime| DateTime::from_utc(naive_datetime, Utc))
+        .and_then(|utc_datetime: DateTime<Utc>| utc_datetime.timestamp().to_u64())
+        .ok_or_else(|| AttestationVerificationError::InvalidTimestamp(timestamp.to_owned()))
+}
+
 fn validate_ias_report(maybe_ias_report:     Option<&IasReport>,
                        expected_report_data: &[u8])
                        -> Result<AttestationParameters, AttestationVerificationError> {
@@ -837,10 +844,7 @@ fn validate_ias_report(maybe_ias_report:     Option<&IasReport>,
         }
     }
 
-    let unix_timestamp_seconds = (NaiveDateTime::parse_from_str(&body.timestamp, "%Y-%m-%dT%H:%M:%S.%f").ok())
-        .map(|naive_datetime: NaiveDateTime| DateTime::from_utc(naive_datetime, Utc))
-        .and_then(|utc_datetime: DateTime<Utc>| utc_datetime.timestamp().to_u64())
-        .ok_or_else(|| AttestationVerificationError::InvalidTimestamp(body.timestamp))?;
+    let unix_timestamp_seconds = parse_ias_timestamp(&body.timestamp)?;
     let certificate = (ias_report.certificates.get(0).ok_or(webpki::Error::BadDER))
         .and_then(|certificate: &Vec<u8>| webpki::EndEntityCert::from(certificate))
         .map_err(AttestationVerificationError::InvalidCertificate)?;
@@ -1103,5 +1107,24 @@ impl Ord for AttestationParameters {
 impl fmt::Display for AttestationParameters {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_parse_ias_timestamp() {
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.123456789").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.12345678").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.1234567").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.123456").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.12345").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.1234").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.123").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.12").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06.1").is_ok());
+        assert!(parse_ias_timestamp("2020-08-01T15:18:06").is_ok());
     }
 }
