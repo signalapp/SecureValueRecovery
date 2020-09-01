@@ -4,14 +4,14 @@ Binary: kbupd-enclave
 Architecture: amd64
 Version: 1.0
 Checksums-Md5:
- 2bdcc999168386736c935e45f12f0661 578844 kbupd-enclave_1.0_amd64.deb
+ 7eaa99647090389e9ac1beeba147341f 590772 kbupd-enclave_1.0_amd64.deb
 Checksums-Sha1:
- 3434930f50668035c73f61f650ed38441764ba6a 578844 kbupd-enclave_1.0_amd64.deb
+ 6b5aabb72f1123decede3f65ad80e3ed8e5d50f6 590772 kbupd-enclave_1.0_amd64.deb
 Checksums-Sha256:
- ba36860ffbb7be6fd4cecee32a24d3b776f2c069f95d2623cf84235f44f33e82 578844 kbupd-enclave_1.0_amd64.deb
+ 61602c437d9dcf8c56bb06a89a1acc1d8af02043cf8333b7605598d45b5ad7fe 590772 kbupd-enclave_1.0_amd64.deb
 Build-Origin: Debian
 Build-Architecture: amd64
-Build-Date: Tue, 21 Jan 2020 07:33:36 +0000
+Build-Date: Tue, 01 Sep 2020 18:24:01 +0000
 Installed-Build-Depends:
  autoconf (= 2.69-11),
  automake (= 1:1.16.1-4),
@@ -47,6 +47,7 @@ Installed-Build-Depends:
  findutils (= 4.6.0+git+20190209-2),
  g++ (= 4:8.3.0-1),
  g++-8 (= 8.3.0-6),
+ gawk (= 1:4.2.1+dfsg-1),
  gcc (= 4:8.3.0-1),
  gcc-8 (= 8.3.0-6),
  gcc-8-base (= 8.3.0-6),
@@ -152,6 +153,7 @@ Installed-Build-Depends:
  libprotobuf17 (= 3.6.1.3-2),
  libpsl5 (= 0.20.2-2),
  libquadmath0 (= 8.3.0-6),
+ libreadline7 (= 7.0-5),
  librtmp1 (= 2.4+20151223.gitfa8646d.1-2),
  libsasl2-2 (= 2.1.27+dfsg-1),
  libsasl2-modules-db (= 2.1.27+dfsg-1),
@@ -193,6 +195,7 @@ Installed-Build-Depends:
  perl-modules-5.28 (= 5.28.1-6),
  pkg-config (= 0.29-6),
  po-debconf (= 1.0.21),
+ readline-common (= 7.0-5),
  sed (= 4.7-1),
  sensible-utils (= 0.0.12),
  sysvinit-utils (= 2.93-8),
