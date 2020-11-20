@@ -1,0 +1,36 @@
+attestation:
+  host: https://as.sgx.trustedservices.intel.com/
+  spid: 9f1efef02be1aa4c6ed638b788f96fc9
+  acceptGroupOutOfDate: false
+
+control:
+  listenHostPort: 127.0.0.1:31338
+
+metrics:
+  reporters:
+    - type:      json
+      token:     "5917406d-4a8d-4e05-83bf-3e7a07f54202"
+      hostname:  "metrics.wavefront.com"
+
+enclave:
+  listenHostPort: 0.0.0.0:31337
+
+
+  maxBackupDataLength: 48
+
+  electionTimeoutMs:    30000
+  electionHeartbeats:   10
+
+  replicationChunkSize: 10240
+  transferChunkSize:    266240
+
+  attestationExpiryCommitIntervalMs: 600000
+
+  maxFrontendCount: 128
+
+  replicas:
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337

@@ -84,7 +84,7 @@ pub struct ReplicaEnclaveConfig {
     pub sourcePartition: Option<ReplicaSourcePartitionConfig>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ReplicaSourcePartitionConfig {
     #[serde(with = "hex::SerdeFixedLengthHex")]

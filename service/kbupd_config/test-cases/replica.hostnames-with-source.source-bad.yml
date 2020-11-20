@@ -1,0 +1,54 @@
+attestation:
+  host: https://as.sgx.trustedservices.intel.com/
+  tlsConfigPath: kbuptlsd.intel-client.production.yml
+  spid: 9f1efef02be1aa4c6ed638b788f96fc9
+  acceptGroupOutOfDate: false
+
+control:
+  listenHostPort: 127.0.0.1:31338
+
+metrics:
+  reporters:
+    - type:      json
+      token:     "5917406d-4a8d-4e05-83bf-3e7a07f54202"
+      hostname:  "metrics.wavefront.com"
+
+enclave:
+  listenHostPort: 0.0.0.0:31337
+
+  maxConnections: 256
+
+  mrenclave: efe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+  debug:     false
+
+  storageSize: 4000000
+  raftLogSize: 2147483648
+
+  maxBackupDataLength: 48
+
+  electionTimeoutMs:    30000
+  electionHeartbeats:   10
+
+  replicationChunkSize: 10240
+  transferChunkSize:    266240
+
+  attestationExpiryCommitIntervalMs: 600000
+
+  maxFrontendCount: 128
+
+  replicas:
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+    - hostPort: www.signal.org:31337
+
+  sourcePartition:
+    firstBackupId: "c000000000000000000000000000000000000000000000000000000000000000"
+    lastBackupId:  "dfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    replicas:
+      - hostPort: www-x-fake1.signal.org:31337
+      - hostPort: www.signal.org:31337
+      - hostPort: www-x-fake2.signal.org:31337
+      - hostPort: www.signal.org:31337
+      - hostPort: www-x-fake3.signal.org:31337

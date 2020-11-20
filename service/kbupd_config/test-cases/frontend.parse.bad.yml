@@ -1,0 +1,64 @@
+api:
+  listenHostPort: 0.0.0.0:8000
+  userAuthenticationTokenSharedSecret: efe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+  backupIdSecret: efe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+
+  denyBackup: false
+  limits:
+    token:
+      bucketSize:        10
+      leakRatePerMinute: 10
+    attestation:
+      bucketSize:        50
+      leakRatePerMinute: 50
+    backup:
+  reporters:
+    - type:      json
+      token:     "nope"
+      hostname:  "metrics.wavefront.com"
+
+enclaves:
+  - name:      efe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+    mrenclave: efe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+    debug:     false
+
+    maxBackupDataLength: 48
+
+    electionTimeoutMs: 30000
+
+    pendingRequestCount: 65536
+    pendingRequestTtlMs: 300000
+
+    partitions:
+      - replicas:
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+        range:
+          firstBackupId: "0000000000000000000000000000000000000000000000000000000000000000"
+          lastBackupId:  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+
+
+  - name:      ffe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+    mrenclave: ffe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b
+    debug:     false
+
+    maxBackupDataLength: 48
+
+    electionTimeoutMs: 30000
+
+    pendingRequestCount: 65536
+    pendingRequestTtlMs: 300000
+
+    partitions:
+      - replicas:
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+          - hostPort: www.signal.org:31337
+        range:
+          firstBackupId: "0000000000000000000000000000000000000000000000000000000000000000"
+          lastBackupId:  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
