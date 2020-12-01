@@ -34,6 +34,10 @@ pub trait BackupManager {
         user: &Self::User,
         request: KeyBackupRequest,
     ) -> Box<dyn Future<Item = KeyBackupResponse, Error = KeyBackupError> + Send>;
+    fn delete_backups(
+        &self,
+        user: &Self::User,
+    ) -> Box<dyn Future<Item = (), Error = EnclaveTransactionError> + Send>;
 }
 
 #[cfg(test)]

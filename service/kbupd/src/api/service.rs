@@ -54,6 +54,7 @@ lazy_static::lazy_static! {
     static ref GET_TOKEN_TIMER:                Timer = METRICS.metric(&metric_name!("get_token"));
     static ref GET_ATTESTATION_TIMER:          Timer = METRICS.metric(&metric_name!("get_attestation"));
     static ref PUT_BACKUP_REQUEST_TIMER:       Timer = METRICS.metric(&metric_name!("put_backup_request"));
+    static ref DELETE_BACKUPS_TIMER:           Timer = METRICS.metric(&metric_name!("delete_backups"));
 }
 
 impl<BackupManagerTy> SignalApiService<BackupManagerTy>
@@ -104,6 +105,16 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
                 Method::PUT => Some(Self::request_handler(
                     service.signal_user_authenticator.clone(),
                     |service, params, _parts, user, request| service.put_backup_request(&params["enclave_name"], user, request),
+                )),
+                _ => None,
+            }),
+        );
+        router.add(
+            "/v1/backup",
+            Self::api_handler(move |service, _params, request| match *request.method() {
+                Method::DELETE => Some(Self::get_request_handler(
+                    service.signal_user_authenticator.clone(),
+                    |service, _params, user, request| service.delete_backups(user, request),
                 )),
                 _ => None,
             }),
@@ -249,6 +260,41 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
             None => response.into(),
         });
         future::Either::B(response)
+    }
+
+    fn delete_backups(
+        &self,
+        user: SignalUser,
+        _request: Request<Body>,
+    ) -> impl Future<Item = Result<(), Response<Body>>, Error = failure::Error>
+    {
+        let timer = DELETE_BACKUPS_TIMER.time();
+        let username = user.username.clone();
+
+        let limit = self
+            .rate_limiters
+            .backup
+            .sync_call(move |rate_limiter: &mut RateLimiter| Self::handle_ratelimit_result(rate_limiter.validate(&username, 1)));
+
+        let result = self.backup_manager.delete_backups(&user);
+
+        let response = result.then(|result: Result<(), EnclaveTransactionError>| {
+            timer.stop();
+
+            match result {
+                Ok(response) => Ok(Ok(response)),
+                Err(_) => {
+                    let mut response = Response::default();
+                    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+                    Ok(Err(response))
+                },
+            }
+        });
+
+        limit.and_then(|maybe_ratelimit_response: Option<Response<Body>>| match maybe_ratelimit_response {
+            Some(ratelimit_response) => TryFuture::from_ok(Err(ratelimit_response)),
+            None => response.into(),
+        })
     }
 
     fn api_handler<F, H>(handler: F) -> Box<dyn ApiHandler<ApiService = Self>>
@@ -566,6 +612,17 @@ mod test {
             let user = user.clone();
             let call_result = self.sync_call(move |backup_manager: &mut BackupManagerMock<SignalUser>| {
                 Ok(backup_manager.put_backup_request(enclave_name, &user, request))
+            });
+            Box::new(call_result.then(|result: Result<_, futures::Canceled>| result.unwrap()))
+        }
+
+        fn delete_backups(
+            &self,
+            user: &Self::User) -> Box<dyn Future<Item=(), Error=EnclaveTransactionError> + Send>
+        {
+            let user = user.clone();
+            let call_result = self.sync_call(move |backup_manager: &mut BackupManagerMock<SignalUser>| {
+                Ok(backup_manager.delete_backups(&user))
             });
             Box::new(call_result.then(|result: Result<_, futures::Canceled>| result.unwrap()))
         }
@@ -1271,5 +1328,112 @@ mod test {
             )
             .unwrap();
         assert_eq!(mock_token_response, serde_json::from_slice(&response_data).unwrap());
+    }
+
+    #[test]
+    fn test_delete_backups_request_bad_method() {
+        let mut test = SignalApiServiceTest::builder().build();
+        let request = Request::get("http://invalid/v1/backup")
+            .header(
+                header::AUTHORIZATION,
+                mocks::basic_auth(&test.valid_user.username, &test.valid_user),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let client = test.client();
+        let response = test.runtime.block_on(client.request(request)).unwrap();
+        assert_eq!(response.status(), http::StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[test]
+    fn test_delete_backups_request_no_authorization() {
+        let mut test = SignalApiServiceTest::builder().build();
+        let request = Request::delete("http://invalid/v1/backup")
+            .body(Body::empty())
+            .unwrap();
+
+        let client = test.client();
+        let response = test.runtime.block_on(client.request(request)).unwrap();
+        assert_eq!(response.status(), http::StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn test_delete_backups_request_bad_authorization() {
+        let mut test = SignalApiServiceTest::builder().build();
+        let request = Request::delete("http://invalid/v1/backup")
+            .header(header::AUTHORIZATION, "zzzz")
+            .body(Body::empty())
+            .unwrap();
+
+        let client = test.client();
+        let response = test.runtime.block_on(client.request(request)).unwrap();
+        assert_eq!(response.status(), http::StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_delete_backups_request_unauthorized() {
+        let mut test = SignalApiServiceTest::builder().build();
+        let request = Request::delete("http://invalid/v1/backup")
+            .header(
+                header::AUTHORIZATION,
+                mocks::basic_auth(&test.valid_user.username, "invalid_password"),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let client = test.client();
+        let response = test.runtime.block_on(client.request(request)).unwrap();
+        assert_eq!(response.status(), http::StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn test_delete_backups_request_ratelimit_exceeded() {
+        let mut test = SignalApiServiceTest::builder().ratelimiter_size(0).build();
+
+        test.scenario.expect(
+            test.backup_manager
+                .delete_backups(ANY)
+                .and_return(Box::new(future::lazy(|| -> Result<_, _> { panic!("response future was polled") }))),
+        );
+
+        let request = Request::delete("http://invalid/v1/backup")
+            .header(
+                header::AUTHORIZATION,
+                mocks::basic_auth(&test.valid_user.username, &test.valid_user),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let client = test.client();
+        let response = test.runtime.block_on(client.request(request)).unwrap();
+        assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[test]
+    fn test_delete_backups_request_valid() {
+        let mut test = SignalApiServiceTest::builder().build();
+
+        test.scenario.expect(
+            test.backup_manager
+                .delete_backups(ANY)
+                .and_return(Box::new(Ok(()).into_future())),
+        );
+
+        let request = Request::delete("http://invalid/v1/backup")
+            .header(
+                header::AUTHORIZATION,
+                mocks::basic_auth(&test.valid_user.username, &test.valid_user),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let client = test.client();
+        test.runtime
+            .block_on(client.request(request).and_then(|response: Response<Body>| {
+                assert!(response.status().is_success());
+                response.into_body().concat2().from_err()
+            }))
+            .unwrap();
     }
 }

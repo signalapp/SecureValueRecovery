@@ -124,6 +124,13 @@ where BackupEnclaveTy: BackupEnclave + Send + Clone + 'static
         let response = rx.then(|rx_result: Result<_, futures::Canceled>| rx_result?);
         Box::new(response)
     }
+
+    fn delete_backups(
+        &self,
+        user: &SignalUser) -> Box<dyn Future<Item=(), Error=EnclaveTransactionError> + Send>
+    {
+        self.enclave.delete_backups(self.user_to_backup_id(user))
+    }
 }
 
 impl<BackupEnclaveTy> Clone for SignalBackupManager<BackupEnclaveTy>
