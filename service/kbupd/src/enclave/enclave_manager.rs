@@ -379,4 +379,41 @@ impl backup::BackupEnclave for EnclaveManagerSender {
         let reply = self.call(move |manager: &mut EnclaveManager, reply_tx| manager.key_backup(enclave_name, backup_id, request, reply_tx));
         Box::new(reply)
     }
+
+    fn delete_backups(
+        &self,
+        backup_id: BackupId
+    ) -> Box<dyn Future<Item=(), Error=EnclaveTransactionError> + Send>
+    {
+        let status_request = GetStatusControlRequest {
+            memory_status: false
+        };
+
+        let sender = self.clone();
+
+        let delete_future = self.call(move |manager: &mut EnclaveManager, reply_tx| manager.get_status(status_request, reply_tx))
+            .map_err(|_| EnclaveTransactionError::InternalError)
+            .and_then(move |status| {
+                let mut delete_futures = Vec::new();
+
+                for enclave in status.enclaves {
+                    let delete_request = untrusted_transaction_request::Data::DeleteBackupRequest(DeleteBackupRequest {
+                        backup_id: protobufs::kbupd::BackupId { id: backup_id.to_vec() },
+                    });
+
+                    delete_futures.push(sender.call(|manager: &mut EnclaveManager, reply_tx| manager.transaction(enclave.name, delete_request, reply_tx)).and_then(|reply: untrusted_transaction_reply::Data| {
+                        if let untrusted_transaction_reply::Data::DeleteBackupReply(delete_backup_reply) = reply {
+                            Ok(delete_backup_reply)
+                        } else {
+                            Err(EnclaveTransactionError::InternalError)
+                        }
+                    }));
+                }
+
+                tokio::prelude::future::join_all(delete_futures)
+            })
+            .map(|_| ());
+
+        Box::new(delete_future)
+    }
 }

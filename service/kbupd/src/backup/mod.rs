@@ -32,4 +32,8 @@ pub trait BackupEnclave: Send {
         backup_id: BackupId,
         request: KeyBackupRequest,
     ) -> Box<dyn Future<Item = KeyBackupResponse, Error = KeyBackupError> + Send>;
+    fn delete_backups(
+        &self,
+        backup_id: BackupId,
+    ) -> Box<dyn Future<Item = (), Error = EnclaveTransactionError> + Send>;
 }
