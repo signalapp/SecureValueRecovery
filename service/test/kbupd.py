@@ -12,6 +12,7 @@ class Kbupd():
             if os.path.isfile(os.path.join(bd, "kbupd")):
                 self.kbupd_bin = os.path.join(bd, "kbupd")
                 self.kbupctl_bin = os.path.join(bd, "kbupctl")
+                self.kbupd_api_client_bin = os.path.join(bd, "kbupd_api_client")
                 self.kbuptlsd_bin = os.path.join(bd, "kbuptlsd")
                 break
         for bd in (os.getenv("CONFIG_DIR"), ".", "config"):
@@ -185,6 +186,12 @@ class Kbupd():
                                  "--connect", "127.0.0.1:%s" % self.control_port, *args],
                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, close_fds=True)
+
+    def kbupd_api_client(self, *args):
+        return subprocess.run([self.kbupd_api_client_bin,
+                               "--connect", "http://127.0.0.1:%s" % self.api_port, *args],
+                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, close_fds=True)
 
     def grep_log(self, regex):
         with open(self.log_file, 'r') as logfd:
