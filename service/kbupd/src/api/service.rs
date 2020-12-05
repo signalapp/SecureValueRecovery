@@ -15,6 +15,7 @@ use http::header::HeaderValue;
 use http::request;
 use hyper::{Body, Chunk, Method, Request, Response, StatusCode};
 use kbupd_api::entities::*;
+use kbupd_macro::lazy_init;
 use serde::{Deserialize, Serialize};
 use try_future::TryFuture;
 
@@ -44,17 +45,19 @@ pub struct SignalApiRateLimiters {
     pub backup:      actor::Sender<RateLimiter>,
 }
 
-lazy_static::lazy_static! {
-    static ref AUTHENTICATION_FAILED_METER:    Meter = METRICS.metric(&metric_name!("authentication", "failed"));
-    static ref AUTHENTICATION_SUCCEEDED_METER: Meter = METRICS.metric(&metric_name!("authentication", "succeeded"));
-    static ref HTTP_OK_METER:                  Meter = METRICS.metric(&metric_name!("http_ok"));
-    static ref HTTP_4XX_METER:                 Meter = METRICS.metric(&metric_name!("http_4xx"));
-    static ref HTTP_5XX_METER:                 Meter = METRICS.metric(&metric_name!("http_5xx"));
-    static ref HANDLER_ERROR_METER:            Meter = METRICS.metric(&metric_name!("handler_error"));
-    static ref GET_TOKEN_TIMER:                Timer = METRICS.metric(&metric_name!("get_token"));
-    static ref GET_ATTESTATION_TIMER:          Timer = METRICS.metric(&metric_name!("get_attestation"));
-    static ref PUT_BACKUP_REQUEST_TIMER:       Timer = METRICS.metric(&metric_name!("put_backup_request"));
-    static ref DELETE_BACKUPS_TIMER:           Timer = METRICS.metric(&metric_name!("delete_backups"));
+lazy_init! {
+    fn init_metrics() {
+        static ref AUTHENTICATION_FAILED_METER:    Meter = METRICS.metric(&metric_name!("authentication", "failed"));
+        static ref AUTHENTICATION_SUCCEEDED_METER: Meter = METRICS.metric(&metric_name!("authentication", "succeeded"));
+        static ref HTTP_OK_METER:                  Meter = METRICS.metric(&metric_name!("http_ok"));
+        static ref HTTP_4XX_METER:                 Meter = METRICS.metric(&metric_name!("http_4xx"));
+        static ref HTTP_5XX_METER:                 Meter = METRICS.metric(&metric_name!("http_5xx"));
+        static ref HANDLER_ERROR_METER:            Meter = METRICS.metric(&metric_name!("handler_error"));
+        static ref GET_TOKEN_TIMER:                Timer = METRICS.metric(&metric_name!("get_token"));
+        static ref GET_ATTESTATION_TIMER:          Timer = METRICS.metric(&metric_name!("get_attestation"));
+        static ref PUT_BACKUP_REQUEST_TIMER:       Timer = METRICS.metric(&metric_name!("put_backup_request"));
+        static ref DELETE_BACKUPS_TIMER:           Timer = METRICS.metric(&metric_name!("delete_backups"));
+    }
 }
 
 impl<BackupManagerTy> SignalApiService<BackupManagerTy>
@@ -67,6 +70,8 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
         rate_limiters: SignalApiRateLimiters,
     ) -> Self
     {
+        init_metrics();
+
         let mut router = route_recognizer::Router::new();
 
         router.add(
@@ -287,7 +292,7 @@ where BackupManagerTy: BackupManager<User = SignalUser> + Clone + Send + 'static
                     let mut response = Response::default();
                     *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
                     Ok(Err(response))
-                },
+                }
             }
         });
 
@@ -616,14 +621,10 @@ mod test {
             Box::new(call_result.then(|result: Result<_, futures::Canceled>| result.unwrap()))
         }
 
-        fn delete_backups(
-            &self,
-            user: &Self::User) -> Box<dyn Future<Item=(), Error=EnclaveTransactionError> + Send>
-        {
+        fn delete_backups(&self, user: &Self::User) -> Box<dyn Future<Item = (), Error = EnclaveTransactionError> + Send> {
             let user = user.clone();
-            let call_result = self.sync_call(move |backup_manager: &mut BackupManagerMock<SignalUser>| {
-                Ok(backup_manager.delete_backups(&user))
-            });
+            let call_result =
+                self.sync_call(move |backup_manager: &mut BackupManagerMock<SignalUser>| Ok(backup_manager.delete_backups(&user)));
             Box::new(call_result.then(|result: Result<_, futures::Canceled>| result.unwrap()))
         }
     }
@@ -1349,9 +1350,7 @@ mod test {
     #[test]
     fn test_delete_backups_request_no_authorization() {
         let mut test = SignalApiServiceTest::builder().build();
-        let request = Request::delete("http://invalid/v1/backup")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::delete("http://invalid/v1/backup").body(Body::empty()).unwrap();
 
         let client = test.client();
         let response = test.runtime.block_on(client.request(request)).unwrap();
@@ -1414,11 +1413,8 @@ mod test {
     fn test_delete_backups_request_valid() {
         let mut test = SignalApiServiceTest::builder().build();
 
-        test.scenario.expect(
-            test.backup_manager
-                .delete_backups(ANY)
-                .and_return(Box::new(Ok(()).into_future())),
-        );
+        test.scenario
+            .expect(test.backup_manager.delete_backups(ANY).and_return(Box::new(Ok(()).into_future())));
 
         let request = Request::delete("http://invalid/v1/backup")
             .header(

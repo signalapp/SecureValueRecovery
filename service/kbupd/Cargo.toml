@@ -22,6 +22,7 @@ ias_client       = { git = "https://github.com/signalapp/sgx_common.git", rev = 
 kbupd_api        = { path = "../kbupd_api" }
 kbupd_client     = { path = "../kbupd_client" }
 kbupd_config     = { path = "../kbupd_config", default-features = false, features = [] }
+kbupd_macro      = { path = "../kbupd_macro" }
 kbupd_util       = { git = "https://github.com/signalapp/sgx_common.git", rev = "580489343a37517d96451a5c0950d462d3e86a3b" }
 kbuptlsd         = { path = "../kbuptlsd", features = ["hyper"] }
 lazy_static      = "1.3"

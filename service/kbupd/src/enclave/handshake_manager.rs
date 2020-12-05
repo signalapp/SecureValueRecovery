@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 use futures::prelude::*;
 use ias_client::*;
+use kbupd_macro::lazy_init;
 use tokio::timer;
 use try_future::TryFuture;
 
@@ -30,13 +31,16 @@ enum RefreshAllError {
     StaleRevocationList,
 }
 
-lazy_static::lazy_static! {
-    static ref GET_SIGNED_QUOTE_OK_METER:    Meter = METRICS.metric(&metric_name!("get_signed_quote", "ok"));
-    static ref GET_SIGNED_QUOTE_ERROR_METER: Meter = METRICS.metric(&metric_name!("get_signed_quote", "error"));
+lazy_init! {
+    fn init_metrics() {
+        static ref GET_SIGNED_QUOTE_OK_METER:    Meter = METRICS.metric(&metric_name!("get_signed_quote", "ok"));
+        static ref GET_SIGNED_QUOTE_ERROR_METER: Meter = METRICS.metric(&metric_name!("get_signed_quote", "error"));
+    }
 }
 
 impl HandshakeManager {
     pub fn new(enclave_tx: EnclaveManagerSender, intel_client: KbupdIasClient, accept_group_out_of_date: bool) -> Self {
+        init_metrics();
         Self {
             enclave_tx,
             intel_client,

@@ -11,16 +11,19 @@ use futures::future;
 use futures::prelude::*;
 use futures::sync::oneshot;
 use ias_client::*;
+use kbupd_macro::lazy_init;
 
 use crate::intel_client::*;
 use crate::metrics::*;
 use crate::protobufs::kbupd::*;
 use crate::*;
 
-lazy_static::lazy_static! {
-    static ref GET_ATTESTATION_ATTEMPT_METER: Meter = METRICS.metric(&metric_name!("get_attestation", "attempts"));
-    static ref GET_ATTESTATION_OK_METER:      Meter = METRICS.metric(&metric_name!("get_attestation", "ok"));
-    static ref GET_ATTESTATION_ERROR_METER:   Meter = METRICS.metric(&metric_name!("get_attestation", "error"));
+lazy_init! {
+    fn init_metrics() {
+        static ref GET_ATTESTATION_ATTEMPT_METER: Meter = METRICS.metric(&metric_name!("get_attestation", "attempts"));
+        static ref GET_ATTESTATION_OK_METER:      Meter = METRICS.metric(&metric_name!("get_attestation", "ok"));
+        static ref GET_ATTESTATION_ERROR_METER:   Meter = METRICS.metric(&metric_name!("get_attestation", "error"));
+    }
 }
 
 pub struct AttestationManager {
@@ -31,6 +34,8 @@ pub struct AttestationManager {
 
 impl AttestationManager {
     pub fn new(enclave_tx: EnclaveManagerSender, intel_client: Option<KbupdIasClient>) -> Self {
+        init_metrics();
+
         Self {
             enclave_tx,
             intel_client,

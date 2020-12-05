@@ -18,6 +18,7 @@ use futures::sync::oneshot;
 use ias_client::*;
 use kbupd_api::entities::BackupId;
 use kbupd_api::entities::*;
+use kbupd_macro::lazy_init;
 use sgx_sdk_ffi::*;
 
 use crate::metrics::*;
@@ -61,28 +62,30 @@ struct PendingRequestMap<V> {
     requests:        HashMap<u64, V>,
 }
 
-lazy_static::lazy_static! {
-    static ref MEMORY_USED_GAUGE:                Gauge = METRICS.metric(&metric_name!("memory",   "used"));
-    static ref MEMORY_CHUNKS_GAUGE:              Gauge = METRICS.metric(&metric_name!("memory",   "chunks"));
-    static ref REPLICA_MIN_ATTESTATION_GAUGE:    Gauge = METRICS.metric(&metric_name!("replica",  "attestation", "min_timestamp"));
-    static ref REPLICA_TERM_GAUGE:               Gauge = METRICS.metric(&metric_name!("replica",  "term"));
-    static ref REPLICA_LOG_PREV_GAUGE:           Gauge = METRICS.metric(&metric_name!("replica",  "log", "prev"));
-    static ref REPLICA_LOG_APPLIED_METER:        Meter = METRICS.metric(&metric_name!("replica",  "log", "applied"));
-    static ref REPLICA_LOG_COMMITTED_METER:      Meter = METRICS.metric(&metric_name!("replica",  "log", "committed"));
-    static ref REPLICA_LOG_APPENDED_METER:       Meter = METRICS.metric(&metric_name!("replica",  "log", "appended"));
+lazy_init! {
+    fn init_metrics() {
+        static ref MEMORY_USED_GAUGE:                Gauge = METRICS.metric(&metric_name!("memory",   "used"));
+        static ref MEMORY_CHUNKS_GAUGE:              Gauge = METRICS.metric(&metric_name!("memory",   "chunks"));
+        static ref REPLICA_MIN_ATTESTATION_GAUGE:    Gauge = METRICS.metric(&metric_name!("replica",  "attestation", "min_timestamp"));
+        static ref REPLICA_TERM_GAUGE:               Gauge = METRICS.metric(&metric_name!("replica",  "term"));
+        static ref REPLICA_LOG_PREV_GAUGE:           Gauge = METRICS.metric(&metric_name!("replica",  "log", "prev"));
+        static ref REPLICA_LOG_APPLIED_METER:        Meter = METRICS.metric(&metric_name!("replica",  "log", "applied"));
+        static ref REPLICA_LOG_COMMITTED_METER:      Meter = METRICS.metric(&metric_name!("replica",  "log", "committed"));
+        static ref REPLICA_LOG_APPENDED_METER:       Meter = METRICS.metric(&metric_name!("replica",  "log", "appended"));
 
-    static ref REPLICA_BACKUPS_COUNT_GAUGE:      Gauge = METRICS.metric(&metric_name!("replica",  "backups", "count"));
-    static ref REPLICA_BACKUPS_CREATE_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "create"));
-    static ref REPLICA_BACKUPS_BACKUP_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "backup"));
-    static ref REPLICA_BACKUPS_RESTORE_METER:    Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore"));
-    static ref REPLICA_BACKUPS_DELETE_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "delete"));
-    static ref REPLICA_BACKUPS_XFER_IN_PROGRESS_METER: Meter = METRICS.metric(&metric_name!("replica",  "backups", "xfer_in_progress"));
-    static ref REPLICA_BACKUPS_WRONG_PARTITION_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "wrong_partition"));
-    static ref REPLICA_BACKUPS_INVALID_REQUEST_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "invalid_request"));
-    static ref REPLICA_BACKUPS_INTERNAL_ERROR_METER:   Meter = METRICS.metric(&metric_name!("replica",  "backups", "internal_error"));
+        static ref REPLICA_BACKUPS_COUNT_GAUGE:      Gauge = METRICS.metric(&metric_name!("replica",  "backups", "count"));
+        static ref REPLICA_BACKUPS_CREATE_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "create"));
+        static ref REPLICA_BACKUPS_BACKUP_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "backup"));
+        static ref REPLICA_BACKUPS_RESTORE_METER:    Meter = METRICS.metric(&metric_name!("replica",  "backups", "restore"));
+        static ref REPLICA_BACKUPS_DELETE_METER:     Meter = METRICS.metric(&metric_name!("replica",  "backups", "delete"));
+        static ref REPLICA_BACKUPS_XFER_IN_PROGRESS_METER: Meter = METRICS.metric(&metric_name!("replica",  "backups", "xfer_in_progress"));
+        static ref REPLICA_BACKUPS_WRONG_PARTITION_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "wrong_partition"));
+        static ref REPLICA_BACKUPS_INVALID_REQUEST_METER:  Meter = METRICS.metric(&metric_name!("replica",  "backups", "invalid_request"));
+        static ref REPLICA_BACKUPS_INTERNAL_ERROR_METER:   Meter = METRICS.metric(&metric_name!("replica",  "backups", "internal_error"));
 
-    static ref FRONTEND_REQUESTS_INFLIGHT_GAUGE: Gauge = METRICS.metric(&metric_name!("frontend", "requests", "inflight"));
-    static ref FRONTEND_REQUESTS_UNSENT_GAUGE:   Gauge = METRICS.metric(&metric_name!("frontend", "requests", "unsent"));
+        static ref FRONTEND_REQUESTS_INFLIGHT_GAUGE: Gauge = METRICS.metric(&metric_name!("frontend", "requests", "inflight"));
+        static ref FRONTEND_REQUESTS_UNSENT_GAUGE:   Gauge = METRICS.metric(&metric_name!("frontend", "requests", "unsent"));
+    }
 }
 
 //
@@ -99,6 +102,8 @@ impl Enclave {
         attestation_tx: actor::Sender<AttestationManager>,
     ) -> Result<Self, EnclaveError>
     {
+        init_metrics();
+
         let enclave_id = create_enclave(enclave_path, enclave_debug).sgxsd_context("sgx_create_enclave")?;
 
         Ok(Self {

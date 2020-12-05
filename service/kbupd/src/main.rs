@@ -43,6 +43,10 @@ fn main() {
     std::process::exit(1);
 }
 
+fn init_common_metrics() {
+    kbupd::logger::init_metrics();
+}
+
 #[rustfmt::skip]
 fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
     let (subcommand_name, subcommand_arguments) = arguments.subcommand();
@@ -66,6 +70,8 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
 
     let config_file =
         fs::File::open(&config_file_path).with_context(|_| format_err!("error opening config file {}", config_file_path.display()))?;
+
+    init_common_metrics();
 
     let service = match subcommand_name {
         "replica" => {

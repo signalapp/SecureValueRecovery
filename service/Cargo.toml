@@ -1,5 +1,5 @@
 [workspace]
-members = ["kbupd", "kbupd_api", "kbupd_api_client", "kbupd_client", "kbupd_config", "kbuptlsd", "rustunnel"]
+members = ["kbupd", "kbupd_api", "kbupd_api_client", "kbupd_client", "kbupd_config", "kbupd_macro", "kbuptlsd", "rustunnel"]
 
 [patch.crates-io]
 openssl = { rev = "ea6761d5e7b63b415b7fda6ba5c5026f4218bcd0", git = "https://github.com/signalapp/rust-openssl.git" }

@@ -666,6 +666,7 @@ dependencies = [
  "kbupd_api",
  "kbupd_client",
  "kbupd_config",
+ "kbupd_macro",
  "kbupd_util",
  "kbuptlsd",
  "lazy_static 1.4.0",

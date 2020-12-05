@@ -10,6 +10,7 @@ use std::fmt;
 use std::io::{BufWriter, Stderr, Write};
 
 use chrono::format::StrftimeItems;
+use kbupd_macro::lazy_init;
 use slog::{Drain, KV};
 use slog_async::OverflowStrategy;
 
@@ -49,10 +50,12 @@ const EMPTY_SLOG_LOCATION: slog::RecordLocation = slog::RecordLocation {
     module:   "",
 };
 
-lazy_static::lazy_static! {
-    static ref ERROR_METER: Meter = METRICS.metric(&metric_name!("error"));
-    static ref WARN_METER:  Meter = METRICS.metric(&metric_name!("warn"));
-    static ref INFO_METER:  Meter = METRICS.metric(&metric_name!("info"));
+lazy_init! {
+    pub fn init_metrics() {
+        static ref ERROR_METER: Meter = METRICS.metric(&metric_name!("error"));
+        static ref WARN_METER:  Meter = METRICS.metric(&metric_name!("warn"));
+        static ref INFO_METER:  Meter = METRICS.metric(&metric_name!("info"));
+    }
 }
 
 impl Logger {

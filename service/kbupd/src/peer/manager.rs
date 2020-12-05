@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use futures::prelude::*;
 use futures::sync::oneshot;
+use kbupd_macro::lazy_init;
 use tokio::prelude::*;
 
 use super::connection::*;
@@ -37,16 +38,18 @@ pub struct PeerManager {
     tls_client:   TlsClient,
 }
 
-lazy_static::lazy_static! {
-    static ref MESSAGES_SENT_COUNT_METER:          Meter   = METRICS.metric(&metric_name!("messages", "sent", "count"));
-    static ref MESSAGES_SENT_BYTES_METER:          Meter   = METRICS.metric(&metric_name!("messages", "sent", "bytes"));
-    pub static ref MESSAGES_RECEIVED_COUNT_METER:  Meter   = METRICS.metric(&metric_name!("messages", "received", "count"));
-    pub static ref MESSAGES_RECEIVED_BYTES_METER:  Meter   = METRICS.metric(&metric_name!("messages", "received", "bytes"));
-    pub static ref MESSAGES_PENDING_COUNT_COUNTER: Counter = METRICS.metric(&metric_name!("messages", "pending", "count"));
-    pub static ref MESSAGES_PENDING_BYTES_COUNTER: Counter = METRICS.metric(&metric_name!("messages", "pending", "bytes"));
-    pub static ref PEERS_CONNECTED_COUNTER:        Counter = METRICS.metric(&metric_name!("peers", "connected"));
-    pub static ref PEERS_CONNECTING_COUNTER:       Counter = METRICS.metric(&metric_name!("peers", "connecting"));
-    pub static ref PEERS_DISCONNECTED_COUNTER:     Counter = METRICS.metric(&metric_name!("peers", "disconnected"));
+lazy_init! {
+    fn init_metrics() {
+        static ref MESSAGES_SENT_COUNT_METER:          Meter   = METRICS.metric(&metric_name!("messages", "sent", "count"));
+        static ref MESSAGES_SENT_BYTES_METER:          Meter   = METRICS.metric(&metric_name!("messages", "sent", "bytes"));
+        pub static ref MESSAGES_RECEIVED_COUNT_METER:  Meter   = METRICS.metric(&metric_name!("messages", "received", "count"));
+        pub static ref MESSAGES_RECEIVED_BYTES_METER:  Meter   = METRICS.metric(&metric_name!("messages", "received", "bytes"));
+        pub static ref MESSAGES_PENDING_COUNT_COUNTER: Counter = METRICS.metric(&metric_name!("messages", "pending", "count"));
+        pub static ref MESSAGES_PENDING_BYTES_COUNTER: Counter = METRICS.metric(&metric_name!("messages", "pending", "bytes"));
+        pub static ref PEERS_CONNECTED_COUNTER:        Counter = METRICS.metric(&metric_name!("peers", "connected"));
+        pub static ref PEERS_CONNECTING_COUNTER:       Counter = METRICS.metric(&metric_name!("peers", "connecting"));
+        pub static ref PEERS_DISCONNECTED_COUNTER:     Counter = METRICS.metric(&metric_name!("peers", "disconnected"));
+    }
 }
 
 impl PeerManager {
@@ -58,6 +61,7 @@ impl PeerManager {
         tls_client: TlsClient,
     ) -> Self
     {
+        init_metrics();
         let our_hello = Arc::new(RwLock::new(PeerConnectionHello {
             node_id:   node_id.to_vec(),
             partition: None,
