@@ -1,0 +1,17 @@
+[package]
+authors = ["Open Whisper Systems"]
+name    = "kbupd_macro"
+version = "0.1.0"
+license = "AGPL-3.0-or-later"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote       = "1.0"
+syn         = { version = "1.0", features=["full"] }
+
+[dev-dependencies]
+lazy_static      = "1.4"

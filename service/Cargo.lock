@@ -764,6 +764,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kbupd_macro"
+version = "0.1.0"
+dependencies = [
+ "lazy_static 1.4.0",
+ "proc-macro2 1.0.24",
+ "quote 1.0.3",
+ "syn 1.0.48",
+]
+
+[[package]]
 name = "kbupd_util"
 version = "0.1.0"
 source = "git+https://github.com/signalapp/sgx_common.git?rev=580489343a37517d96451a5c0950d462d3e86a3b#580489343a37517d96451a5c0950d462d3e86a3b"
