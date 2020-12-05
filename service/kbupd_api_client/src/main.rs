@@ -169,11 +169,12 @@ fn main() -> Result<(), failure::Error> {
                 parse_argument(subcommand_arguments.value_of("backup_pin"), parse_hex_bytes::<[u8; 32]>).context("invalid --backup-pin")?;
             let backup_tries =
                 parse_argument(subcommand_arguments.value_of("backup_tries"), u32::from_str).context("invalid --backup-tries")?;
-            let valid_from = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("system clock is not set")
-                .as_secs()
-                .saturating_sub(86400);
+            let valid_from = parse_argument(subcommand_arguments.value_of("valid_from"), u64::from_str)?
+                .unwrap_or_else(|| SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("system clock is not set")
+                    .as_secs()
+                    .saturating_sub(86400));
 
             let parallel_count = max_parallel.min(request_count);
             let requested = Arc::new(AtomicU64::new(0));
@@ -459,18 +460,26 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .value_name("backup_tries")
         .help("Backup try count to use in client request, in decimal");
 
+    let valid_from_argument = clap::Arg::with_name("valid_from")
+        .takes_value(true)
+        .long("valid-from")
+        .value_name("valid_from")
+        .help("Backup validity timestamp in seconds since the UNIX epoch. 24 hours ago by default.");
+
     let backup_subcommand = clap::SubCommand::with_name("backup")
         .arg(enclave_name_argument.clone())
         .arg(service_id_argument.clone())
         .arg(backup_data_argument)
         .arg(backup_pin_argument.clone())
         .arg(backup_tries_argument)
+        .arg(valid_from_argument.clone())
         .about("Key Backup Service HTTP API Client - Backup");
 
     let restore_subcommand = clap::SubCommand::with_name("restore")
         .arg(enclave_name_argument)
         .arg(service_id_argument)
         .arg(backup_pin_argument)
+        .arg(valid_from_argument)
         .about("Key Backup Service HTTP API Client - Restore");
 
     let connect_argument = clap::Arg::with_name("connect_uri")
