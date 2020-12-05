@@ -68,6 +68,25 @@ impl KeyBackupApiClient {
         response.into()
     }
 
+    pub fn delete_backups(
+        &self,
+        credentials: &KeyBackupApiCredentials
+    ) -> impl Future<Item = (), Error = failure::Error> + Send + 'static
+    {
+        let mut uri_parts = self.base_uri.clone().into_parts();
+        let uri_path_and_query = try_future!(
+                "/v1/backup"
+                .parse::<http::uri::PathAndQuery>()
+                .context("error creating request path")
+        );
+        uri_parts.path_and_query = Some(uri_path_and_query);
+        let uri = try_future!(Uri::from_parts(uri_parts).context("error creating request uri"));
+        let response_with_parts = self.delete_request(uri, credentials);
+        let response = response_with_parts.map(|(_parts, response)| response);
+
+        response.into()
+    }
+
     pub fn backup_request(
         &self,
         credentials: &KeyBackupApiCredentials,
@@ -203,6 +222,25 @@ impl KeyBackupApiClient {
     {
         let mut hyper_request = Request::new(Body::empty());
 
+        *hyper_request.uri_mut() = uri;
+        hyper_request.headers_mut().insert("Authorization", credentials.into());
+
+        let response = self.client.request(hyper_request).map_err(failure::Error::from);
+        let decoded_response = response.and_then(Self::decode_response);
+        decoded_response
+    }
+
+    fn delete_request<ResponseTy>(
+        &self,
+        uri: Uri,
+        credentials: &KeyBackupApiCredentials,
+    ) -> impl Future<Item = (response::Parts, ResponseTy), Error = failure::Error> + Send + 'static
+        where
+            ResponseTy: for<'de> Deserialize<'de> + Send + 'static,
+    {
+        let mut hyper_request = Request::new(Body::empty());
+
+        *hyper_request.method_mut() = Method::DELETE;
         *hyper_request.uri_mut() = uri;
         hyper_request.headers_mut().insert("Authorization", credentials.into());
 

@@ -22,6 +22,7 @@ use kbupd_api::entities::*;
 use kbupd_api_client::*;
 use log::debug;
 use rand::RngCore;
+use tokio::prelude::future::Loop;
 
 fn main() -> Result<(), failure::Error> {
     let arguments = parse_arguments();
@@ -117,6 +118,36 @@ fn main() -> Result<(), failure::Error> {
             };
             let futures = (0..parallel_count).map(move |_| future::loop_fn((), request_loop.clone()));
             let responses = futures::stream::futures_unordered(futures).for_each(|_| Ok(()));
+
+            runtime.block_on(responses)?;
+        }
+        "delete_all" => {
+            let request_count =
+                u64::from_str(arguments.value_of("request_count").unwrap_or_default()).context("invalid --request-count")?;
+            let max_parallel = u64::from_str(arguments.value_of("max_parallel").unwrap_or("1")).context("invalid --max-parallel")?;
+            let username = username.unwrap_or_else(rand_username);
+            let credentials = calculate_credentials(username, password, &token_secret);
+
+            let parallel_count = max_parallel.min(request_count);
+            let requested = Arc::new(AtomicU64::new(0));
+
+            let request_loop = move |()| {
+                if requested.fetch_add(1, atomic::Ordering::SeqCst) + 1 > request_count {
+                    return future::Either::A(Ok(future::Loop::Break(())).into_future());
+                }
+
+                let response = client
+                    .delete_backups(&credentials)
+                    .map_err(|error| error.context("error during delete request").into())
+                    .and_then(|_| -> Result<Loop<_, ()>, failure::Error> {
+                        debug!("server response: ok");
+                        Ok(future::Loop::Continue(()))
+                    });
+
+                future::Either::B(response)
+            };
+            let futures = (0..parallel_count).map(move |_| future::loop_fn((), request_loop.clone()));
+            let responses = futures::stream::futures_unordered(futures).for_each(|_response: ()| Ok(()));
 
             runtime.block_on(responses)?;
         }
@@ -400,6 +431,9 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .arg(backup_id_argument.clone())
         .about("Key Backup Service HTTP API Client - Delete");
 
+    let delete_all_subcommand = clap::SubCommand::with_name("delete_all")
+        .about("Key Backup Service HTTP API Client - Delete all for user");
+
     let service_id_argument = clap::Arg::with_name("service_id")
         .takes_value(true)
         .long("service-id")
@@ -509,6 +543,7 @@ fn parse_arguments() -> clap::ArgMatches<'static> {
         .arg(max_parallel_argument)
         .arg(debug_argument)
         .subcommand(delete_subcommand)
+        .subcommand(delete_all_subcommand)
         .subcommand(backup_subcommand)
         .subcommand(restore_subcommand)
         .get_matches()

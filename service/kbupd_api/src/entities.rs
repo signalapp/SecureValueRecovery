@@ -102,10 +102,6 @@ pub struct KeyBackupResponse {
     pub mac: [u8; 16],
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
-pub struct DeleteBackupsRequest {
-}
-
 //
 // BackupId impls
 //
