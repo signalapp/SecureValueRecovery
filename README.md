@@ -16,7 +16,7 @@ The default docker-install target will create a reproducible build environment i
 `enclave/docker/Dockerfile`, build the enclave inside a container based on the image, and
 install the resulting enclave into `service/kbupd/res/enclave/`. The Dockerfile will
 download a stock dated-snapshot debian Docker image. The Debian project builds their
-docker images reproducibly, based on the a snapshot of the debian repos on the date of the
+docker images reproducibly, based on a snapshot of the debian repos on the date of the
 build from the [Debian Snapshot Project](https://snapshot.debian.org/). Make will then be
 run inside the newly built Docker Debian image as in the [Building with
 Debian](#building-with-debian) section below:
