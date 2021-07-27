@@ -71,6 +71,8 @@ pub struct FrontendAttestationConfig {
     #[serde(with = "hex::SerdeFixedLengthHex")]
     pub spid: [u8; 16],
 
+    pub apiKey: String,
+
     pub tlsConfigPath: PathBuf,
 
     #[serde(default)]

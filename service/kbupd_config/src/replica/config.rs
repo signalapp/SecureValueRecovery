@@ -31,6 +31,8 @@ pub struct ReplicaConfig {
 pub struct ReplicaAttestationConfig {
     pub host: String,
 
+    pub apiKey: String,
+
     #[serde(with = "hex::SerdeFixedLengthHex")]
     pub spid: [u8; 16],
 

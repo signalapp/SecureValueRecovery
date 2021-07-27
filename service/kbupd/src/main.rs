@@ -82,6 +82,7 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
             set_argument(  &mut config.attestation.tlsConfigPath,           arguments.value_of("ias_tls_config_file").map(Path::new));
             set_argument(  &mut config.attestation.disabled,                Some(!arguments.is_present("ias_tls_config_file")).filter(|present| !*present));
             set_argument(  &mut config.attestation.host,                    arguments.value_of("ias_host"));
+            set_argument(  &mut config.attestation.apiKey,                  arguments.value_of("ias_api_key"));
             parse_argument(&mut config.attestation.spid,                    arguments.value_of("ias_spid"), hex::parse_fixed).context("invalid --ias-spid")?;
             set_argument(  &mut config.control.listenHostPort,              arguments.value_of("control_listen_address"));
             set_argument(  &mut config.enclave.mrenclave,                   subcommand_arguments.value_of("enclave_filename"));
@@ -155,6 +156,7 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
             set_argument(  &mut config.attestation.tlsConfigPath,               arguments.value_of("ias_tls_config_file").map(Path::new));
             set_argument(  &mut config.attestation.disabled,                    Some(!arguments.is_present("ias_tls_config_file")).filter(|present| !*present));
             set_argument(  &mut config.attestation.host,                        arguments.value_of("ias_host"));
+            set_argument(  &mut config.attestation.apiKey,                      arguments.value_of("ias_api_key"));
             parse_argument(&mut config.attestation.spid,                        arguments.value_of("ias_spid"), hex::parse_fixed).context("invalid --ias-spid")?;
 
             set_argument(  &mut config.control.listenHostPort, arguments.value_of("control_listen_address"));
