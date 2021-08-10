@@ -16,9 +16,9 @@ api:
 
 attestation:                                      # IAS (Intel Attestation Services) configuration
   host:                                           # Intel Attestation Services (IAS) host
-  tlsConfigPath:                                  # kbuptlsd configuration file path to use connecting to IAS, relative to the directory containing this file
   spid:                                           # hex-encoded 16-byte IAS assigned Service Provider ID
   acceptGroupOutOfDate:                           # Whether to serve IAS responses with GROUP_OUT_OF_DATE instead of OK [true|false]
+  apiKey:                                         # IAS attestation API key (hex)
 
 control:
   listenHostPort:                                 # host:port to listen on for the kbupctl API

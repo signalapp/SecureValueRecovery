@@ -127,6 +127,5 @@ $(builddir)/kbupd-$(VERSION)-bin-%.tar.gz: FORCE
 	$(INSTALL_DATA) $(wildcard kbupd/res/enclave/*.so)	$(builddir)/tar/enclave/
 	$(INSTALL_DATA) config/frontend.$*.yml			$(builddir)/tar/
 	$(INSTALL_DATA) $(wildcard config/replica-*.$*.yml)	$(builddir)/tar/
-	$(INSTALL_DATA) config/kbuptlsd.intel-client.$*.yml	$(builddir)/tar/
 	$(INSTALL_DATA) config/peer_ca_cert.$*.pem		$(builddir)/tar/
 	tar -czf						$(builddir)/kbupd-$(VERSION)-bin-$*.tar.gz -C $(builddir)/tar .

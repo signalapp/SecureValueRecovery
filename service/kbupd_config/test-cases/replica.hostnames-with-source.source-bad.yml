@@ -1,8 +1,8 @@
 attestation:
   host: https://as.sgx.trustedservices.intel.com/
-  tlsConfigPath: kbuptlsd.intel-client.production.yml
   spid: 9f1efef02be1aa4c6ed638b788f96fc9
   acceptGroupOutOfDate: false
+  apiKey: test
 
 control:
   listenHostPort: 127.0.0.1:31338

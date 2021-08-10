@@ -8,6 +8,7 @@
 pub mod config;
 
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -15,6 +16,7 @@ use std::time::Duration;
 use failure::{format_err, ResultExt};
 use futures::future;
 use futures::prelude::*;
+use hyper::Uri;
 use hyper::client::connect::HttpConnector;
 use kbupd_config::metrics::*;
 use kbupd_config::FrontendConfig;
@@ -82,14 +84,20 @@ impl FrontendService {
         let intel_client;
         let handshake_manager;
         if !config.attestation.disabled {
+            let hostname = String::from(Uri::from_str(&config.attestation.host)
+                .context("error parsing attestation hostname")?
+                .host()
+                .expect("attestation host does not contain a hostname"));
+
             let intel_client_proxy =
-                TlsClientProxySpawner::new(cmdline_config.kbuptlsd_bin_path.to_owned(), TlsClientProxyArguments::Config {
-                    config_file: util::join_if_relative(cmdline_config.config_directory, &config.attestation.tlsConfigPath),
-                    key_file:    None,
+                TlsClientProxySpawner::new(cmdline_config.kbuptlsd_bin_path.to_owned(), TlsClientProxyArguments::NoConfig {
+                    ca: TlsClientProxyCaArgument::System,
+                    key_file: None,
+                    hostname: TlsClientProxyHostnameArgument::Hostname(hostname)
                 })
                 .context("error creating intel attestation tls proxy client")?;
             let new_intel_client =
-                new_ias_client(&config.attestation.host, intel_client_proxy).context("error creating intel attestation client")?;
+                new_ias_client(&config.attestation.host, &config.attestation.apiKey, intel_client_proxy).context("error creating intel attestation client")?;
             handshake_manager = Some(HandshakeManager::new(
                 enclave_manager_tx.clone(),
                 new_intel_client.clone(),

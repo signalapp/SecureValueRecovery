@@ -7,8 +7,6 @@
 
 #![allow(non_snake_case)]
 
-use std::path::PathBuf;
-
 use kbupd_util::hex;
 use serde_derive::Deserialize;
 
@@ -71,13 +69,13 @@ pub struct FrontendAttestationConfig {
     #[serde(with = "hex::SerdeFixedLengthHex")]
     pub spid: [u8; 16],
 
-    pub tlsConfigPath: PathBuf,
-
     #[serde(default)]
     pub acceptGroupOutOfDate: bool,
 
     #[serde(default)]
     pub disabled: bool,
+
+    pub apiKey: String,
 }
 
 #[derive(Deserialize)]

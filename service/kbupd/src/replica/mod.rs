@@ -6,12 +6,14 @@
 //
 
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
 use failure::ResultExt;
 use futures::prelude::*;
+use hyper::Uri;
 use hyper::client::connect::HttpConnector;
 use kbupd_config::metrics::*;
 use kbupd_config::ReplicaConfig;
@@ -75,13 +77,19 @@ impl ReplicaService {
         let enclave_manager_tx = enclave_manager_channel.sender().clone();
 
         let maybe_intel_client = if !config.attestation.disabled {
+            let hostname = String::from(Uri::from_str(&config.attestation.host)
+                .context("error parsing attestation hostname")?
+                .host()
+                .expect("attestation host does not contain a hostname"));
+
             let intel_client_proxy =
-                TlsClientProxySpawner::new(cmdline_config.kbuptlsd_bin_path.to_owned(), TlsClientProxyArguments::Config {
-                    config_file: util::join_if_relative(cmdline_config.config_directory, &config.attestation.tlsConfigPath),
-                    key_file:    None,
+                TlsClientProxySpawner::new(cmdline_config.kbuptlsd_bin_path.to_owned(), TlsClientProxyArguments::NoConfig {
+                    ca: TlsClientProxyCaArgument::System,
+                    key_file: None,
+                    hostname: TlsClientProxyHostnameArgument::Hostname(hostname)
                 })
                 .context("error creating intel attestation tls client proxy")?;
-            Some(new_ias_client(&config.attestation.host, intel_client_proxy).context("error creating intel attestation client")?)
+            Some(new_ias_client(&config.attestation.host, &config.attestation.apiKey, intel_client_proxy).context("error creating intel attestation client")?)
         } else {
             None
         };

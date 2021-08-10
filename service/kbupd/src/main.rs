@@ -79,7 +79,6 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
                 .with_context(|_| format_err!("error reading config file {}", config_file_path.display()))?;
 
             set_argument(  &mut config.attestation.acceptGroupOutOfDate,    Some(arguments.is_present("ias_accept_group_out_of_date")).filter(|present| *present));
-            set_argument(  &mut config.attestation.tlsConfigPath,           arguments.value_of("ias_tls_config_file").map(Path::new));
             set_argument(  &mut config.attestation.disabled,                Some(!arguments.is_present("ias_tls_config_file")).filter(|present| !*present));
             set_argument(  &mut config.attestation.host,                    arguments.value_of("ias_host"));
             parse_argument(&mut config.attestation.spid,                    arguments.value_of("ias_spid"), hex::parse_fixed).context("invalid --ias-spid")?;
@@ -152,7 +151,6 @@ fn run(arguments: clap::ArgMatches<'static>) -> Result<(), failure::Error> {
             set_argument(  &mut config.api.listenHostPort,                      subcommand_arguments.value_of("api_listen_address"));
             parse_argument(&mut config.api.userAuthenticationTokenSharedSecret, subcommand_arguments.value_of("api_signal_user_token_secret"), hex::parse).context("invalid --api-signal-user-token-secret")?;
             set_argument(  &mut config.attestation.acceptGroupOutOfDate,        Some(arguments.is_present("ias_accept_group_out_of_date")).filter(|present| *present));
-            set_argument(  &mut config.attestation.tlsConfigPath,               arguments.value_of("ias_tls_config_file").map(Path::new));
             set_argument(  &mut config.attestation.disabled,                    Some(!arguments.is_present("ias_tls_config_file")).filter(|present| !*present));
             set_argument(  &mut config.attestation.host,                        arguments.value_of("ias_host"));
             parse_argument(&mut config.attestation.spid,                        arguments.value_of("ias_spid"), hex::parse_fixed).context("invalid --ias-spid")?;

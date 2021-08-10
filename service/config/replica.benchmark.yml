@@ -1,7 +1,7 @@
 attestation:
   host: https://test-as.sgx.trustedservices.intel.com/
   spid: 00000000000000000000000000000000
-  tlsConfigPath: ""
+  apiKey: none
   acceptGroupOutOfDate: true
   disabled: true
 
