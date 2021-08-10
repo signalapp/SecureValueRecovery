@@ -9,9 +9,10 @@ control:
 
 metrics:
   reporters:
-    - type:      json
-      token:     "5917406d-4a8d-4e05-83bf-3e7a07f54202"
-      hostname:  "metrics.wavefront.com"
+    - type:        json
+      apiKey:      "nope"
+      hostname:    "metrics.wavefront.com"
+      environment: "test"
 
 enclave:
   listenHostPort: 0.0.0.0:31337

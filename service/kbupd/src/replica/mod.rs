@@ -234,9 +234,10 @@ impl ReplicaService {
                     .map(Duration::from_secs)
                     .unwrap_or(DEFAULT_METRICS_INTERVAL);
                 let json_reporter = JsonReporter::new(
-                    &json_reporter_config.token,
+                    &json_reporter_config.apiKey,
                     &json_reporter_config.hostname,
                     cmdline_config.full_hostname,
+                    &json_reporter_config.environment,
                     reporter_tls_connector,
                 )
                 .context("error creating metrics json reporter")?;

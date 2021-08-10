@@ -26,7 +26,9 @@ pub enum MetricsReporterConfig {
 pub struct JsonMetricsReporterConfig {
     pub hostname: String,
 
-    pub token: String,
+    pub environment: String,
+
+    pub apiKey: String,
 
     pub intervalSeconds: Option<u64>,
 }

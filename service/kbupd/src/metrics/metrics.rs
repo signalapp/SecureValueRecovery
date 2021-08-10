@@ -223,26 +223,8 @@ impl Meter {
         }
     }
 
-    pub fn tick(&self, now: Instant) -> Duration {
-        let elapsed = now.duration_since(self.shared.start_time);
-        self.tick_to(elapsed);
-        elapsed
-    }
-
     pub fn count(&self) -> u64 {
         self.shared.count.load(Ordering::SeqCst)
-    }
-
-    pub fn m1_rate(&self) -> f64 {
-        self.shared.m1_rate.rate()
-    }
-
-    pub fn m5_rate(&self) -> f64 {
-        self.shared.m5_rate.rate()
-    }
-
-    pub fn m15_rate(&self) -> f64 {
-        self.shared.m15_rate.rate()
     }
 
     fn tick_to(&self, current_tick: Duration) {
@@ -335,10 +317,6 @@ impl ExponentiallyWeightedMovingAverage {
         1.0f64 - (-5.0f64 / 60.0 / secs).exp()
     }
 
-    pub fn rate(&self) -> f64 {
-        f64::from_bits(self.average.load(Ordering::SeqCst))
-    }
-
     pub fn tick(&self, rate: f64, ticks: u64) {
         if ticks != 0 {
             let old_average = f64::from_bits(self.average.load(Ordering::SeqCst));
@@ -368,10 +346,6 @@ impl Timer {
             self.meter.mark();
             self.histogram.update(integer_value);
         }
-    }
-
-    pub fn meter(&self) -> &Meter {
-        &self.meter
     }
 
     pub fn histogram(&self) -> &Histogram {

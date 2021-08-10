@@ -26,9 +26,10 @@ control:
 
 metrics:
   reporters:
-    - type:      json
-      token:     "nope"
-      hostname:  "metrics.wavefront.com"
+    - type:        json
+      apiKey:      "nope"
+      hostname:    "metrics.wavefront.com"
+      environment: "test"
 
 enclaves:
   - name:      efe7c3718d2e6cd669f4cbc3c1424b2b226a5a0b0b0b437303e71a1977c4d47b

@@ -9,7 +9,7 @@ use std::convert::TryInto;
 use std::io;
 use std::marker::PhantomData;
 use std::net::ToSocketAddrs;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::{Buf, BufMut, BytesMut, IntoBuf};
 use failure::{format_err, ResultExt};
@@ -378,7 +378,20 @@ fn handle_control_command(
             Box::new(reply)
         }
         Some(control_request::Data::GetMetricsControlRequest(_request)) => {
-            let metrics_report = MetricsReport::from(&*METRICS);
+            let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(duration) => duration.as_secs(),
+                Err(time_error) => {
+                    warn!("couldn't determine current time: {}", time_error);
+                    0
+                }
+            };
+
+            let metrics_report = SubmitMetricsRequest::from_registry(
+                &METRICS,
+                "localhost",
+                "local",
+                now);
+
             let encoded_report = match serde_json::to_string(&metrics_report) {
                 Ok(encoded_request) => encoded_request,
                 Err(serde_error) => {

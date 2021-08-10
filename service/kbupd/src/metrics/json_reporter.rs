@@ -5,8 +5,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
-use std::borrow::Cow;
-use std::collections::HashMap;
 use std::time::*;
 
 use exponential_decay_histogram::Snapshot;
@@ -18,84 +16,254 @@ use hyper::client::connect::Connect;
 use hyper::{Body, Client, Method, Request};
 use log::{debug, info, warn};
 use nix::unistd;
+use serde::ser::SerializeSeq;
+use serde::{Serialize, Serializer};
 use serde_derive::*;
+
+use self::Point::*;
 
 use super::*;
 
-pub struct JsonReporter<ConnectorTy> {
-    uri:     Uri,
-    client:  Client<ConnectorTy, Body>,
-    runtime: tokio::runtime::Runtime,
+const GAUGE_TYPE: &str = "gauge";
+
+#[derive(Default, Serialize)]
+pub struct SubmitMetricsRequest {
+    series: Vec<Series>,
 }
 
-#[derive(Default, Deserialize, Serialize)]
-pub struct MetricsReport(HashMap<String, MetricReport>);
-
-#[derive(Deserialize, Serialize)]
-#[serde(untagged)]
-enum MetricReport {
-    Counter(u64),
-    Gauge(f64),
-    Meter(MeterReport),
-    Timer(TimerReport),
-    Histogram(HistogramReport),
-}
-
-#[derive(Deserialize, Serialize)]
-struct MeterReport {
-    count: u64,
-    mean:  f64,
-    m1:    f64,
-    m5:    f64,
-    m15:   f64,
-}
-
-#[derive(Deserialize, Serialize)]
-struct SnapshotReport {
-    max:    i64,
-    mean:   f64,
-    min:    i64,
-    stddev: f64,
-    median: i64,
-    p75:    i64,
-    p95:    i64,
-    p98:    i64,
-    p99:    i64,
-    p999:   i64,
-}
-
-#[derive(Deserialize, Serialize)]
-struct TimerReport {
-    rate:     MeterReport,
-    duration: SnapshotReport,
-}
-
-#[derive(Deserialize, Serialize)]
-struct HistogramReport {
-    count:    u64,
+#[derive(Serialize)]
+struct Series {
     #[serde(flatten)]
-    snapshot: SnapshotReport,
+    metadata: MetricMetadata,
+    metric: String,
+    points: Vec<Point>,
+
+    #[serde(rename(serialize = "type"))]
+    metric_type: &'static str,
+}
+
+#[derive(Clone, Serialize)]
+struct MetricMetadata {
+    host: String,
+    tags: Vec<String>,
+}
+
+enum Point {
+    UnsignedIntegerPoint { timestamp: u64, value: u64 },
+    SignedIntegerPoint { timestamp: u64, value: i64 },
+    DoublePoint { timestamp: u64, value: f64 },
+}
+
+impl Serialize for Point {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(2))?;
+
+        match self {
+            Point::UnsignedIntegerPoint { timestamp, value } => {
+                seq.serialize_element(timestamp)?;
+                seq.serialize_element(value)?;
+            }
+
+            Point::SignedIntegerPoint { timestamp, value } => {
+                seq.serialize_element(timestamp)?;
+                seq.serialize_element(value)?;
+            }
+
+            Point::DoublePoint { timestamp, value } => {
+                seq.serialize_element(timestamp)?;
+                seq.serialize_element(value)?;
+            }
+        }
+
+        seq.end()
+    }
+}
+
+impl SubmitMetricsRequest {
+    pub fn from_registry(registry: &MetricRegistry, hostname: &str, environment: &str, timestamp: u64) -> Self {
+        let mut request = Self::default();
+
+        let tags = vec![
+            String::from("service:kbupd"),
+            "env:".to_owned() + environment
+        ];
+
+        let metadata = MetricMetadata {
+            host: String::from(hostname),
+            tags,
+        };
+
+        for (metric_name, metric) in registry.metrics() {
+            match metric {
+                Metric::Counter(counter) => request.add_series(
+                    metric_name,
+                    UnsignedIntegerPoint {
+                        timestamp,
+                        value: counter.count(),
+                    },
+                    &metadata,
+                ),
+                Metric::Gauge(gauge) => request.add_series(
+                    metric_name,
+                    DoublePoint {
+                        timestamp,
+                        value: gauge.value(),
+                    },
+                    &metadata,
+                ),
+                Metric::Meter(meter) => request.add_series(
+                    metric_name + ".count",
+                    UnsignedIntegerPoint {
+                        timestamp,
+                        value: meter.count(),
+                    },
+                    &metadata,
+                ),
+                Metric::Histogram(histogram) => {
+                    request.add_snapshot_series(metric_name, &histogram.snapshot(), timestamp, &metadata);
+                }
+                Metric::Timer(timer) => {
+                    request.add_snapshot_series(metric_name, &timer.histogram().snapshot(), timestamp, &metadata);
+                }
+            };
+        }
+
+        request
+    }
+
+    fn add_snapshot_series(&mut self, base_name: String, snapshot: &Snapshot, timestamp: u64, metadata: &MetricMetadata) {
+        self.add_series(
+            base_name.clone() + ".count",
+            UnsignedIntegerPoint {
+                timestamp,
+                value: snapshot.count(),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".max",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.max(),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".mean",
+            DoublePoint {
+                timestamp,
+                value: snapshot.mean(),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".min",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.max(),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".stddev",
+            DoublePoint {
+                timestamp,
+                value: snapshot.stddev(),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".median",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.value(0.5),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".p75",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.value(0.75),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".p95",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.value(0.95),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".p98",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.value(0.98),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".p99",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.value(0.99),
+            },
+            metadata,
+        );
+        self.add_series(
+            base_name.clone() + ".p999",
+            SignedIntegerPoint {
+                timestamp,
+                value: snapshot.value(0.999),
+            },
+            metadata,
+        );
+    }
+
+    fn add_series(&mut self, name: String, point: Point, metadata: &MetricMetadata) {
+        self.series.push(Series {
+            metadata: metadata.clone(),
+            metric: name,
+            points: vec![point],
+            metric_type: GAUGE_TYPE,
+        });
+    }
+}
+
+pub struct JsonReporter<ConnectorTy> {
+    uri:         Uri,
+    api_key:     String,
+    hostname:    String,
+    environment: String,
+    client:      Client<ConnectorTy, Body>,
+    runtime:     tokio::runtime::Runtime,
 }
 
 impl<ConnectorTy> JsonReporter<ConnectorTy>
 where ConnectorTy: Connect + 'static
 {
-    pub fn new(token: &str, hostname: &str, maybe_our_hostname: Option<&str>, connector: ConnectorTy) -> Result<Self, failure::Error> {
+    pub fn new(api_key: &str, target_hostname: &str, maybe_our_hostname: Option<&str>, environment: &str, connector: ConnectorTy) -> Result<Self, failure::Error> {
         let our_hostname = match maybe_our_hostname {
-            Some(our_hostname) => our_hostname.into(),
+            Some(hostname) => String::from(hostname),
             None => {
                 let mut hostname_buf = [0; 255];
                 let hostname_cstr = unistd::gethostname(&mut hostname_buf).context("error getting hostname")?;
-                Cow::Owned(hostname_cstr.to_string_lossy().into_owned())
+
+                hostname_cstr.to_string_lossy().into_owned()
             }
         };
 
-        info!("starting json metrics reporter for {} as {}", hostname, our_hostname);
+        info!("starting json metrics reporter for {} as {}", target_hostname, our_hostname);
 
-        let path_and_query = format!("/report/metrics?t={}&h={}", token, our_hostname);
+        let path_and_query = String::from("/api/v1/series");
         let mut uri_parts = uri::Parts::default();
         uri_parts.scheme = Some(uri::Scheme::HTTPS);
-        uri_parts.authority = Some(uri::Authority::try_from(hostname).context("invalid hostname")?);
+        uri_parts.authority = Some(uri::Authority::try_from(target_hostname).context("invalid hostname")?);
         uri_parts.path_and_query = Some(uri::PathAndQuery::try_from(path_and_query.as_str()).context("invalid token or host")?);
         let uri = Uri::try_from(uri_parts).context("invalid hostname, token, or host")?;
 
@@ -106,7 +274,7 @@ where ConnectorTy: Connect + 'static
             .context("error starting tokio runtime for json-reporter")?;
         let client = Client::builder().executor(runtime.executor()).build(connector);
 
-        Ok(Self { uri, client, runtime })
+        Ok(Self { uri, api_key: String::from(api_key), hostname: our_hostname, environment: String::from(environment), client, runtime })
     }
 }
 
@@ -116,8 +284,16 @@ where ConnectorTy: Connect + 'static
     fn report(&mut self, registry: &MetricRegistry) {
         debug!("reporting metrics...");
 
-        let metrics_report = MetricsReport::from(registry);
-        let encoded_request = match serde_json::to_vec(&metrics_report) {
+        let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
+            Ok(duration) => duration.as_secs(),
+            Err(time_error) => {
+                warn!("couldn't determine current time: {}", time_error);
+                return;
+            }
+        };
+
+        let request = SubmitMetricsRequest::from_registry(registry, &self.hostname, &self.environment, now);
+        let encoded_request = match serde_json::to_vec(&request) {
             Ok(encoded_request) => encoded_request,
             Err(serde_error) => {
                 warn!("error encoding json metrics: {}", serde_error);
@@ -132,12 +308,22 @@ where ConnectorTy: Connect + 'static
             .headers_mut()
             .insert("Content-Type", HeaderValue::from_static("application/json"));
 
+        match HeaderValue::from_str(&self.api_key) {
+            Ok(header_value) => {
+                hyper_request.headers_mut().insert("DD-API-KEY", header_value);
+            }
+            Err(e) => {
+                warn!("invalid API key: {}", e);
+                return;
+            }
+        };
+
         let response = self.client.request(hyper_request);
 
         match self.runtime.block_on(response) {
             Ok(response) => {
                 if response.status().is_success() {
-                    debug!("sent {} metrics successfully", metrics_report.0.len());
+                    debug!("sent {} metrics successfully", request.series.len());
                 } else {
                     info!("http error sending metrics: {}", response.status());
                 }
@@ -145,85 +331,6 @@ where ConnectorTy: Connect + 'static
             Err(hyper_error) => {
                 info!("error sending metrics: {}", hyper_error);
             }
-        }
-    }
-}
-
-impl From<&MetricRegistry> for MetricsReport {
-    fn from(registry: &MetricRegistry) -> Self {
-        let mut report = Self::default();
-        let now = Instant::now();
-
-        for (metric_name, metric) in registry.metrics() {
-            let metric_report = MetricReport::from_metric(&metric, now);
-            report.0.insert(metric_name, metric_report);
-        }
-        report
-    }
-}
-
-//
-// MetricReport impls
-//
-
-impl MetricReport {
-    fn from_metric(metric: &Metric, now: Instant) -> Self {
-        match metric {
-            Metric::Counter(counter) => MetricReport::Counter(counter.count()),
-            Metric::Gauge(gauge) => MetricReport::Gauge(gauge.value()),
-            Metric::Meter(meter) => MetricReport::Meter(MeterReport::from_meter(meter, now)),
-            Metric::Histogram(histogram) => MetricReport::Histogram(histogram.into()),
-            Metric::Timer(timer) => MetricReport::Timer(TimerReport::from_timer(timer, now)),
-        }
-    }
-}
-
-impl MeterReport {
-    fn from_meter(meter: &Meter, now: Instant) -> Self {
-        let elapsed = meter.tick(now);
-        let count = meter.count();
-        Self {
-            count,
-            mean: (count as f64) / ((elapsed.as_nanos() as f64) / 1e9),
-            m1: meter.m1_rate(),
-            m5: meter.m5_rate(),
-            m15: meter.m15_rate(),
-        }
-    }
-}
-
-impl From<&Histogram> for HistogramReport {
-    fn from(histogram: &Histogram) -> Self {
-        let snapshot = histogram.snapshot();
-        Self {
-            count:    snapshot.count(),
-            snapshot: SnapshotReport::from(&snapshot),
-        }
-    }
-}
-
-impl From<&Snapshot> for SnapshotReport {
-    fn from(snapshot: &Snapshot) -> Self {
-        Self {
-            max:    snapshot.max(),
-            mean:   snapshot.mean(),
-            min:    snapshot.min(),
-            stddev: snapshot.stddev(),
-            median: snapshot.value(0.5),
-            p75:    snapshot.value(0.75),
-            p95:    snapshot.value(0.95),
-            p98:    snapshot.value(0.98),
-            p99:    snapshot.value(0.99),
-            p999:   snapshot.value(0.999),
-        }
-    }
-}
-
-impl TimerReport {
-    fn from_timer(timer: &Timer, now: Instant) -> Self {
-        Self {
-            rate:     MeterReport::from_meter(timer.meter(), now),
-            duration: HistogramReport::from(timer.histogram()).snapshot,
         }
     }
 }
