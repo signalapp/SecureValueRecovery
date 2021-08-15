@@ -298,6 +298,7 @@ impl FrontendService {
                     &json_reporter_config.hostname,
                     cmdline_config.full_hostname,
                     &json_reporter_config.environment,
+                    "frontend",
                     reporter_tls_connector,
                 )
                 .context("error creating metrics json reporter")?;

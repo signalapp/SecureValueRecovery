@@ -83,12 +83,13 @@ impl Serialize for Point {
 }
 
 impl SubmitMetricsRequest {
-    pub fn from_registry(registry: &MetricRegistry, hostname: &str, environment: &str, timestamp: u64) -> Self {
+    pub fn from_registry(registry: &MetricRegistry, hostname: &str, environment: &str, role: &str, timestamp: u64) -> Self {
         let mut request = Self::default();
 
         let tags = vec![
             String::from("service:kbupd"),
-            "env:".to_owned() + environment
+            "env:".to_owned() + environment,
+            "role:".to_owned() + role,
         ];
 
         let metadata = MetricMetadata {
@@ -240,6 +241,7 @@ pub struct JsonReporter<ConnectorTy> {
     api_key:     String,
     hostname:    String,
     environment: String,
+    role:        String,
     client:      Client<ConnectorTy, Body>,
     runtime:     tokio::runtime::Runtime,
 }
@@ -247,7 +249,7 @@ pub struct JsonReporter<ConnectorTy> {
 impl<ConnectorTy> JsonReporter<ConnectorTy>
 where ConnectorTy: Connect + 'static
 {
-    pub fn new(api_key: &str, target_hostname: &str, maybe_our_hostname: Option<&str>, environment: &str, connector: ConnectorTy) -> Result<Self, failure::Error> {
+    pub fn new(api_key: &str, target_hostname: &str, maybe_our_hostname: Option<&str>, environment: &str, role: &str, connector: ConnectorTy) -> Result<Self, failure::Error> {
         let our_hostname = match maybe_our_hostname {
             Some(hostname) => String::from(hostname),
             None => {
@@ -274,7 +276,14 @@ where ConnectorTy: Connect + 'static
             .context("error starting tokio runtime for json-reporter")?;
         let client = Client::builder().executor(runtime.executor()).build(connector);
 
-        Ok(Self { uri, api_key: String::from(api_key), hostname: our_hostname, environment: String::from(environment), client, runtime })
+        Ok(Self {
+            uri,
+            api_key: String::from(api_key),
+            hostname: our_hostname,
+            environment: String::from(environment),
+            role: String::from(role),
+            client,
+            runtime, })
     }
 }
 
@@ -292,7 +301,7 @@ where ConnectorTy: Connect + 'static
             }
         };
 
-        let request = SubmitMetricsRequest::from_registry(registry, &self.hostname, &self.environment, now);
+        let request = SubmitMetricsRequest::from_registry(registry, &self.hostname, &self.environment, &self.role, now);
         let encoded_request = match serde_json::to_vec(&request) {
             Ok(encoded_request) => encoded_request,
             Err(serde_error) => {

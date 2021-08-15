@@ -390,6 +390,7 @@ fn handle_control_command(
                 &METRICS,
                 "localhost",
                 "local",
+                "kbupctl",
                 now);
 
             let encoded_report = match serde_json::to_string(&metrics_report) {
