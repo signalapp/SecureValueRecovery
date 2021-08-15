@@ -52,6 +52,7 @@ pub struct Enclave {
 pub struct NodeId([u8; 32]);
 
 pub use super::ffi::sgxsd::SgxQuote;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 //
 // private defs
@@ -67,6 +68,7 @@ lazy_init! {
         static ref MEMORY_USED_GAUGE:                Gauge = METRICS.metric(&metric_name!("memory",   "used"));
         static ref MEMORY_CHUNKS_GAUGE:              Gauge = METRICS.metric(&metric_name!("memory",   "chunks"));
         static ref REPLICA_MIN_ATTESTATION_GAUGE:    Gauge = METRICS.metric(&metric_name!("replica",  "attestation", "min_timestamp"));
+        static ref REPLICA_ATTESTATION_AGE_GAUGE:    Gauge = METRICS.metric(&metric_name!("replica",  "attestation", "min_age"));
         static ref REPLICA_TERM_GAUGE:               Gauge = METRICS.metric(&metric_name!("replica",  "term"));
         static ref REPLICA_LOG_PREV_GAUGE:           Gauge = METRICS.metric(&metric_name!("replica",  "log", "prev"));
         static ref REPLICA_LOG_APPLIED_METER:        Meter = METRICS.metric(&metric_name!("replica",  "log", "applied"));
@@ -505,6 +507,10 @@ impl Enclave {
                     MEMORY_CHUNKS_GAUGE.update(memory_status.free_chunks);
                 }
                 if let Some(partition_status) = &status.partition {
+                    if let Ok(duration_since_epoch) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        REPLICA_ATTESTATION_AGE_GAUGE.update(duration_since_epoch.as_secs() - partition_status.min_attestation.unix_timestamp_seconds);
+                    }
+
                     REPLICA_MIN_ATTESTATION_GAUGE.update(partition_status.min_attestation.unix_timestamp_seconds);
                     REPLICA_TERM_GAUGE.update(partition_status.current_term);
                     REPLICA_LOG_PREV_GAUGE.update(partition_status.prev_log_index);
