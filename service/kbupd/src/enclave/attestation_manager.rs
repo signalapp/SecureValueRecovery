@@ -12,6 +12,8 @@ use futures::prelude::*;
 use futures::sync::oneshot;
 use ias_client::*;
 use kbupd_macro::lazy_init;
+use std::time::Duration;
+use tokio::timer::Timeout;
 
 use crate::intel_client::*;
 use crate::metrics::*;
@@ -55,7 +57,11 @@ impl AttestationManager {
             let enclave_tx = self.enclave_tx.clone();
             let request_id = request.request_id.clone();
             let request_id_2 = request.request_id;
-            let signed_quote = intel_client.get_quote_signature(request.sgx_quote, true);
+            let signed_quote =
+                Timeout::new(intel_client.get_quote_signature(request.sgx_quote, true), Duration::from_secs(30)).map_err(|e| {
+                    e.into_inner()
+                        .unwrap_or_else(|| GetQuoteSignatureError::FetchError(failure::format_err!("request timed out")))
+                });
             let replied_future = signed_quote.then(move |reply: Result<SignedQuote, GetQuoteSignatureError>| {
                 match reply {
                     Ok(_) => GET_ATTESTATION_OK_METER.mark(),

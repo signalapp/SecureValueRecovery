@@ -11,6 +11,7 @@ use futures::prelude::*;
 use ias_client::*;
 use kbupd_macro::lazy_init;
 use tokio::timer;
+use tokio::timer::Timeout;
 use try_future::TryFuture;
 
 use crate::intel_client::*;
@@ -71,9 +72,15 @@ impl HandshakeManager {
         self,
         enclave_name: String,
         quote: SgxQuote,
-    ) -> impl Future<Item = Self, Error = (Self, GetQuoteSignatureError)> + Send + 'static
-    {
-        let signed_quote = self.intel_client.get_quote_signature(quote.data, self.accept_group_out_of_date);
+    ) -> impl Future<Item = Self, Error = (Self, GetQuoteSignatureError)> + Send + 'static {
+        let signed_quote = Timeout::new(
+            self.intel_client.get_quote_signature(quote.data, self.accept_group_out_of_date),
+            Duration::from_secs(30),
+        )
+        .map_err(|e| {
+            e.into_inner()
+                .unwrap_or_else(|| GetQuoteSignatureError::FetchError(failure::format_err!("request timed out")))
+        });
 
         let state = signed_quote.then(move |result: Result<SignedQuote, GetQuoteSignatureError>| match result {
             Ok(signed_quote) => {
@@ -98,7 +105,11 @@ impl HandshakeManager {
             .call(|enclave_manager: &mut EnclaveManager, reply_tx| enclave_manager.get_sgx_gid(reply_tx));
 
         let intel_client = self.intel_client.clone();
-        let sig_rl = gid.and_then(move |gid: u32| intel_client.get_signature_revocation_list(gid));
+        let sig_rl = Timeout::new(
+            gid.and_then(move |gid: u32| intel_client.get_signature_revocation_list(gid)),
+            Duration::from_secs(30),
+        )
+        .map_err(|e| e.into_inner().unwrap_or_else(|| failure::format_err!("request timed out")));
 
         let enclave_tx = self.enclave_tx.clone();
         let set_sig_rl = sig_rl.map(move |sig_rl: SignatureRevocationList| {
