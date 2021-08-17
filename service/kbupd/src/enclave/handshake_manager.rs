@@ -77,9 +77,11 @@ impl HandshakeManager {
             self.intel_client.get_quote_signature(quote.data, self.accept_group_out_of_date),
             Duration::from_secs(30),
         )
-        .map_err(|e| {
-            e.into_inner()
-                .unwrap_or_else(|| GetQuoteSignatureError::FetchError(failure::format_err!("request timed out")))
+        .map_err(|e| match e {
+            e if e.is_inner() => e.into_inner().unwrap(),
+            e if e.is_elapsed() => GetQuoteSignatureError::FetchError(failure::format_err!("request timed out")),
+            e if e.is_timer() => GetQuoteSignatureError::FetchError(failure::Error::from_boxed_compat(Box::new(e.into_timer().unwrap()))),
+            _ => GetQuoteSignatureError::FetchError(failure::format_err!("unknown error")),
         });
 
         let state = signed_quote.then(move |result: Result<SignedQuote, GetQuoteSignatureError>| match result {
@@ -109,7 +111,12 @@ impl HandshakeManager {
             gid.and_then(move |gid: u32| intel_client.get_signature_revocation_list(gid)),
             Duration::from_secs(30),
         )
-        .map_err(|e| e.into_inner().unwrap_or_else(|| failure::format_err!("request timed out")));
+        .map_err(|e| match e {
+            e if e.is_inner() => e.into_inner().unwrap(),
+            e if e.is_elapsed() => failure::format_err!("request timed out"),
+            e if e.is_timer() => failure::Error::from_boxed_compat(Box::new(e.into_timer().unwrap())),
+            _ => failure::format_err!("unknown error"),
+        });
 
         let enclave_tx = self.enclave_tx.clone();
         let set_sig_rl = sig_rl.map(move |sig_rl: SignatureRevocationList| {

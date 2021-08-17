@@ -58,9 +58,11 @@ impl AttestationManager {
             let request_id = request.request_id.clone();
             let request_id_2 = request.request_id;
             let signed_quote =
-                Timeout::new(intel_client.get_quote_signature(request.sgx_quote, true), Duration::from_secs(30)).map_err(|e| {
-                    e.into_inner()
-                        .unwrap_or_else(|| GetQuoteSignatureError::FetchError(failure::format_err!("request timed out")))
+                Timeout::new(intel_client.get_quote_signature(request.sgx_quote, true), Duration::from_secs(30)).map_err(|e| match e {
+                    e if e.is_inner() => e.into_inner().unwrap(),
+                    e if e.is_elapsed() => GetQuoteSignatureError::FetchError(failure::format_err!("request timed out")),
+                    e if e.is_timer() => GetQuoteSignatureError::FetchError(failure::Error::from_boxed_compat(Box::new(e.into_timer().unwrap()))),
+                    _ => GetQuoteSignatureError::FetchError(failure::format_err!("unknown error")),
                 });
             let replied_future = signed_quote.then(move |reply: Result<SignedQuote, GetQuoteSignatureError>| {
                 match reply {
