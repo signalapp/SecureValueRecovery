@@ -390,6 +390,7 @@ fn handle_control_command(
                 &METRICS,
                 "localhost",
                 "local",
+                &None,
                 "kbupctl",
                 now);
 

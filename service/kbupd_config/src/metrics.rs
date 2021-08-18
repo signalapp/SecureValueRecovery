@@ -28,6 +28,8 @@ pub struct JsonMetricsReporterConfig {
 
     pub environment: String,
 
+    pub partition: Option<String>,
+
     pub apiKey: String,
 
     pub intervalSeconds: Option<u64>,

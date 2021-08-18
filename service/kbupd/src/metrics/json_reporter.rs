@@ -83,14 +83,29 @@ impl Serialize for Point {
 }
 
 impl SubmitMetricsRequest {
-    pub fn from_registry(registry: &MetricRegistry, hostname: &str, environment: &str, role: &str, timestamp: u64) -> Self {
+    pub fn from_registry(
+        registry: &MetricRegistry,
+        hostname: &str,
+        environment: &str,
+        partition: &Option<String>,
+        role: &str,
+        timestamp: u64,
+    ) -> Self {
         let mut request = Self::default();
 
-        let tags = vec![
-            String::from("service:kbupd"),
-            "env:".to_owned() + environment,
-            "role:".to_owned() + role,
-        ];
+        let tags = {
+            let mut tags = vec![
+                String::from("service:kbupd"),
+                "env:".to_owned() + environment,
+                "role:".to_owned() + role,
+            ];
+
+            if let Some(partition) = partition {
+                tags.push("partition:".to_owned() + partition);
+            }
+
+            tags
+        };
 
         let metadata = MetricMetadata {
             host: String::from(hostname),
@@ -237,19 +252,29 @@ impl SubmitMetricsRequest {
 }
 
 pub struct JsonReporter<ConnectorTy> {
-    uri:         Uri,
-    api_key:     String,
-    hostname:    String,
+    uri: Uri,
+    api_key: String,
+    hostname: String,
     environment: String,
-    role:        String,
-    client:      Client<ConnectorTy, Body>,
-    runtime:     tokio::runtime::Runtime,
+    partition: Option<String>,
+    role: String,
+    client: Client<ConnectorTy, Body>,
+    runtime: tokio::runtime::Runtime,
 }
 
 impl<ConnectorTy> JsonReporter<ConnectorTy>
-where ConnectorTy: Connect + 'static
+where
+    ConnectorTy: Connect + 'static,
 {
-    pub fn new(api_key: &str, target_hostname: &str, maybe_our_hostname: Option<&str>, environment: &str, role: &str, connector: ConnectorTy) -> Result<Self, failure::Error> {
+    pub fn new(
+        api_key: &str,
+        target_hostname: &str,
+        maybe_our_hostname: Option<&str>,
+        environment: &str,
+        partition: &Option<String>,
+        role: &str,
+        connector: ConnectorTy,
+    ) -> Result<Self, failure::Error> {
         let our_hostname = match maybe_our_hostname {
             Some(hostname) => String::from(hostname),
             None => {
@@ -281,6 +306,7 @@ where ConnectorTy: Connect + 'static
             api_key: String::from(api_key),
             hostname: our_hostname,
             environment: String::from(environment),
+            partition: partition.as_ref().map(String::from),
             role: String::from(role),
             client,
             runtime, })
@@ -301,7 +327,7 @@ where ConnectorTy: Connect + 'static
             }
         };
 
-        let request = SubmitMetricsRequest::from_registry(registry, &self.hostname, &self.environment, &self.role, now);
+        let request = SubmitMetricsRequest::from_registry(registry, &self.hostname, &self.environment, &self.partition, &self.role, now);
         let encoded_request = match serde_json::to_vec(&request) {
             Ok(encoded_request) => encoded_request,
             Err(serde_error) => {
