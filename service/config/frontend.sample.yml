@@ -27,7 +27,8 @@ metrics:
   reporters:
     - type: json                                  # JsonMetricsReporter config
       hostname:                                   # hostname of metrics server to upload to
-      token:                                      # auth token to send to metrics server via the "t" query param
+      environment:                                # environment (e.g. "production" or "staging") in which this replica is running
+      apiKey:                                     # API key for sending metrics to the server
       intervalSeconds:                            # interval to upload metrics, in seconds (default 60)
 
 enclaves:                                         # list of enclave instances
