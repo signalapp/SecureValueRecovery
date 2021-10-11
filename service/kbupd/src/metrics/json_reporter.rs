@@ -19,6 +19,7 @@ use nix::unistd;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_derive::*;
+use tokio::timer::Timeout;
 
 use self::Point::*;
 
@@ -353,7 +354,7 @@ where ConnectorTy: Connect + 'static
             }
         };
 
-        let response = self.client.request(hyper_request);
+        let response = Timeout::new(self.client.request(hyper_request), Duration::from_secs(30));
 
         match self.runtime.block_on(response) {
             Ok(response) => {
