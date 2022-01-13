@@ -56,6 +56,7 @@ pub struct NodeParams {
     node_key:  Rc<[u8]>,
     node_id:   NodeId,
     node_type: NodeType,
+    ias_version: u32,
 }
 
 pub struct RemoteSender<M>
@@ -462,7 +463,7 @@ where
         match self.accept_connection(&connect_request.noise_data) {
             Ok((noise, their_handshake_hash)) => match self.auth_type {
                 RemoteAuthorizationType::Mutual | RemoteAuthorizationType::RemoteOnly => {
-                    match validate_ias_report(connect_request.ias_report.as_ref(), &their_handshake_hash.hash) {
+                    match validate_ias_report(connect_request.ias_report.as_ref(), self.node_params.ias_version, &their_handshake_hash.hash) {
                         Ok(attestation) => {
                             *session = SessionState::Accepted {
                                 noise,
@@ -611,7 +612,7 @@ where
                     } => (noise, their_handshake_hash, final_handshake_hash),
                     _ => unreachable!(),
                 };
-                match validate_ias_report(Some(&ias_report), &their_handshake_hash.hash) {
+                match validate_ias_report(Some(&ias_report), self.node_params.ias_version, &their_handshake_hash.hash) {
                     Ok(attestation) => {
                         let handshake_hash = final_handshake_hash;
                         *session = SessionState::Authorized {
@@ -634,7 +635,7 @@ where
                 attestation,
                 handshake_hash,
                 ..
-            } => match validate_ias_report(Some(&ias_report), &handshake_hash.get_hash_for_node(&self.remote_node_id)) {
+            } => match validate_ias_report(Some(&ias_report), self.node_params.ias_version, &handshake_hash.get_hash_for_node(&self.remote_node_id)) {
                 Ok(new_attestation) => {
                     verbose!("validated attestation report for {}: {}", &self.remote_node_id, &new_attestation);
                     *attestation = Some(new_attestation);
@@ -823,6 +824,7 @@ fn parse_ias_timestamp(timestamp: &str) -> Result<u64, AttestationVerificationEr
 
 fn validate_ias_report(
     maybe_ias_report: Option<&IasReport>,
+    ias_version: u32,
     expected_report_data: &[u8],
 ) -> Result<AttestationParameters, AttestationVerificationError>
 {
@@ -845,12 +847,32 @@ fn validate_ias_report(
 
     let body: IasReportBody = serde_json::from_slice(&ias_report.body[..]).map_err(AttestationVerificationError::InvalidJson)?;
 
-    if body.version != 3 {
+    if body.version != ias_version as u64 {
         return Err(AttestationVerificationError::WrongVersion(body.version));
     }
 
     match body.isvEnclaveQuoteStatus.as_str() {
         "OK" => {}
+        "SW_HARDENING_NEEDED" => {
+            // To quote from Intel's documentation:
+            //
+            // > An attestation response may report “SW_HARDENING_NEEDED” for attestation requests
+            // > originating from Intel® SGX-enabled platforms that have applied the microcode and
+            // > SGX platform software update and are properly configured but are affected by
+            // > INTEL-SA-00334. In this case a Remote Attestation Verifier should evaluate the
+            // > potential risk of an attack on these platforms and whether the attesting enclave
+            // > employs adequate software hardening to mitigate the risk.
+            //
+            // We have, indeed, applied software mitigations for INTEL-SA-00334, and can consider
+            // SW_HARDENING_NEEDED an acceptable status as long as the only named advisory is the
+            // one we've already mitigated.
+            //
+            // The check for INTEL-SA-00334 was introduced in IASv4, and should never appear under
+            // IASv3.
+            if ias_version < 4 || body.advisoryIDs != vec![String::from("INTEL-SA-00334")] {
+                return Err(AttestationVerificationError::AttestationError(body.isvEnclaveQuoteStatus));
+            }
+        }
         #[cfg(feature = "insecure")]
         "GROUP_OUT_OF_DATE" | "CONFIGURATION_NEEDED" => {}
         "SIGRL_VERSION_MISMATCH" => {
@@ -911,6 +933,8 @@ pub struct IasReportBody {
     pub version: u64,
 
     pub timestamp: String,
+
+    pub advisoryIDs: Vec<String>,
 }
 
 impl fmt::Display for AttestationVerificationError {
@@ -963,7 +987,7 @@ impl Deref for NodeId {
 //
 
 impl NodeParams {
-    pub fn generate(node_type: NodeType) -> Self {
+    pub fn generate(node_type: NodeType, ias_version: u32) -> Self {
         let params = NOISE_PARAMS.parse().unwrap_or_else(|_| unreachable!());
         let builder = snow::Builder::with_resolver(params, Box::new(SnowResolver));
         let keypair = builder.generate_keypair().unwrap_or_else(|_| unreachable!());
@@ -972,6 +996,7 @@ impl NodeParams {
             node_key: keypair.private.into(),
             node_id: keypair.public.into(),
             node_type,
+            ias_version,
         }
     }
 

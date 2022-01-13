@@ -66,9 +66,9 @@ enum QeInfoRequestState {
 impl<T> PeerManager<T>
 where T: Peer
 {
-    pub fn new(node_type: NodeType) -> Self {
+    pub fn new(node_type: NodeType, ias_version: u32) -> Self {
         Self {
-            node_params:      Rc::new(NodeParams::generate(node_type)),
+            node_params:      Rc::new(NodeParams::generate(node_type, ias_version)),
             noise_buffers:    Default::default(),
             connecting_peers: Default::default(),
             qe_info_req:      QeInfoRequestState::None,

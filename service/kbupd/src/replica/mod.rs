@@ -11,10 +11,11 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use failure::ResultExt;
+use failure::{bail, ResultExt};
 use futures::prelude::*;
 use hyper::Uri;
 use hyper::client::connect::HttpConnector;
+use ias_client::IasApiVersion;
 use kbupd_config::metrics::*;
 use kbupd_config::ReplicaConfig;
 use kbuptlsd::prelude::*;
@@ -82,6 +83,12 @@ impl ReplicaService {
                 .host()
                 .expect("attestation host does not contain a hostname"));
 
+            let ias_version = match config.attestation.iasVersion {
+                None | Some(3) => IasApiVersion::ApiVer3,
+                Some(4) => IasApiVersion::ApiVer4,
+                _ => bail!("unrecognized IAS version: {}", config.attestation.iasVersion.unwrap())
+            };
+
             let intel_client_proxy =
                 TlsClientProxySpawner::new(cmdline_config.kbuptlsd_bin_path.to_owned(), TlsClientProxyArguments::NoConfig {
                     ca: TlsClientProxyCaArgument::System,
@@ -89,7 +96,7 @@ impl ReplicaService {
                     hostname: TlsClientProxyHostnameArgument::Hostname(hostname)
                 })
                 .context("error creating intel attestation tls client proxy")?;
-            Some(new_ias_client(&config.attestation.host, &config.attestation.apiKey, intel_client_proxy).context("error creating intel attestation client")?)
+            Some(new_ias_client(&config.attestation.host, ias_version, &config.attestation.apiKey, intel_client_proxy).context("error creating intel attestation client")?)
         } else {
             None
         };
@@ -126,8 +133,8 @@ impl ReplicaService {
             transfer_chunk_size: config.enclave.transferChunkSize,
             storage_page_cache_size: Default::default(), // unused
             max_frontend_count: config.enclave.maxFrontendCount,
-
             raft_log_index_page_cache_size: 10,
+            ias_version: config.attestation.iasVersion.unwrap_or(3),
         };
 
         info!(

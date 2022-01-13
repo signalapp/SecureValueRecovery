@@ -39,6 +39,8 @@ pub struct ReplicaAttestationConfig {
     pub disabled: bool,
 
     pub apiKey: String,
+
+    pub iasVersion: Option<u32>,
 }
 
 #[derive(Deserialize)]

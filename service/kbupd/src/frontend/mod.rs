@@ -13,11 +13,12 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use failure::{format_err, ResultExt};
+use failure::{bail, format_err, ResultExt};
 use futures::future;
 use futures::prelude::*;
 use hyper::Uri;
 use hyper::client::connect::HttpConnector;
+use ias_client::IasApiVersion;
 use kbupd_config::metrics::*;
 use kbupd_config::FrontendConfig;
 use kbuptlsd::prelude::*;
@@ -96,8 +97,15 @@ impl FrontendService {
                     hostname: TlsClientProxyHostnameArgument::Hostname(hostname)
                 })
                 .context("error creating intel attestation tls proxy client")?;
+
+            let ias_version = match config.attestation.iasVersion {
+                None | Some(3) => IasApiVersion::ApiVer3,
+                Some(4) => IasApiVersion::ApiVer4,
+                _ => bail!("unrecognized IAS version: {}", config.attestation.iasVersion.unwrap())
+            };
+
             let new_intel_client =
-                new_ias_client(&config.attestation.host, &config.attestation.apiKey, intel_client_proxy).context("error creating intel attestation client")?;
+                new_ias_client(&config.attestation.host, ias_version, &config.attestation.apiKey, intel_client_proxy).context("error creating intel attestation client")?;
             handshake_manager = Some(HandshakeManager::new(
                 enclave_manager_tx.clone(),
                 new_intel_client.clone(),
@@ -137,6 +145,7 @@ impl FrontendService {
         let enclave_spid = config.attestation.spid;
         let enclave_executor = runtime.executor();
         let enclave_directory = cmdline_config.enclave_directory.to_owned();
+        let ias_version = config.attestation.iasVersion.unwrap_or(3);
         let enclave_thread = thread::spawn(move || -> Result<(), failure::Error> {
             let mut enclaves = Vec::with_capacity(enclave_configs.len());
             for (enclave_config, partitions) in enclave_configs {
@@ -160,6 +169,7 @@ impl FrontendService {
                     pending_request_ttl: util::duration::as_ticks(pending_request_ttl, timer_tick_interval),
                     pending_request_count: enclave_config.pendingRequestCount,
                     max_backup_data_length: enclave_config.maxBackupDataLength,
+                    ias_version,
                 };
 
                 let mut partition_configs = Vec::new();

@@ -144,6 +144,8 @@ pub struct EnclaveFrontendConfig {
     pub pending_request_ttl:       u32,
     #[prost(uint32, required, tag = "7")]
     pub max_backup_data_length:    u32,
+    #[prost(uint32, required, tag = "8")]
+    pub ias_version:               u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SourcePartitionConfig {
@@ -181,6 +183,8 @@ pub struct EnclaveReplicaConfig {
     pub raft_log_index_page_cache_size: u32,
     #[prost(uint32, required, tag = "14")]
     pub max_frontend_count:             u32,
+    #[prost(uint32, required, tag = "15")]
+    pub ias_version:                    u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StartReplicaGroupRequest {
