@@ -117,6 +117,7 @@ tar: $(builddir)/kbupd-$(VERSION)-bin-staging.tar.gz $(builddir)/kbupd-$(VERSION
 
 $(builddir)/kbupd-$(VERSION)-bin-%.tar.gz: FORCE
 	$(targetdir)/release/kbupd-config validate frontend config/frontend.$*.yml
+	$(targetdir)/release/kbupd-config validate frontend config/frontend.$*-ias-v4.yml
 	$(targetdir)/release/kbupd-config validate replica  $(wildcard config/replica-*.$*.yml)
 	-rm -rf $(builddir)/tar/
 	mkdir -p $(builddir)/tar/enclave/
@@ -126,6 +127,7 @@ $(builddir)/kbupd-$(VERSION)-bin-%.tar.gz: FORCE
 	$(INSTALL_PROGRAM) $(targetdir)/release/kbuptlsd	$(builddir)/tar/
 	$(INSTALL_DATA) $(wildcard kbupd/res/enclave/*.so)	$(builddir)/tar/enclave/
 	$(INSTALL_DATA) config/frontend.$*.yml			$(builddir)/tar/
+	$(INSTALL_DATA) config/frontend.$*-ias-v4.yml			$(builddir)/tar/
 	$(INSTALL_DATA) $(wildcard config/replica-*.$*.yml)	$(builddir)/tar/
 	$(INSTALL_DATA) config/peer_ca_cert.$*.pem		$(builddir)/tar/
 	tar -czf						$(builddir)/kbupd-$(VERSION)-bin-$*.tar.gz -C $(builddir)/tar .
