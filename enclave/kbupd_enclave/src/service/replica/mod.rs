@@ -80,10 +80,8 @@ enum PeerMessage {
 
 impl ReplicaState {
     pub fn init(request: StartReplicaRequest) -> Self {
-        let ias_version = request.config.ias_version;
-
         let state = Self {
-            peers:     PeerManager::new(NodeType::Replica, ias_version),
+            peers:     PeerManager::new(NodeType::Replica),
             config:    request.config,
             frontends: Lru::new(),
             partition: None,

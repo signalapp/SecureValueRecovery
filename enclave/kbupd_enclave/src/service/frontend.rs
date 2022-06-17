@@ -87,11 +87,9 @@ pub struct PendingClientRequest {
 
 impl FrontendState {
     pub fn init(request: StartFrontendRequest) -> Self {
-        let ias_version = request.config.ias_version;
-
         let mut state = Self {
             config:          request.config,
-            replicas:        PeerManager::new(NODE_TYPE, ias_version),
+            replicas:        PeerManager::new(NODE_TYPE),
             partitions:      Default::default(),
             key_ranges:      Default::default(),
             last_request_id: Default::default(),
