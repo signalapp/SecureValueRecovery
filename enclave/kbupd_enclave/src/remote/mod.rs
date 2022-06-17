@@ -863,13 +863,13 @@ fn validate_ias_report(
             // > potential risk of an attack on these platforms and whether the attesting enclave
             // > employs adequate software hardening to mitigate the risk.
             //
-            // We have, indeed, applied software mitigations for INTEL-SA-00334, and can consider
-            // SW_HARDENING_NEEDED an acceptable status as long as the only named advisory is the
-            // one we've already mitigated.
+            // We have, indeed, applied software mitigations for INTEL-SA-00334 and INTEL-SA-00615,
+            // and can consider SW_HARDENING_NEEDED an acceptable status as long as the only named
+            // advisories are the ones we've already mitigated.
             //
             // The check for INTEL-SA-00334 was introduced in IASv4, and should never appear under
             // IASv3.
-            if ias_version < 4 || body.advisoryIDs != vec![String::from("INTEL-SA-00334")] {
+            if ias_version < 4 || body.advisoryIDs.iter().any(|advisory_id| !is_expected_advisory_id(advisory_id)) {
                 return Err(AttestationVerificationError::AttestationError(body.isvEnclaveQuoteStatus));
             }
         }
@@ -920,6 +920,13 @@ fn validate_ias_report(
         .verify_signature(&webpki::RSA_PKCS1_2048_8192_SHA256, &ias_report.body, &ias_report.signature)
         .map_err(AttestationVerificationError::InvalidSignature)?;
     Ok(AttestationParameters { unix_timestamp_seconds })
+}
+
+fn is_expected_advisory_id(advisory_id: &String) -> bool {
+    match advisory_id.as_str() {
+        "INTEL-SA-00334" | "INTEL-SA-00615" => true,
+        _ => false
+    }
 }
 
 #[allow(non_snake_case)]
