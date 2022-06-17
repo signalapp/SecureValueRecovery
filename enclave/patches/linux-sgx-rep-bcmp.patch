@@ -1,0 +1,27 @@
+--- a/sdk/tlibc/string/bcmp.c	2022-06-14 19:34:27.000000000 -0600
++++ b/sdk/tlibc/string/bcmp.c	2019-11-11 22:55:35.000000000 -0700
+@@ -31,13 +31,21 @@
+ 
+ #include <string.h>
+ 
+-extern int _bcmp(const void *b1, const void *b2, size_t length);
+ /*
+  * bcmp -- vax cmpc3 instruction
+  */
+ int
+ bcmp(const void *b1, const void *b2, size_t length)
+ {
+-    return _bcmp(b1, b2, length);
+-}
++    char *p1, *p2;
+ 
++    if (length == 0)
++        return (0);
++    p1 = (char *)b1;
++    p2 = (char *)b2;
++    do
++        if (*p1++ != *p2++)
++            return (1);
++    while (--length);
++    return (0);
++}

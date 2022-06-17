@@ -51,7 +51,7 @@ production, provide the Intel-whitelisted signing key as
 - git
 - devscripts/debhelper/fakeroot
 - rust 1.37.0 toolchain from rustup
-- [Intel SGX SDK v2.7.1 SDK](https://github.com/intel/linux-sgx/tree/sgx_2.7.1) build dependencies
+- [Intel SGX SDK v2.17 SDK](https://github.com/intel/linux-sgx/tree/sgx_2.17) build dependencies
 
 `````
 $ make -C <repository_root>/enclave debuild install
@@ -64,7 +64,7 @@ Builds](https://wiki.debian.org/ReproducibleBuilds) project. While building a de
 package, `debuild` will record the names and versions of all detected build dependencies
 into a *.buildinfo file, for future reproducibility debugging.
 
-The `debuild` target also builds parts needed from the Intel SGX SDK v2.7.1 after cloning it
+The `debuild` target also builds parts needed from the Intel SGX SDK v2.17 after cloning it
 from github.
 
 The `install` target copies the enclave to `service/kbupd/res/enclave/`, which should
@@ -92,7 +92,7 @@ Docker](#building-reproducibly-with-docker) to produce a release-mode enclave.
 - clang
 - git
 - rust 1.37.0 toolchain from rustup
-- [Intel SGX SDK v2.7.1 SDK](https://github.com/intel/linux-sgx/tree/sgx_2.7.1) build dependencies
+- [Intel SGX SDK v2.17 SDK](https://github.com/intel/linux-sgx/tree/sgx_2.17) build dependencies
 
 `````
 $ make -C <repository_root>/enclave all install
@@ -136,8 +136,8 @@ $ make -C <repository_root>/service all
 ## Running the service
 
 ### Runtime requirements:
-- libsgx-enclave-common >= 2.7.101 [from source](https://github.com/intel/linux-sgx/tree/master#install-the-intelr-sgx-psw) or [prebuilt](https://download.01.org/intel-sgx/sgx_repo/ubuntu/pool/main/libs/libsgx-enclave-common/)
-- linux-sgx-driver >= 2.6.0 [from source](https://github.com/intel/linux-sgx-driver) or [prebuilt](https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu18.04-server/)
+- libsgx-enclave-common >= 2.17.100.3 [from source](https://github.com/intel/linux-sgx/tree/master#install-the-intelr-sgx-psw) or [prebuilt](https://download.01.org/intel-sgx/sgx_repo/ubuntu/pool/main/libs/libsgx-enclave-common/)
+- linux-sgx-driver >= 2.17 [from source](https://github.com/intel/linux-sgx-driver) or [prebuilt](https://download.01.org/intel-sgx/sgx-linux/2.17/distro/ubuntu18.04-server/)
 - libssl1.1 (OpenSSL)
 - libseccomp2
 - libprotobuf10
