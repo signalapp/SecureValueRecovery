@@ -4,14 +4,14 @@ Binary: kbupd-enclave
 Architecture: amd64
 Version: 1.0
 Checksums-Md5:
- ba23fd0b25f3204da0cf3ba59ed7c54b 592228 kbupd-enclave_1.0_amd64.deb
+ b233f39f7590405540fc68e64b33f3fb 594712 kbupd-enclave_1.0_amd64.deb
 Checksums-Sha1:
- 51130f444f5a0c61289975ba10cb27d60e7301b6 592228 kbupd-enclave_1.0_amd64.deb
+ b198b22a2e76aad942e942fd002aaeedb628161d 594712 kbupd-enclave_1.0_amd64.deb
 Checksums-Sha256:
- 9b3b543c52e23008f2e56151b6cb2db89dc14c06921132c7545993ce10709f2d 592228 kbupd-enclave_1.0_amd64.deb
+ 693aa9cd363bff0dd607db714884dae5c53122095dc6d393456a93d4fdb86d9e 594712 kbupd-enclave_1.0_amd64.deb
 Build-Origin: Debian
 Build-Architecture: amd64
-Build-Date: Mon, 03 Jan 2022 23:24:02 +0000
+Build-Date: Mon, 20 Jun 2022 18:47:03 +0000
 Installed-Build-Depends:
  autoconf (= 2.69-11),
  automake (= 1:1.16.1-4),
