@@ -648,7 +648,7 @@ checksum = "b8b7a7c0c47db5545ed3fef7468ee7bb5b74691498139e4b3f6a20685dc6dd8e"
 
 [[package]]
 name = "kbupd"
-version = "1.0.151"
+version = "1.0.152"
 dependencies = [
  "base64",
  "byteorder",
