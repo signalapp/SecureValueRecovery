@@ -161,6 +161,7 @@ impl FrontendService {
                     pending_request_ttl: util::duration::as_ticks(pending_request_ttl, timer_tick_interval),
                     pending_request_count: enclave_config.pendingRequestCount,
                     max_backup_data_length: enclave_config.maxBackupDataLength,
+                    ias_version: 4
                 };
 
                 let mut partition_configs = Vec::new();

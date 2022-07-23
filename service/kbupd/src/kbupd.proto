@@ -109,6 +109,7 @@ message EnclaveFrontendConfig {
   required uint32 pending_request_count     = 5;
   required uint32 pending_request_ttl       = 6;
   required uint32 max_backup_data_length    = 7;
+  required uint32 ias_version               = 8;
 }
 
 message SourcePartitionConfig {
