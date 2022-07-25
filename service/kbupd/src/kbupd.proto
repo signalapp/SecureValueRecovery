@@ -109,6 +109,8 @@ message EnclaveFrontendConfig {
   required uint32 pending_request_count     = 5;
   required uint32 pending_request_ttl       = 6;
   required uint32 max_backup_data_length    = 7;
+  // ias_version can be removed entirely once enclave ee19f1965b1eefa3dc4204eb70c04f397755f771b8c1909d080c04dad2a6a9ba
+  // has been retired.
   required uint32 ias_version               = 8;
 }
 
