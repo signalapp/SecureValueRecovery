@@ -8,7 +8,7 @@ resourcedir = ../service/kbupd/res
 RUSTC ?= rustc
 CARGO ?= cargo
 RUSTUP ?= rustup
-BINDGEN ?= $(builddir)/bin/bindgen-0.51.1
+BINDGEN ?= bindgen
 DOCKER ?= docker
 INSTALL ?= install
 
@@ -16,11 +16,7 @@ RUSTUP_TOOLCHAIN_UNSTABLE ?= nightly
 
 FEATURES ?=
 
-PROST_GIT_REV      = 9c5d46e72acc07a9c4305ffba79d253e0f603a27
-RING_GIT_REV       = 323204d618ea9d339e40b7bf6f0517051a44e28a
-SERDE_JSON_GIT_REV = d79b0c67f62e168d4872bb8694377ffd97b8949f
-SNOW_GIT_REV       = d8d00a37c8e39b2557d23a26cc4f722595b4f2d9
-WEBPKI_GIT_REV     = 3c92126b95c6ffbe20f3c8f420f4e4fe804954bd
+include docker/deps.mk
 
 INSTALL_PROGRAM = $(INSTALL) -m 755 $(INSTALL_PROGRAM_FLAGS)
 INSTALL_DATA    = $(INSTALL) -m 644
@@ -45,18 +41,6 @@ export CARGO_HOME = $(CURDIR)/$(builddir)/cargo
 
 TEST_CFLAGS += $(CFLAGS) \
 	-DUNIT_TESTING -fsanitize=address -static-libasan -fsanitize=undefined -static-libubsan
-
-##
-## rust
-##
-
-RUST_DEPS_DIR = $(builddir)/rust_deps
-RUST_DEPS_DIRS = \
-	$(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV) \
-	$(RUST_DEPS_DIR)/ring-$(RING_GIT_REV) \
-	$(RUST_DEPS_DIR)/serde_json-$(SERDE_JSON_GIT_REV) \
-	$(RUST_DEPS_DIR)/snow-$(SNOW_GIT_REV) \
-	$(RUST_DEPS_DIR)/webpki-$(WEBPKI_GIT_REV)
 
 ##
 ## sgxsd
@@ -112,15 +96,15 @@ unsigned: $(builddir)/$(KBUPD_ENCLAVE_NAME).unsigned.so
 
 llvm-bolt: $(LLVM_BOLT)
 
-doc: $(RUST_DEPS_DIRS)
+doc:
 	env -u CFLAGS RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
 		$(CARGO) doc --package=kbupd_enclave --release --document-private-items --lib
 
-check: $(RUST_DEPS_DIRS)
+check:
 	$(CARGO) check --all --exclude=kbupd_enclave
 	$(CARGO) check --manifest-path=kbupd_enclave/Cargo.toml --lib --tests --features test,$(if $(FEATURES),$(FEATURES))
 
-test: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
+test: $(TEST_SGXSD_TARGET)
 	ASAN_OPTIONS="detect_leaks=0:$(ASAN_OPTIONS)" ./$(TEST_SGXSD_TARGET)
 	env -u CFLAGS \
 	RUST_BACKTRACE=full \
@@ -131,7 +115,7 @@ test: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 	RUST_TEST_THREADS=1 \
 		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --features test,$(if $(FEATURES),$(FEATURES)) -- --test-threads=1
 
-test-asan: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
+test-asan: $(TEST_SGXSD_TARGET)
 	./$(TEST_SGXSD_TARGET)
 	env -u CFLAGS \
 	RUST_BACKTRACE=full \
@@ -148,14 +132,14 @@ test-asan: $(TEST_SGXSD_TARGET) $(RUST_DEPS_DIRS)
 		$(RUSTUP) run $(RUSTUP_TOOLCHAIN_UNSTABLE) \
 		$(CARGO) test --manifest-path=kbupd_enclave/Cargo.toml --lib --bins --tests --features test,$(if $(FEATURES),$(FEATURES)) -- --test-threads=1
 
-clippy: $(RUST_DEPS_DIRS)
+clippy:
 	$(CARGO) clippy --all --exclude=kbupd_enclave
 	$(CARGO) clippy --manifest-path=kbupd_enclave/Cargo.toml --features test,$(if $(FEATURES),$(FEATURES))
 
-benchmark: $(RUST_DEPS_DIRS)
+benchmark:
 	$(CARGO) bench --all
 
-bindgen: $(BINDGEN) | $(SGX_INCLUDEDIR)
+bindgen:
 	$(BINDGEN) --no-include-path-detection -o sgx_ffi/src/bindgen_wrapper.rs \
 		--rust-target 1.33 --use-core --ctypes-prefix libc --with-derive-default --with-derive-eq --no-prepend-enum-name \
 		sgx_ffi/src/bindgen_wrapper.h -- \
@@ -220,12 +204,10 @@ clean:
 		debian/kbupd-enclave.substvars \
 		debian/files \
 		debian/*.deb
-	-rm -r	$(targetdir)/release/ \
+	-rm -rf $(targetdir)/release/ \
 		$(targetdir)/debug/ \
 		$(builddir)/bolt/build \
 		$(builddir)/cargo/bin \
-		$(RUST_DEPS_DIR) \
-		$(SGX_SDK_SOURCE_DIR) \
 		debian/.debhelper/ \
 		debian/kbupd-enclave/
 	-$(CARGO) clean --release
@@ -235,53 +217,22 @@ clean:
 .PHONY: FORCE
 FORCE:
 
-$(targetdir)/debug/prostc: FORCE $(RUST_DEPS_DIRS)
+$(targetdir)/debug/prostc: FORCE
 	env -u CFLAGS $(CARGO) build --manifest-path=prostc/Cargo.toml --bin=prostc
-$(targetdir)/release/lib%.a: FORCE $(RUST_DEPS_DIRS)
+$(targetdir)/release/lib%.a: FORCE
 	env CFLAGS="-mno-red-zone" RUSTFLAGS="$(ENCLAVE_RUSTFLAGS)" \
 		$(CARGO) build -vv --release --manifest-path=$*/Cargo.toml --lib $(if $(FEATURES),--features $(FEATURES))
-
-$(RUST_DEPS_DIR)/prost-$(PROST_GIT_REV):
-	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/signalapp/prost/archive/$(PROST_GIT_REV).tar.gz \
-		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
-	mv $(RUST_DEPS_DIR)/unpack/prost-$(PROST_GIT_REV) $(RUST_DEPS_DIR)/
-
-$(RUST_DEPS_DIR)/ring-$(RING_GIT_REV):
-	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/signalapp/ring/archive/$(RING_GIT_REV).tar.gz \
-		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
-	mkdir $(RUST_DEPS_DIR)/unpack/ring-$(RING_GIT_REV)/.git # hack to get ring to generate asm in its build.rs
-	mv $(RUST_DEPS_DIR)/unpack/ring-$(RING_GIT_REV) $(RUST_DEPS_DIR)/
-
-$(RUST_DEPS_DIR)/serde_json-$(SERDE_JSON_GIT_REV):
-	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/signalapp/serde_json/archive/$(SERDE_JSON_GIT_REV).tar.gz \
-		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
-	mv $(RUST_DEPS_DIR)/unpack/serde_json-$(SERDE_JSON_GIT_REV) $(RUST_DEPS_DIR)/
-
-$(RUST_DEPS_DIR)/snow-$(SNOW_GIT_REV):
-	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/signalapp/snow/archive/$(SNOW_GIT_REV).tar.gz \
-		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
-	mv $(RUST_DEPS_DIR)/unpack/snow-$(SNOW_GIT_REV) $(RUST_DEPS_DIR)/
-
-$(RUST_DEPS_DIR)/webpki-$(WEBPKI_GIT_REV):
-	mkdir -p $(RUST_DEPS_DIR)/unpack
-	wget -O - https://github.com/briansmith/webpki/archive/$(WEBPKI_GIT_REV).tar.gz \
-		| tar -xzf - -C $(RUST_DEPS_DIR)/unpack/
-	mv $(RUST_DEPS_DIR)/unpack/webpki-$(WEBPKI_GIT_REV) $(RUST_DEPS_DIR)/
 
 ## sgxsd
 
 $(BEARSSL_OBJECTS): $(wildcard $(includedir)/bearssl/%.h)
-$(SGXSD_OBJECTS): $(builddir)/%.o: %.c $(includedir)/sgxsd.h $(includedir)/sgxsd-enclave.h | $(SGX_INCLUDEDIR)
+$(SGXSD_OBJECTS): $(builddir)/%.o: %.c $(includedir)/sgxsd.h $(includedir)/sgxsd-enclave.h
 	@mkdir -p $(dir $@)
 	$(CC) -o $@ $(CFLAGS) $(ENCLAVE_CFLAGS) -c $<
 
 $(TEST_SGXSD_TARGET): $(TEST_SGXSD_OBJECTS)
 	$(CC) -o $@ $(TEST_SGXSD_OBJECTS) $(TEST_LDFLAGS)
-$(TEST_SGXSD_OBJECTS): $(builddir)/test/%.o: %.c $(includedir)/sgxsd.h $(includedir)/sgxsd-enclave.h $(includedir)/cmockery.h | $(SGX_INCLUDEDIR)
+$(TEST_SGXSD_OBJECTS): $(builddir)/test/%.o: %.c $(includedir)/sgxsd.h $(includedir)/sgxsd-enclave.h $(includedir)/cmockery.h
 	@mkdir -p $(dir $@)
 	$(CC) -o $@ $(CFLAGS) $(TEST_CFLAGS) -c $<
 
@@ -308,13 +259,21 @@ MAKETARGET ?= bindgen debuild sign
 
 docker: DOCKER_EXTRA=$(shell [ -L build ] && P=$$(readlink build) && echo -v $$P/:$$P )
 docker:
-	$(DOCKER) build --build-arg UID=$$(id -u) --build-arg GID=$$(id -g) \
-	  -t kbupd-enclave-builder ./docker
-	$(DOCKER) run -it --rm --user $$(id -u):$$(id -g) --cap-add SYS_PTRACE \
+	$(DOCKER) build -t kbupd-enclave-builder ./docker
+	$(DOCKER) run --rm -it --user $$(id -u):$$(id -g) --cap-add SYS_PTRACE \
 		-v `pwd`/:/home/rust/src $(DOCKER_EXTRA) \
 		--env MAKEFLAGS="$(MAKEFLAGS)" \
 		kbupd-enclave-builder \
 		sh -c "cd src; make $(MAKETARGET)"
+
+docker_%: DOCKER_EXTRA=$(shell [ -L build ] && P=$$(readlink build) && echo -v $$P/:$$P )
+docker_%:
+	$(DOCKER) build -t kbupd-enclave-builder ./docker
+	$(DOCKER) run --rm --user $$(id -u):$$(id -g) --cap-add SYS_PTRACE \
+		-v `pwd`/:/home/rust/src $(DOCKER_EXTRA) \
+		--env MAKEFLAGS="$*" \
+		kbupd-enclave-builder \
+		sh -c "set -x; cd src && mkdir -p build && ln -s /home/rust/rust_deps build/rust_deps && make $*"
 
 .PHONY: debuild
 debuild:

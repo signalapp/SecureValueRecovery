@@ -1,0 +1,36 @@
+name: Docker Caching
+description: Cache a docker image
+
+inputs:
+  dockerdir:
+    required: true
+    type: string
+  imagename:
+    required: true
+    type: string
+
+runs:
+  using: composite
+
+  steps:
+    - name: Check for cached docker image
+      id: cached-docker
+      uses: actions/cache@v3
+      with:
+        path: dockerimage-${{ inputs.imagename }}.tar
+        key: ${{ runner.os }}-dockerimagetar-${{ inputs.imagename }}-${{ hashFiles(format('{0}/**', inputs.dockerdir)) }}
+        restore-keys: |
+          ${{ runner.os }}-dockerimagetar-${{ inputs.imagename }}-
+
+    - name: Load docker image
+      run: docker load --input dockerimage-${{ inputs.imagename }}.tar || true
+      shell: bash
+
+    - name: Build/label docker image
+      run: docker build -t ${{ inputs.imagename }} ${{ inputs.dockerdir }} --cache-from ${{ inputs.imagename }}:latest
+      shell: bash
+
+    - name: Save docker image
+      if: steps.cached-docker.outputs.cache-hit != 'true'
+      run: docker save --output dockerimage-${{ inputs.imagename }}.tar ${{ inputs.imagename }}:latest $(docker history -q ${{ inputs.imagename }}:latest | grep -v missing)
+      shell: bash

@@ -12,6 +12,19 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v1
-      - uses: ./.github/actions/enclave
+      - name: Docker cache
+        uses: ./.github/workflows/dockercache
         with:
-          target: check clippy test
+          dockerdir: enclave/docker
+          imagename: kbupd-enclave-builder
+      - run: make docker_"check clippy test"
+        working-directory: enclave
+  make_docker:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker cache
+        uses: ./.github/workflows/dockercache
+        with:
+          dockerdir: enclave/docker
+          imagename: kbupd-enclave-builder
