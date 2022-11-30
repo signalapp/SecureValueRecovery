@@ -17,6 +17,7 @@ RUN    apt update \
     && apt-key add /tmp/docker/linux-sgx.gpg \
     && apt-add-repository "deb https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main" \
     && apt install -y \
+           libsgx-enclave-common=2.17.100.3-bionic1 \
            libsgx-enclave-common-dev=2.17.100.3-bionic1 \
            libsgx-uae-service=2.17.100.3-bionic1 \
            libsgx-urts=2.17.100.3-bionic1 \
