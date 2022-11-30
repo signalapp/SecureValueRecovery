@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM amd64/ubuntu:bionic
 
 COPY linux-sgx.gpg /tmp/docker/
 

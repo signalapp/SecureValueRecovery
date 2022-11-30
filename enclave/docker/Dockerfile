@@ -1,4 +1,4 @@
-FROM debian:buster-20191014
+FROM amd64/debian:buster-20191014
 
 COPY apt.conf sources.list /etc/apt/
 
