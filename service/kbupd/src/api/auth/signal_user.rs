@@ -16,6 +16,9 @@ use ring::hmac;
 use super::*;
 use crate::util;
 
+// 30 days
+const AUTHENTICATION_TOKEN_MAX_AGE_SECONDS: u64 = 30 * 86400;
+
 #[derive(Clone, Debug)]
 pub struct SignalUser {
     pub username: String,
@@ -93,7 +96,7 @@ impl SignalUserAuthenticator {
             .duration_since(SystemTime::UNIX_EPOCH)
             .map_err(|_| SignalUserAuthenticationError::ExpiredAuthorizationToken)?;
         let distance: Duration = our_time.checked_sub(token_time).unwrap_or_else(|| token_time - our_time);
-        Ok(distance.as_secs() < 86400)
+        Ok(distance.as_secs() < AUTHENTICATION_TOKEN_MAX_AGE_SECONDS)
     }
 
     fn is_valid_signature(&self, data: &str, signature: &str) -> Result<bool, SignalUserAuthenticationError> {
