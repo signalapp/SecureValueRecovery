@@ -9,7 +9,7 @@ on:
 
 jobs:
   make_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - name: Docker cache
@@ -20,7 +20,7 @@ jobs:
       - run: make docker_"check clippy test"
         working-directory: enclave
   make_docker:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - name: Docker cache

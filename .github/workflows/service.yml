@@ -7,14 +7,14 @@ on:
 
 jobs:
   make_all:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - uses: ./.github/actions/service
         with:
           target: all
   make_test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - uses: ./.github/actions/service
