@@ -1,3 +1,9 @@
+# Deprecation notice
+
+This version of the Secure Value Recovery service has been retired and is no longer supported.
+Please see the [SVR2](https://github.com/signalapp/SecureValueRecovery2) repository for the
+current version of the Secure Value Recovery service.
+
 # Secure Value Recovery Service (Beta)
 
 ## Building the SGX enclave (optional)
